@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>VPD Control</title>
+<style>
+:root {
+  --bg:      #111827;
+  --surface: #1f2937;
+  --border:  #374151;
+  --text:    #f3f4f6;
+  --muted:   #9ca3af;
+  --green:   #22c55e;
+  --yellow:  #eab308;
+  --red:     #ef4444;
+  --blue:    #3b82f6;
+  --accent:  #1d4ed8;
+  --radius:  10px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  min-height: 100vh;
+}
+
+/* ─── Header ──────────────────────────────────────────────────────────────── */
+header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: .75rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky; top: 0; z-index: 10;
+}
+.logo { font-size: 1.1rem; font-weight: 700; letter-spacing: -.02em; }
+.logo span { color: var(--green); }
+select.grow-mode {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: .35rem .7rem;
+  border-radius: 6px;
+  font-size: .85rem;
+  cursor: pointer;
+}
+
+/* ─── Layout ──────────────────────────────────────────────────────────────── */
+main { max-width: 880px; margin: auto; padding: 1rem; }
+section { margin-bottom: 1.25rem; }
+.section-title {
+  font-size: .7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--muted);
+  margin-bottom: .6rem;
+}
+
+/* ─── Metric cards ────────────────────────────────────────────────────────── */
+.metrics { display: grid; grid-template-columns: repeat(5, 1fr); gap: .75rem; }
+.metric {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  position: relative;
+  overflow: hidden;
+}
+.metric::after {
+  content: '';
+  position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: var(--c, var(--muted));
+  border-radius: var(--radius) 0 0 var(--radius);
+}
+.metric.green { --c: var(--green); }
+.metric.yellow { --c: var(--yellow); }
+.metric.red { --c: var(--red); }
+.metric.blue { --c: var(--blue); }
+.metric-label { font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: .35rem; }
+.metric-value { font-size: 2rem; font-weight: 700; line-height: 1; margin-bottom: .4rem; }
+.metric-value.green { color: var(--green); }
+.metric-value.yellow { color: var(--yellow); }
+.metric-value.red { color: var(--red); }
+.metric-value.blue { color: var(--blue); }
+.metric-badge {
+  display: inline-block;
+  font-size: .65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  padding: .15rem .45rem;
+  border-radius: 20px;
+}
+.metric-badge.green { background: #22c55e18; color: var(--green); }
+.metric-badge.yellow { background: #eab30818; color: var(--yellow); }
+.metric-badge.red { background: #ef444418; color: var(--red); }
+.metric-badge.blue { background: #3b82f618; color: var(--blue); }
+
+/* ─── Relay grid ──────────────────────────────────────────────────────────── */
+.relay-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+.relay-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: .85rem;
+  display: flex;
+  flex-direction: column;
+  gap: .6rem;
+}
+.relay-head { display: flex; align-items: center; justify-content: space-between; }
+.relay-name { font-weight: 600; font-size: .88rem; }
+.relay-status {
+  font-size: .68rem; font-weight: 700; letter-spacing: .05em;
+  padding: .18rem .55rem; border-radius: 20px;
+  background: #1f2937; color: var(--muted);
+  border: 1px solid var(--border);
+  transition: all .3s;
+}
+.relay-status.on { background: #14532d; color: var(--green); border-color: #166534; }
+
+/* Mode tabs */
+.tabs {
+  display: flex;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+}
+.tab {
+  flex: 1; padding: .26rem .1rem;
+  border: none; border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  font-size: .72rem; font-weight: 600;
+  cursor: pointer; text-align: center;
+  transition: all .15s;
+}
+.tab:hover { color: var(--text); }
+.tab.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px #0004; }
+
+/* Active control body */
+.ctrl-body { min-height: 2rem; }
+
+/* Manual buttons */
+.manual-btns { display: flex; gap: .5rem; }
+.btn {
+  flex: 1; padding: .45rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-size: .85rem; font-weight: 700;
+  cursor: pointer; transition: all .15s;
+}
+.btn-on { border-color: var(--green); color: var(--green); }
+.btn-on:hover, .btn-on.active { background: var(--green); color: #000; }
+.btn-off { border-color: var(--red); color: var(--red); }
+.btn-off:hover, .btn-off.active { background: var(--red); color: #fff; }
+
+/* Timer inputs */
+.timer-body { display: flex; flex-direction: column; gap: .4rem; }
+.timer-row { display: flex; align-items: center; gap: .5rem; font-size: .8rem; }
+.timer-row label { color: var(--muted); min-width: 46px; }
+.timer-row input[type=number] {
+  background: var(--bg); border: 1px solid var(--border);
+  color: var(--text); padding: .28rem .45rem;
+  border-radius: 5px; width: 64px; font-size: .82rem;
+  -moz-appearance: textfield;
+}
+.timer-row input[type=number]::-webkit-outer-spin-button,
+.timer-row input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
+.timer-row span { color: var(--muted); font-size: .74rem; }
+
+.btn-apply {
+  align-self: flex-start;
+  background: var(--accent); border: none; color: #fff;
+  padding: .3rem .85rem; border-radius: 5px;
+  font-size: .78rem; font-weight: 600; cursor: pointer;
+}
+.btn-apply:hover { background: #2563eb; }
+
+.auto-note { color: var(--muted); font-size: .78rem; line-height: 1.5; }
+
+/* Schedule section */
+.sched-body { display: flex; flex-direction: column; gap: .4rem; }
+.sched-slot { display: flex; align-items: center; gap: .28rem; }
+.sched-slot input[type=number] {
+  background: var(--bg); border: 1px solid var(--border);
+  color: var(--text); padding: .28rem .3rem;
+  border-radius: 5px; width: 44px; font-size: .82rem;
+  text-align: center; -moz-appearance: textfield;
+}
+.sched-slot input[type=number]::-webkit-outer-spin-button,
+.sched-slot input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
+.sched-sep  { color: var(--muted); font-size: .8rem; line-height: 1; }
+.sched-arrow { color: var(--border); font-size: .78rem; padding: 0 .1rem; }
+.sched-remove {
+  margin-left: auto; background: transparent;
+  border: 1px solid var(--border); color: var(--muted);
+  border-radius: 4px; width: 20px; height: 20px;
+  cursor: pointer; font-size: .78rem; line-height: 1;
+  padding: 0; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.sched-remove:hover { border-color: var(--red); color: var(--red); }
+.sched-add {
+  align-self: flex-start; background: transparent;
+  border: 1px dashed var(--border); color: var(--muted);
+  border-radius: 5px; padding: .22rem .6rem;
+  font-size: .73rem; cursor: pointer;
+}
+.sched-add:hover { border-color: var(--blue); color: var(--blue); }
+.day-btns { display: flex; gap: .22rem; }
+.day-btn {
+  flex: 1; padding: .24rem .05rem;
+  border: 1px solid var(--border); border-radius: 4px;
+  background: transparent; color: var(--muted);
+  font-size: .68rem; font-weight: 700;
+  cursor: pointer; text-align: center; transition: all .15s;
+}
+.day-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* ─── Grow-stage confirmation modal ──────────────────────────────────────── */
+.modal-overlay {
+  display: none; position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,.75);
+  align-items: center; justify-content: center;
+}
+.modal-overlay.visible { display: flex; }
+.modal {
+  background: var(--surface); border: 1px solid #92400e;
+  border-radius: 12px; padding: 1.5rem;
+  max-width: 340px; width: 92%;
+  display: flex; flex-direction: column; gap: .9rem;
+  box-shadow: 0 24px 64px rgba(0,0,0,.6);
+}
+.modal-warn { font-size: 1.8rem; text-align: center; }
+.modal-title { font-size: 1rem; font-weight: 700; text-align: center; color: var(--yellow); }
+.modal-body  { font-size: .83rem; color: var(--muted); line-height: 1.6; text-align: center; }
+.modal-body strong { color: var(--text); }
+.modal-actions { display: flex; gap: .6rem; margin-top: .2rem; }
+.modal-cancel  {
+  flex: 1; padding: .5rem; border: 1px solid var(--border);
+  border-radius: 6px; background: transparent; color: var(--text);
+  font-size: .85rem; font-weight: 600; cursor: pointer;
+}
+.modal-cancel:hover { background: var(--bg); }
+.modal-confirm {
+  flex: 1; padding: .5rem; border: none;
+  border-radius: 6px; background: var(--red); color: #fff;
+  font-size: .85rem; font-weight: 700; cursor: pointer;
+}
+.modal-confirm:hover { background: #dc2626; }
+
+/* ─── Chart ───────────────────────────────────────────────────────────────── */
+.chart-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+}
+.chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: .75rem;
+}
+.chart-title { font-weight: 600; font-size: .95rem; }
+.range-group { display: flex; gap: .3rem; }
+.range-btn {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: .28rem .6rem;
+  border-radius: 5px;
+  font-size: .75rem;
+  cursor: pointer;
+  transition: all .15s;
+}
+.range-btn:hover { border-color: var(--blue); color: var(--text); }
+.range-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.chart-wrap { position: relative; height: 260px; }
+canvas { width: 100% !important; height: 100% !important; }
+
+/* ─── Status bar ──────────────────────────────────────────────────────────── */
+.status-bar {
+  text-align: center;
+  font-size: .72rem;
+  color: var(--muted);
+  padding: .6rem 0 .2rem;
+}
+.dot-conn { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--red); margin-right: .3rem; vertical-align: middle; }
+.dot-conn.ok { background: var(--green); }
+
+/* ─── Day / Night badge ───────────────────────────────────────────────────── */
+.phase-badge {
+  display: inline-flex; align-items: center; gap: .35rem;
+  font-size: .75rem; font-weight: 600;
+  padding: .25rem .6rem; border-radius: 20px;
+  border: 1px solid transparent;
+}
+.phase-badge.day   { background: #fef08a18; border-color: #eab308; color: #eab308; }
+.phase-badge.night { background: #818cf818; border-color: #818cf8; color: #818cf8; }
+
+/* ─── Alert banner ────────────────────────────────────────────────────────── */
+.alert-banner {
+  background: #7f1d1d;
+  border-bottom: 1px solid #ef4444;
+  padding: .55rem 1rem;
+  display: none;
+  align-items: flex-start;
+  gap: .6rem;
+}
+.alert-banner.visible { display: flex; }
+.alert-icon { font-size: 1rem; flex-shrink: 0; margin-top: .05rem; }
+.alert-body { flex: 1; }
+.alert-title { font-size: .8rem; font-weight: 700; color: #fca5a5; }
+.alert-msg { font-size: .75rem; color: #fecaca; margin-top: .15rem; }
+.alert-dismiss {
+  background: none; border: none; color: #fca5a5;
+  font-size: 1.1rem; cursor: pointer; padding: 0 .2rem; flex-shrink: 0;
+}
+
+/* ─── Light schedule info (in relay card) ─────────────────────────────────── */
+.sched-info { font-size: .78rem; color: var(--muted); display: flex; flex-direction: column; gap: .25rem; }
+.sched-row { display: flex; align-items: center; gap: .4rem; }
+.sched-bar-wrap { flex: 1; background: var(--bg); border-radius: 3px; height: 4px; overflow: hidden; }
+.sched-bar { height: 100%; border-radius: 3px; background: var(--green); transition: width .5s; }
+.sched-bar.night { background: #818cf8; }
+
+/* ─── Responsive ──────────────────────────────────────────────────────────── */
+/* ─── Extra relay visibility toggle ─────────────────────────────────────────── */
+.extra-toggle {
+  display: inline-flex; align-items: center; gap: .4rem;
+  float: right; font-size: .7rem; font-weight: 400; color: var(--muted);
+  text-transform: none; letter-spacing: 0;
+}
+.extra-toggle input[type=checkbox] { cursor: pointer; accent-color: var(--blue); }
+
+@media (max-width: 780px) {
+  .metrics { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 620px) {
+  .relay-grid { grid-template-columns: 1fr; }
+  .metrics { grid-template-columns: repeat(2, 1fr); gap: .5rem; }
+  .metric-value { font-size: 1.6rem; }
+}
+@media (max-width: 340px) {
+  .metrics { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="modal-overlay" id="stageModal">
+  <div class="modal">
+    <div class="modal-warn">⚠️</div>
+    <div class="modal-title">Change Grow Stage?</div>
+    <div class="modal-body">
+      You are changing from <strong id="mFromStage"></strong> to
+      <strong id="mToStage"></strong>.<br><br>
+      This <strong>cannot be undone</strong>. Wrong timing — especially
+      switching to Flowering early — can permanently harm your plants.
+      Only proceed if you are certain.
+    </div>
+    <div class="modal-actions">
+      <button class="modal-cancel"  onclick="cancelStageChange()">Cancel</button>
+      <button class="modal-confirm" onclick="confirmStageChange()" id="mConfirmBtn"></button>
+    </div>
+  </div>
+</div>
+
+<header>
+  <div class="logo">🌿 <span>VPD</span> Control</div>
+  <span class="phase-badge" id="phaseBadge" style="display:none"></span>
+  <select class="grow-mode" id="growMode" onchange="requestStageChange(parseInt(this.value))">
+    <option value="0">🌱 Seedling</option>
+    <option value="1">🍃 Vegetative</option>
+    <option value="2">🌸 Flowering</option>
+  </select>
+</header>
+
+<!-- Alert banner — shown only when active alerts exist -->
+<div class="alert-banner" id="alertBanner">
+  <span class="alert-icon">⚠️</span>
+  <div class="alert-body">
+    <div class="alert-title">Light Schedule Alert</div>
+    <div class="alert-msg" id="alertMsg"></div>
+  </div>
+  <button class="alert-dismiss" onclick="dismissAlert()" title="Dismiss">✕</button>
+</div>
+
+<main>
+
+  <!-- ─── Sensor metrics ───────────────────────────────────────────────────── -->
+  <section>
+    <div class="section-title">Environment</div>
+    <div class="metrics">
+      <div class="metric" id="card-temp">
+        <div class="metric-label">Temperature</div>
+        <div class="metric-value" id="val-temp">--</div>
+        <span class="metric-badge" id="badge-temp">--</span>
+      </div>
+      <div class="metric" id="card-hum">
+        <div class="metric-label">Humidity</div>
+        <div class="metric-value" id="val-hum">--</div>
+        <span class="metric-badge" id="badge-hum">--</span>
+      </div>
+      <div class="metric" id="card-vpd">
+        <div class="metric-label">VPD</div>
+        <div class="metric-value" id="val-vpd">--</div>
+        <span class="metric-badge" id="badge-vpd">--</span>
+      </div>
+      <div class="metric" id="card-soil">
+        <div class="metric-label">Soil Moisture</div>
+        <div class="metric-value" id="val-soil">--</div>
+        <span class="metric-badge" id="badge-soil">--</span>
+      </div>
+      <div class="metric" id="card-lights">
+        <div class="metric-label">Lights</div>
+        <div class="metric-value" id="val-lights">--</div>
+        <span class="metric-badge" id="badge-lights">--</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── History chart ───────────────────────────────────────────────────── -->
+  <section>
+    <div class="chart-card">
+      <div class="chart-header">
+        <span class="chart-title">History</span>
+        <div class="range-group">
+          <button class="range-btn" onclick="loadChart(6)"   id="rbtn-6">6h</button>
+          <button class="range-btn active" onclick="loadChart(24)"  id="rbtn-24">24h</button>
+          <button class="range-btn" onclick="loadChart(168)" id="rbtn-168">7d</button>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="histChart"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Relay controls ───────────────────────────────────────────────────── -->
+  <section>
+    <div class="section-title">Outputs
+      <label class="extra-toggle">
+        <span>Show Extra relay</span>
+        <input type="checkbox" id="showExtra" onchange="setExtraVisible(this.checked)">
+      </label>
+    </div>
+    <div class="relay-grid" id="relayGrid">
+      <!-- populated by JS -->
+    </div>
+  </section>
+
+  <div class="status-bar">
+    <span class="dot-conn" id="dot"></span>
+    <span id="statusText">Connecting…</span>
+  </div>
+
+</main>
+
+<!-- Chart.js + date adapter (requires internet) -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+
+<script>
+'use strict';
+
+// ─── State ────────────────────────────────────────────────────────────────────
+let ws         = null;
+let chart      = null;
+let chartHours = 24;
+let lastState  = null;
+const _cache   = {};   // relay id → last known relay state for instant UI updates
+let _confirmedStage = 0;   // grow stage — matches HTML default (Seedling); overridden by localStorage/server
+
+// ─── WebSocket ────────────────────────────────────────────────────────────────
+function connect() {
+  setStatus(false, 'Connecting…');
+  try {
+    ws = new WebSocket(`ws://${location.host}/ws`);
+  } catch(e) {
+    setTimeout(connect, 3000);
+    return;
+  }
+
+  ws.onopen = () => {
+    setStatus(true, 'Connected');
+    loadChart(chartHours);
+  };
+
+  ws.onclose = () => {
+    setStatus(false, 'Disconnected — retrying…');
+    ws = null;
+    setTimeout(connect, 3000);
+  };
+
+  ws.onerror = () => ws.close();
+
+  ws.onmessage = (e) => {
+    try {
+      const msg = JSON.parse(e.data);
+      if (msg.type === 'state') handleState(msg);
+    } catch(_) {}
+  };
+}
+
+function send(obj) {
+  if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj));
+}
+
+// ─── State update ─────────────────────────────────────────────────────────────
+function handleState(s) {
+  lastState = s;
+  updateMetrics(s);
+  updateSoil(s);
+  updateRelays(s.relays, s.lightSched);
+  try { localStorage.setItem('relayModes', JSON.stringify(s.relays.map(r => r.mode))); } catch(_) {}
+  updatePhaseBadge(s.lightSched);
+  updateAlerts(s.alerts || []);
+  _confirmedStage = s.growMode;
+  document.getElementById('growMode').value = String(s.growMode);
+  try { localStorage.setItem('growStage', String(s.growMode)); } catch(_) {}
+}
+
+// ─── Metrics ──────────────────────────────────────────────────────────────────
+function colorForValue(v, min, max, margin) {
+  if (v >= min && v <= max)                      return 'green';
+  if (v >= min - margin && v <= max + margin)    return 'yellow';
+  return 'red';
+}
+
+function updateMetrics(s) {
+  const p = s.profile;
+
+  const tempMargin = (p.tempMax - p.tempMin) * 0.3;
+  const humMargin  = (p.humMax  - p.humMin)  * 0.3;
+  const vpdMargin  = (p.vpdMax  - p.vpdMin)  * 0.3;
+
+  setMetric('temp', s.temp.toFixed(1) + '°C',
+            colorForValue(s.temp, p.tempMin, p.tempMax, tempMargin),
+            s.temp < p.tempMin ? 'Too Cold' : s.temp > p.tempMax ? 'Too Hot' : 'Optimal');
+
+  setMetric('hum', s.hum.toFixed(0) + '%',
+            colorForValue(s.hum, p.humMin, p.humMax, humMargin),
+            s.hum < p.humMin ? 'Too Dry' : s.hum > p.humMax ? 'Too Humid' : 'Optimal');
+
+  setMetric('vpd', s.vpd.toFixed(2) + ' kPa',
+            colorForValue(s.vpd, p.vpdMin, p.vpdMax, vpdMargin),
+            s.vpd < p.vpdMin ? 'Too Low' : s.vpd > p.vpdMax ? 'Too High' : 'Optimal');
+
+  const lightsOn = s.lightSched && s.lightSched.isOn;
+  setMetric('lights', lightsOn ? 'ON' : 'OFF',
+            lightsOn ? 'yellow' : 'blue',
+            lightsOn ? 'Day' : 'Night');
+}
+
+function setMetric(key, value, color, badge) {
+  const card  = document.getElementById('card-'  + key);
+  const val   = document.getElementById('val-'   + key);
+  const bdg   = document.getElementById('badge-' + key);
+  card.className  = 'metric ' + color;
+  val.className   = 'metric-value ' + color;
+  val.textContent = value;
+  bdg.className   = 'metric-badge ' + color;
+  bdg.textContent = badge;
+}
+
+// ─── Soil moisture ────────────────────────────────────────────────────────────
+function updateSoil(s) {
+  if (!s.soilValid) return;
+  const pct = s.soil;
+  let color, badge;
+  if      (pct < 20)              { color = 'red';    badge = 'Too Dry'; }
+  else if (pct < 40)              { color = 'yellow'; badge = 'Dry'; }
+  else if (pct <= 70)             { color = 'green';  badge = 'Optimal'; }
+  else if (pct <= 85)             { color = 'yellow'; badge = 'Moist'; }
+  else                            { color = 'red';    badge = 'Wet'; }
+  setMetric('soil', pct.toFixed(0) + '%', color, badge);
+}
+
+// ─── Extra relay visibility ───────────────────────────────────────────────────
+const EXTRA_ID = 7;
+
+function setExtraVisible(show) {
+  localStorage.setItem('extraVisible', show ? '1' : '0');
+  applyExtraVisibility();
+}
+
+function applyExtraVisibility() {
+  const show = localStorage.getItem('extraVisible') !== '0';
+  document.getElementById('showExtra').checked = show;
+  const card = document.getElementById('rcard-' + EXTRA_ID);
+  if (card) card.style.display = show ? '' : 'none';
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function fmtDuration(sec) {
+  if (!isFinite(sec) || sec <= 0) return '—';
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
+
+// ─── Phase badge (header) ─────────────────────────────────────────────────────
+function updatePhaseBadge(ls) {
+  const el = document.getElementById('phaseBadge');
+  if (!ls) { el.style.display = 'none'; return; }
+  el.style.display = 'inline-flex';
+  if (ls.onHours === 24) {
+    // Seedling 24/7
+    el.className = 'phase-badge day';
+    el.textContent = '☀️ 24/7';
+  } else if (ls.isOn) {
+    const rem = fmtDuration(ls.remSec);
+    el.className = 'phase-badge day';
+    el.textContent = `☀️ Day  ${rem}`;
+  } else {
+    const rem = fmtDuration(ls.remSec);
+    el.className = 'phase-badge night';
+    el.textContent = `🌙 Night  ${rem}`;
+  }
+}
+
+// ─── Alert banner ─────────────────────────────────────────────────────────────
+let _alertDismissed = false;
+function updateAlerts(alerts) {
+  const banner = document.getElementById('alertBanner');
+  const msgEl  = document.getElementById('alertMsg');
+  if (!alerts.length || _alertDismissed) {
+    banner.classList.remove('visible');
+    if (!alerts.length) _alertDismissed = false; // auto-reset when cleared
+    return;
+  }
+  const msgs = alerts.map(a => a.msg).join(' / ');
+  msgEl.textContent = msgs;
+  banner.classList.add('visible');
+}
+function dismissAlert() {
+  _alertDismissed = true;
+  document.getElementById('alertBanner').classList.remove('visible');
+}
+
+// ─── Relay cards ─────────────────────────────────────────────────────────────
+let _lightSched = null;
+
+function updateRelays(relayArr, lightSched) {
+  _lightSched = lightSched || null;
+  const grid = document.getElementById('relayGrid');
+
+  relayArr.forEach(r => {
+    _cache[r.id] = r;
+    let card = document.getElementById('rcard-' + r.id);
+    if (!card) {
+      card = document.createElement('div');
+      card.className = 'relay-card';
+      card.id = 'rcard-' + r.id;
+      grid.appendChild(card);
+    }
+    renderRelayCard(card, r);
+  });
+  applyExtraVisibility();
+}
+
+// Relay index 3 = Lights (schedule-driven AUTO body)
+// Relay index 6 = Watering (no sensor — timer only)
+// Relay index 7 = Extra (spare — timer/manual only)
+const LIGHTS_ID   = 3;
+const WATERING_ID = 6;
+const EXTRA_RELAY_ID = 7;
+
+function renderRelayCard(card, r) {
+  const focused = document.activeElement;
+  const tag = focused && focused.tagName;
+  if ((tag === 'INPUT' || tag === 'TEXTAREA') && focused.closest('#rcard-' + r.id)) return;
+
+  const modeTabs = ['Auto','Manual','Timer','Sched'].map((label, i) =>
+    `<button class="tab${r.mode===i?' active':''}" onclick="setRelayMode(${r.id},${i})">${label}</button>`
+  ).join('');
+
+  let body = '';
+
+  if (r.mode === 0) {
+    // ── Auto ──────────────────────────────────────────────────────────────────
+    if (r.id === LIGHTS_ID && _lightSched) {
+      const ls = _lightSched;
+      if (ls.onHours === 24) {
+        body = `<span style="color:var(--green);font-size:.82rem">Always ON — 24/7 seedling</span>`;
+      } else {
+        const total  = ls.durSec || 1;
+        const pct    = Math.max(0, Math.min(100, (1 - (ls.remSec||0) / total) * 100)).toFixed(1);
+        const clr    = ls.isOn ? '#eab308' : '#818cf8';
+        body = `<div class="sched-info">
+          <div class="sched-row">
+            <span style="color:${clr}">${ls.isOn ? '☀ Day' : '☽ Night'}</span>
+            <span style="margin-left:auto;color:var(--muted);font-size:.75rem">${fmtDuration(ls.remSec)} left</span>
+          </div>
+          <div class="sched-bar-wrap"><div class="sched-bar${ls.isOn?'':' night'}" style="width:${pct}%"></div></div>
+          <div style="color:var(--muted);font-size:.72rem">${ls.onHours}h on / ${ls.offHours}h off</div>
+        </div>`;
+      }
+    } else if (r.id === WATERING_ID) {
+      body = `<span class="auto-note">No sensor input — use Timer or Sched tab</span>`;
+    } else if (r.id === EXTRA_RELAY_ID) {
+      body = `<span class="auto-note">Spare output — use Manual, Timer or Sched</span>`;
+    } else {
+      body = `<span class="auto-note">Controlled by climate logic</span>`;
+    }
+
+  } else if (r.mode === 1) {
+    // ── Manual ────────────────────────────────────────────────────────────────
+    const onA  = r.state  ? ' active' : '';
+    const offA = !r.state ? ' active' : '';
+    body = `<div class="manual-btns">
+      <button class="btn btn-on${onA}"  onclick="setManual(${r.id},true)">ON</button>
+      <button class="btn btn-off${offA}" onclick="setManual(${r.id},false)">OFF</button>
+    </div>`;
+
+  } else if (r.mode === 2) {
+    // ── Cycle Timer ───────────────────────────────────────────────────────────
+    const onMin  = Math.round((r.timer?.on  || 3600) / 60);
+    const offMin = Math.round((r.timer?.off || 1800) / 60);
+    body = `<div class="timer-body">
+      <div class="timer-row">
+        <label>ON for</label>
+        <input type="number" id="ton_${r.id}" value="${onMin}" min="1" max="1440"><span>min</span>
+      </div>
+      <div class="timer-row">
+        <label>OFF for</label>
+        <input type="number" id="toff_${r.id}" value="${offMin}" min="1" max="1440"><span>min</span>
+      </div>
+      <button class="btn-apply" onclick="applyTimer(${r.id})">Apply</button>
+    </div>`;
+
+  } else if (r.mode === 3) {
+    // ── Daily Schedule ────────────────────────────────────────────────────────
+    const sc    = r.sched || { slots: [{ sh:8, sm:0, eh:9, em:0 }], days: 127 };
+    const slots = sc.slots && sc.slots.length ? sc.slots : [{ sh:8, sm:0, eh:9, em:0 }];
+    const slotRows = slots.map((sl, si) => `
+      <div class="sched-slot">
+        <input type="number" id="ssh_${r.id}_${si}" value="${sl.sh}" min="0" max="23">
+        <span class="sched-sep">:</span>
+        <input type="number" id="ssm_${r.id}_${si}" value="${String(sl.sm).padStart(2,'0')}" min="0" max="59">
+        <span class="sched-arrow">→</span>
+        <input type="number" id="seh_${r.id}_${si}" value="${sl.eh}" min="0" max="23">
+        <span class="sched-sep">:</span>
+        <input type="number" id="sem_${r.id}_${si}" value="${String(sl.em).padStart(2,'0')}" min="0" max="59">
+        ${slots.length > 1 ? `<button class="sched-remove" onclick="removeSchedSlot(${r.id},${si})">×</button>` : ''}
+      </div>`).join('');
+    const dayBtns = ['Mo','Tu','We','Th','Fr','Sa','Su'].map((d, i) =>
+      `<button class="day-btn${(sc.days >> i) & 1 ? ' active' : ''}" onclick="toggleSchedDay(${r.id},${i})">${d}</button>`
+    ).join('');
+    body = `<div class="sched-body">
+      ${slotRows}
+      ${slots.length < 4 ? `<button class="sched-add" onclick="addSchedSlot(${r.id})">+ Add time</button>` : ''}
+      <div class="day-btns">${dayBtns}</div>
+      <button class="btn-apply" onclick="applySchedule(${r.id})">Apply</button>
+    </div>`;
+  }
+
+  const html = `
+    <div class="relay-head">
+      <span class="relay-name">${r.name}</span>
+      <span class="relay-status${r.state?' on':''}">${r.state?'ON':'OFF'}</span>
+    </div>
+    <div class="tabs">${modeTabs}</div>
+    <div class="ctrl-body">${body}</div>`;
+
+  if (card.innerHTML !== html) card.innerHTML = html;
+}
+
+// ─── User actions → WebSocket ─────────────────────────────────────────────────
+const STAGE_NAMES = ['Seedling', 'Vegetative', 'Flowering'];
+let _pendingStage = null;
+
+function requestStageChange(newMode) {
+  // _confirmedStage is the source of truth — never read sel.value here
+  // because onchange fires AFTER the browser has already updated sel.value
+  if (newMode === _confirmedStage) {
+    document.getElementById('growMode').value = String(_confirmedStage);
+    return;
+  }
+  _pendingStage = newMode;
+  document.getElementById('mFromStage').textContent  = STAGE_NAMES[_confirmedStage];
+  document.getElementById('mToStage').textContent    = STAGE_NAMES[newMode];
+  document.getElementById('mConfirmBtn').textContent = 'Change to ' + STAGE_NAMES[newMode];
+  document.getElementById('stageModal').classList.add('visible');
+  // Revert the dropdown — confirmed stage hasn't changed yet
+  document.getElementById('growMode').value = String(_confirmedStage);
+}
+
+function cancelStageChange() {
+  _pendingStage = null;
+  document.getElementById('stageModal').classList.remove('visible');
+}
+
+function confirmStageChange() {
+  if (_pendingStage === null) return;
+  const mode = _pendingStage;
+  _pendingStage = null;
+  _confirmedStage = mode;
+  document.getElementById('stageModal').classList.remove('visible');
+  document.getElementById('growMode').value = String(mode);
+  try { localStorage.setItem('growStage', String(mode)); } catch(_) {}
+  send({ type: 'setMode', mode });
+}
+
+function setGrowMode(mode) {   // kept for direct calls
+  send({ type: 'setMode', mode: parseInt(mode, 10) });
+}
+
+function saveRelayModesToLocal() {
+  try {
+    const arr = [];
+    for (let i = 0; i < 8; i++) arr.push(_cache[i] ? _cache[i].mode : 0);
+    localStorage.setItem('relayModes', JSON.stringify(arr));
+  } catch(_) {}
+}
+
+function setRelayMode(id, mode) {
+  if (_cache[id]) {
+    _cache[id] = { ..._cache[id], mode };
+    const card = document.getElementById('rcard-' + id);
+    if (card) renderRelayCard(card, _cache[id]);
+    saveRelayModesToLocal();
+  }
+  send({ type: 'relay', id, action: 'mode', value: mode });
+}
+
+function setManual(id, state) {
+  if (_cache[id]) {
+    _cache[id] = { ..._cache[id], mode: 1, state };
+    const card = document.getElementById('rcard-' + id);
+    if (card) renderRelayCard(card, _cache[id]);
+    saveRelayModesToLocal();
+  }
+  send({ type: 'relay', id, action: 'mode',   value: 1 });
+  send({ type: 'relay', id, action: 'manual', value: state });
+}
+
+function toggleSchedDay(relayId, dayIdx) {
+  document.querySelectorAll('#rcard-' + relayId + ' .day-btn')[dayIdx].classList.toggle('active');
+}
+
+function addSchedSlot(id) {
+  if (!_cache[id]) return;
+  const sc = _cache[id].sched || { slots: [{ sh:8, sm:0, eh:9, em:0 }], days: 127 };
+  if (sc.slots.length >= 4) return;
+  const last = sc.slots[sc.slots.length - 1];
+  const newSh = (last.eh + 2) % 24;
+  const newSlots = [...sc.slots, { sh: newSh, sm: 0, eh: (newSh + 1) % 24, em: 0 }];
+  _cache[id] = { ..._cache[id], sched: { ...sc, slots: newSlots } };
+  const card = document.getElementById('rcard-' + id);
+  if (card) renderRelayCard(card, _cache[id]);
+}
+
+function removeSchedSlot(id, si) {
+  if (!_cache[id]) return;
+  const sc = _cache[id].sched || { slots: [], days: 127 };
+  if (sc.slots.length <= 1) return;
+  const newSlots = sc.slots.filter((_, i) => i !== si);
+  _cache[id] = { ..._cache[id], sched: { ...sc, slots: newSlots } };
+  const card = document.getElementById('rcard-' + id);
+  if (card) renderRelayCard(card, _cache[id]);
+}
+
+function applySchedule(id) {
+  const card = document.getElementById('rcard-' + id);
+  const slotEls = card.querySelectorAll('.sched-slot');
+  const slots = Array.from(slotEls).map((_, si) => ({
+    sh: parseInt(document.getElementById(`ssh_${id}_${si}`).value) || 0,
+    sm: parseInt(document.getElementById(`ssm_${id}_${si}`).value) || 0,
+    eh: parseInt(document.getElementById(`seh_${id}_${si}`).value) || 0,
+    em: parseInt(document.getElementById(`sem_${id}_${si}`).value) || 0,
+  }));
+  let days = 0;
+  card.querySelectorAll('.day-btn').forEach((b, i) => {
+    if (b.classList.contains('active')) days |= (1 << i);
+  });
+  if (_cache[id]) { _cache[id] = { ..._cache[id], mode: 3 }; saveRelayModesToLocal(); }
+  send({ type: 'relay', id, action: 'mode',     value: 3 });
+  send({ type: 'relay', id, action: 'schedule', slots, days });
+}
+
+function applyTimer(id) {
+  const onEl  = document.getElementById('ton_'  + id);
+  const offEl = document.getElementById('toff_' + id);
+  if (!onEl || !offEl) return;
+  const on  = Math.max(1, parseInt(onEl.value,  10) || 60) * 60;
+  const off = Math.max(1, parseInt(offEl.value, 10) || 30) * 60;
+  if (_cache[id]) { _cache[id] = { ..._cache[id], mode: 2 }; saveRelayModesToLocal(); }
+  send({ type: 'relay', id, action: 'mode',  value: 2 });
+  send({ type: 'relay', id, action: 'timer', on, off });
+}
+
+// ─── Chart ────────────────────────────────────────────────────────────────────
+const RANGE_BTNS = { 6: 'rbtn-6', 24: 'rbtn-24', 168: 'rbtn-168' };
+
+function loadChart(hours) {
+  chartHours = hours;
+  Object.keys(RANGE_BTNS).forEach(h => {
+    const el = document.getElementById(RANGE_BTNS[h]);
+    if (el) el.className = 'range-btn' + (Number(h) === hours ? ' active' : '');
+  });
+
+  fetch('/api/logs?hours=' + hours)
+    .then(r => r.ok ? r.json() : Promise.reject(r.status))
+    .then(renderChart)
+    .catch(e => console.warn('[Chart] Load failed:', e));
+}
+
+function renderChart(data) {
+  if (!data || !data.length) return;
+
+  const labels = data.map(d => new Date(d.t * 1000));
+  const T = data.map(d => d.T);
+  const H = data.map(d => d.H);
+  const V = data.map(d => d.V);
+
+  const ctx = document.getElementById('histChart').getContext('2d');
+  if (chart) chart.destroy();
+
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Temp (°C)', data: T, borderColor: '#ef4444', backgroundColor: '#ef444415',
+          yAxisID: 'yT', tension: 0.3, pointRadius: 0, borderWidth: 1.5 },
+        { label: 'Humidity (%)', data: H, borderColor: '#3b82f6', backgroundColor: '#3b82f615',
+          yAxisID: 'yH', tension: 0.3, pointRadius: 0, borderWidth: 1.5 },
+        { label: 'VPD (kPa)', data: V, borderColor: '#22c55e', backgroundColor: '#22c55e15',
+          yAxisID: 'yV', tension: 0.3, pointRadius: 0, borderWidth: 1.5 },
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { labels: { color: '#9ca3af', boxWidth: 10, font: { size: 11 } } },
+        tooltip: { backgroundColor: '#1f2937', borderColor: '#374151', borderWidth: 1,
+                   titleColor: '#f3f4f6', bodyColor: '#d1d5db' }
+      },
+      scales: {
+        x: {
+          type: 'time',
+          time: { tooltipFormat: 'MMM d, HH:mm' },
+          ticks: { color: '#6b7280', maxRotation: 0, maxTicksLimit: 8, font: { size: 10 } },
+          grid: { color: '#1f2937' }
+        },
+        yT: {
+          position: 'left',
+          ticks: { color: '#ef4444', font: { size: 10 } },
+          grid: { color: '#374151' },
+          title: { display: true, text: '°C', color: '#ef4444', font: { size: 10 } }
+        },
+        yH: {
+          position: 'right',
+          ticks: { color: '#3b82f6', font: { size: 10 } },
+          grid: { display: false },
+          title: { display: true, text: '%', color: '#3b82f6', font: { size: 10 } }
+        },
+        yV: {
+          position: 'right',
+          offset: true,
+          ticks: { color: '#22c55e', font: { size: 10 } },
+          grid: { display: false },
+          title: { display: true, text: 'kPa', color: '#22c55e', font: { size: 10 } }
+        }
+      }
+    }
+  });
+}
+
+// ─── Status bar ───────────────────────────────────────────────────────────────
+function setStatus(ok, msg) {
+  document.getElementById('dot').className       = 'dot-conn' + (ok ? ' ok' : '');
+  document.getElementById('statusText').textContent = msg;
+}
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+applyExtraVisibility();
+
+// Populate UI with placeholder data so layout is visible before ESP32 connects
+(function showPreview() {
+  const names = ['Top Fan','Bottom Fan','Humidifier','Lights',
+                 'Dehumidifier','Heat Mat','Watering','Extra'];
+  const mockRelays = names.map((name, i) => ({
+    id: i, name, mode: 0, state: false, manual: false,
+    timer: { on: 3600, off: 1800 },
+    sched: { slots: [{ sh: 8, sm: 0, eh: 9, em: 0 }], days: 127 }
+  }));
+  mockRelays.forEach(r => { _cache[r.id] = r; });
+  const mockSched = { isOn: true, remSec: 21600, durSec: 43200,
+                      onHours: 12, offHours: 12, ntpOk: false };
+  updateRelays(mockRelays, mockSched);
+  setMetric('temp',   '--',  'muted', '');
+  setMetric('hum',    '--',  'muted', '');
+  setMetric('vpd',    '--',  'muted', '');
+  setMetric('soil',   '--',  'muted', '');
+  setMetric('lights', '--',  'muted', '');
+
+  // Restore last-known relay modes so tabs show correctly before WS connects
+  try {
+    const saved = JSON.parse(localStorage.getItem('relayModes') || 'null');
+    if (Array.isArray(saved)) {
+      saved.forEach((mode, id) => {
+        if (_cache[id]) {
+          _cache[id] = { ..._cache[id], mode };
+          const card = document.getElementById('rcard-' + id);
+          if (card) renderRelayCard(card, _cache[id]);
+        }
+      });
+    }
+  } catch(_) {}
+
+  // Restore last-known grow stage
+  try {
+    const saved = localStorage.getItem('growStage');
+    if (saved !== null) {
+      _confirmedStage = parseInt(saved, 10);
+      document.getElementById('growMode').value = saved;
+    }
+  } catch(_) {}
+})();
+
+connect();
+</script>
+</body>
+</html>

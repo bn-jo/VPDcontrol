@@ -1,0 +1,629 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1520" height="1380" viewBox="0 0 1520 1380">
+
+<!-- ── Background ── -->
+<rect width="1520" height="1380" fill="#0f172a"/>
+
+<!-- ── Title ── -->
+<text x="760" y="36" text-anchor="middle" fill="#e2e8f0" font-size="21" font-weight="bold" font-family="'Courier New',monospace">VPD GROW TENT — FULL WIRING DIAGRAM  (8-Ch Relay Module)</text>
+
+<!-- ── Zone separator ── -->
+<line x1="730" y1="56" x2="730" y2="1280" stroke="#334155" stroke-width="2" stroke-dasharray="14,7"/>
+<text x="365" y="78" text-anchor="middle" fill="#475569" font-size="11.5" font-family="'Courier New',monospace">◀ LOW VOLTAGE DC (3.3V / 12V) ▶</text>
+<text x="1110" y="78" text-anchor="middle" fill="#475569" font-size="11.5" font-family="'Courier New',monospace">◀ HIGH VOLTAGE 220V AC — DANGER ▶</text>
+
+<!-- ── AC danger band ── -->
+<rect x="737" y="56" width="775" height="1220" fill="#1c0a0a" opacity="0.4"/>
+<rect x="742" y="58" width="765" height="26" rx="4" fill="#7f1d1d" stroke="#ef4444" stroke-width="1.5"/>
+<text x="1124" y="76" text-anchor="middle" fill="#fca5a5" font-size="11" font-weight="bold" font-family="'Courier New',monospace">⚠  220V AC — LETHAL VOLTAGE — ONLY A QUALIFIED ELECTRICIAN SHOULD WIRE THIS SECTION</text>
+
+
+<!-- ════════════════════════════════════════════════════════════
+     ESP32 DevKit V1
+     ════════════════════════════════════════════════════════════ -->
+<rect x="38" y="110" width="172" height="510" rx="8" fill="#1e293b" stroke="#3b82f6" stroke-width="2"/>
+<text x="124" y="134" text-anchor="middle" fill="#3b82f6" font-size="14" font-weight="bold" font-family="'Courier New',monospace">ESP32</text>
+<text x="124" y="150" text-anchor="middle" fill="#475569" font-size="10" font-family="'Courier New',monospace">DevKit V1</text>
+
+<!-- USB port -->
+<rect x="90" y="600" width="60" height="22" rx="4" fill="#334155" stroke="#64748b" stroke-width="1"/>
+<text x="120" y="616" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="'Courier New',monospace">USB 5V</text>
+<text x="120" y="640" text-anchor="middle" fill="#475569" font-size="9.5" font-family="'Courier New',monospace">← phone charger / PC</text>
+
+<!-- RIGHT side pins -->
+<line x1="210" y1="175" x2="225" y2="175" stroke="#a855f7" stroke-width="1.5"/>
+<circle cx="225" cy="175" r="4.5" fill="#a855f7"/>
+<text x="196" y="171" text-anchor="end" fill="#a855f7" font-size="11" font-family="'Courier New',monospace">GPIO 4</text>
+<text x="196" y="183" text-anchor="end" fill="#475569" font-size="9" font-family="'Courier New',monospace">DHT22</text>
+
+<line x1="210" y1="225" x2="225" y2="225" stroke="#f97316" stroke-width="1.5"/>
+<circle cx="225" cy="225" r="4.5" fill="#f97316"/>
+<text x="196" y="221" text-anchor="end" fill="#f97316" font-size="11" font-family="'Courier New',monospace">GPIO 26</text>
+<text x="196" y="233" text-anchor="end" fill="#475569" font-size="9" font-family="'Courier New',monospace">Top Fan</text>
+
+<line x1="210" y1="270" x2="225" y2="270" stroke="#f97316" stroke-width="1.5"/>
+<circle cx="225" cy="270" r="4.5" fill="#f97316"/>
+<text x="196" y="266" text-anchor="end" fill="#f97316" font-size="11" font-family="'Courier New',monospace">GPIO 27</text>
+<text x="196" y="278" text-anchor="end" fill="#475569" font-size="9" font-family="'Courier New',monospace">Bot Fan</text>
+
+<line x1="210" y1="315" x2="225" y2="315" stroke="#f97316" stroke-width="1.5"/>
+<circle cx="225" cy="315" r="4.5" fill="#f97316"/>
+<text x="196" y="311" text-anchor="end" fill="#f97316" font-size="11" font-family="'Courier New',monospace">GPIO 14</text>
+<text x="196" y="323" text-anchor="end" fill="#475569" font-size="9" font-family="'Courier New',monospace">Humid</text>
+
+<line x1="210" y1="360" x2="225" y2="360" stroke="#f97316" stroke-width="1.5"/>
+<circle cx="225" cy="360" r="4.5" fill="#f97316"/>
+<text x="196" y="356" text-anchor="end" fill="#f97316" font-size="11" font-family="'Courier New',monospace">GPIO 12</text>
+<text x="196" y="368" text-anchor="end" fill="#475569" font-size="9" font-family="'Courier New',monospace">Lights</text>
+
+<line x1="210" y1="405" x2="225" y2="405" stroke="#f97316" stroke-width="1.5"/>
+<circle cx="225" cy="405" r="4.5" fill="#f97316"/>
+<text x="196" y="401" text-anchor="end" fill="#f97316" font-size="11" font-family="'Courier New',monospace">GPIO 25</text>
+<text x="196" y="413" text-anchor="end" fill="#475569" font-size="9" font-family="'Courier New',monospace">Dehum</text>
+
+<line x1="210" y1="450" x2="225" y2="450" stroke="#f97316" stroke-width="1.5"/>
+<circle cx="225" cy="450" r="4.5" fill="#f97316"/>
+<text x="196" y="446" text-anchor="end" fill="#f97316" font-size="11" font-family="'Courier New',monospace">GPIO 33</text>
+<text x="196" y="458" text-anchor="end" fill="#475569" font-size="9" font-family="'Courier New',monospace">HeatMat</text>
+
+<line x1="210" y1="495" x2="225" y2="495" stroke="#f97316" stroke-width="1.5"/>
+<circle cx="225" cy="495" r="4.5" fill="#f97316"/>
+<text x="196" y="491" text-anchor="end" fill="#f97316" font-size="11" font-family="'Courier New',monospace">GPIO 32</text>
+<text x="196" y="503" text-anchor="end" fill="#475569" font-size="9" font-family="'Courier New',monospace">Watering</text>
+
+<!-- GPIO 13 → IN8  Extra relay -->
+<line x1="210" y1="540" x2="225" y2="540" stroke="#f97316" stroke-width="1.5"/>
+<circle cx="225" cy="540" r="4.5" fill="#f97316"/>
+<text x="196" y="536" text-anchor="end" fill="#f97316" font-size="11" font-family="'Courier New',monospace">GPIO 13</text>
+<text x="196" y="548" text-anchor="end" fill="#475569" font-size="9" font-family="'Courier New',monospace">Extra</text>
+
+<!-- GPIO 35 → Soil sensor (input only / ADC) -->
+<line x1="38" y1="555" x2="23" y2="555" stroke="#06b6d4" stroke-width="1.5"/>
+<circle cx="23" cy="555" r="4.5" fill="#06b6d4"/>
+<text x="50" y="551" fill="#06b6d4" font-size="10" font-family="'Courier New',monospace">GPIO 35</text>
+<text x="50" y="562" fill="#475569" font-size="9" font-family="'Courier New',monospace">Soil ADC</text>
+<text x="50" y="572" fill="#334155" font-size="8" font-family="'Courier New',monospace">(input only)</text>
+
+<!-- LEFT side pins -->
+<circle cx="38" cy="178" r="4.5" fill="#ef4444"/>
+<line x1="38" y1="178" x2="23" y2="178" stroke="#ef4444" stroke-width="1.5"/>
+<text x="50" y="174" fill="#ef4444" font-size="11" font-family="'Courier New',monospace">3V3</text>
+
+<circle cx="38" cy="218" r="4.5" fill="#9ca3af"/>
+<line x1="38" y1="218" x2="23" y2="218" stroke="#9ca3af" stroke-width="1.5"/>
+<text x="50" y="214" fill="#9ca3af" font-size="11" font-family="'Courier New',monospace">GND</text>
+
+
+<!-- ════════════════════════════════════════════════════════════
+     DHT22 Sensor
+     ════════════════════════════════════════════════════════════ -->
+<rect x="38" y="660" width="155" height="100" rx="8" fill="#1e293b" stroke="#a855f7" stroke-width="2"/>
+<text x="115" y="682" text-anchor="middle" fill="#a855f7" font-size="13" font-weight="bold" font-family="'Courier New',monospace">DHT22</text>
+<text x="115" y="696" text-anchor="middle" fill="#475569" font-size="10" font-family="'Courier New',monospace">Temp &amp; Humidity</text>
+
+<circle cx="55" cy="715" r="3.5" fill="#ef4444"/>
+<text x="64" y="719" fill="#ef4444" font-size="10" font-family="'Courier New',monospace">VCC → 3.3V</text>
+
+<circle cx="55" cy="735" r="3.5" fill="#a855f7"/>
+<text x="64" y="739" fill="#a855f7" font-size="10" font-family="'Courier New',monospace">DATA → GPIO 4</text>
+
+<circle cx="165" cy="715" r="3.5" fill="#9ca3af"/>
+<text x="157" y="719" text-anchor="end" fill="#9ca3af" font-size="10" font-family="'Courier New',monospace">GND</text>
+<text x="115" y="758" text-anchor="middle" fill="#64748b" font-size="9" font-family="'Courier New',monospace">10 kΩ between DATA and 3.3V</text>
+
+
+<!-- ════════════════════════════════════════════════════════════
+     12V DC Power Supply
+     ════════════════════════════════════════════════════════════ -->
+<rect x="38" y="800" width="175" height="95" rx="8" fill="#1e293b" stroke="#d97706" stroke-width="2"/>
+<text x="125" y="822" text-anchor="middle" fill="#d97706" font-size="13" font-weight="bold" font-family="'Courier New',monospace">12V DC PSU</text>
+<text x="125" y="837" text-anchor="middle" fill="#475569" font-size="10" font-family="'Courier New',monospace">12V 1A  (wall adapter)</text>
+
+<circle cx="65" cy="860" r="4" fill="#d97706"/>
+<line x1="65" y1="860" x2="50" y2="860" stroke="#d97706" stroke-width="1.5"/>
+<text x="75" y="864" fill="#d97706" font-size="11" font-family="'Courier New',monospace">+12V</text>
+
+<circle cx="65" cy="880" r="4" fill="#9ca3af"/>
+<line x1="65" y1="880" x2="50" y2="880" stroke="#9ca3af" stroke-width="1.5"/>
+<text x="75" y="884" fill="#9ca3af" font-size="11" font-family="'Courier New',monospace">GND</text>
+<text x="200" y="861" text-anchor="end" fill="#475569" font-size="9" font-family="'Courier New',monospace">mains plug →</text>
+
+
+<!-- ════════════════════════════════════════════════════════════
+     8-Channel Relay Module  (single board, Relays 1–8)
+     Channel 8 is spare / unused
+     ════════════════════════════════════════════════════════════ -->
+<rect x="355" y="110" width="268" height="510" rx="8" fill="#1e293b" stroke="#22c55e" stroke-width="2.5"/>
+<text x="489" y="133" text-anchor="middle" fill="#22c55e" font-size="14" font-weight="bold" font-family="'Courier New',monospace">8-CH RELAY MODULE</text>
+<text x="489" y="149" text-anchor="middle" fill="#475569" font-size="10" font-family="'Courier New',monospace">12V coil  ·  250VAC 10A contacts</text>
+
+<!-- Status LEDs (visual) -->
+<circle cx="405" cy="295" r="5" fill="#1a3a1a" stroke="#22c55e" stroke-width="1"/>
+<circle cx="405" cy="335" r="5" fill="#1a3a1a" stroke="#22c55e" stroke-width="1"/>
+<circle cx="405" cy="375" r="5" fill="#1a3a1a" stroke="#22c55e" stroke-width="1"/>
+<circle cx="405" cy="415" r="5" fill="#1a3a1a" stroke="#22c55e" stroke-width="1"/>
+<circle cx="405" cy="455" r="5" fill="#1a3a1a" stroke="#22c55e" stroke-width="1"/>
+<circle cx="405" cy="495" r="5" fill="#1a3a1a" stroke="#22c55e" stroke-width="1"/>
+<circle cx="405" cy="535" r="5" fill="#1a3a1a" stroke="#22c55e" stroke-width="1"/>
+<circle cx="405" cy="575" r="5" fill="#1a3a1a" stroke="#22c55e" stroke-width="1"/>
+<text x="405" y="595" text-anchor="middle" fill="#475569" font-size="8.5" font-family="'Courier New',monospace">CH8 Extra</text>
+
+<!-- ── CONTROL SIDE (left) ── -->
+<text x="375" y="172" fill="#475569" font-size="10" font-family="'Courier New',monospace">─ CONTROL ─</text>
+
+<circle cx="355" cy="192" r="5" fill="#ef4444"/>
+<text x="367" y="188" fill="#ef4444" font-size="11" font-family="'Courier New',monospace">VCC</text>
+<text x="367" y="200" fill="#475569" font-size="9" font-family="'Courier New',monospace">(3.3V opto)</text>
+
+<circle cx="355" cy="218" r="5" fill="#d97706"/>
+<text x="367" y="214" fill="#d97706" font-size="11" font-family="'Courier New',monospace">JD-VCC</text>
+<text x="367" y="226" fill="#d97706" font-size="9" font-family="'Courier New',monospace">(12V coil)</text>
+<rect x="458" y="211" width="100" height="16" rx="3" fill="#451a03" stroke="#d97706" stroke-width="1"/>
+<text x="508" y="222" text-anchor="middle" fill="#fbbf24" font-size="9" font-family="'Courier New',monospace">JUMPER OFF</text>
+
+<circle cx="355" cy="244" r="5" fill="#9ca3af"/>
+<text x="367" y="240" fill="#9ca3af" font-size="11" font-family="'Courier New',monospace">GND</text>
+
+<circle cx="355" cy="295" r="5" fill="#f97316"/>
+<text x="367" y="291" fill="#f97316" font-size="11" font-family="'Courier New',monospace">IN1</text>
+<text x="393" y="303" fill="#475569" font-size="9" font-family="'Courier New',monospace">GPIO 26  Top Fan</text>
+
+<circle cx="355" cy="335" r="5" fill="#f97316"/>
+<text x="367" y="331" fill="#f97316" font-size="11" font-family="'Courier New',monospace">IN2</text>
+<text x="393" y="343" fill="#475569" font-size="9" font-family="'Courier New',monospace">GPIO 27  Bot Fan</text>
+
+<circle cx="355" cy="375" r="5" fill="#f97316"/>
+<text x="367" y="371" fill="#f97316" font-size="11" font-family="'Courier New',monospace">IN3</text>
+<text x="393" y="383" fill="#475569" font-size="9" font-family="'Courier New',monospace">GPIO 14  Humidifier</text>
+
+<circle cx="355" cy="415" r="5" fill="#f97316"/>
+<text x="367" y="411" fill="#f97316" font-size="11" font-family="'Courier New',monospace">IN4</text>
+<text x="393" y="423" fill="#475569" font-size="9" font-family="'Courier New',monospace">GPIO 12  Lights</text>
+
+<circle cx="355" cy="455" r="5" fill="#f97316"/>
+<text x="367" y="451" fill="#f97316" font-size="11" font-family="'Courier New',monospace">IN5</text>
+<text x="393" y="463" fill="#475569" font-size="9" font-family="'Courier New',monospace">GPIO 25  Dehumidifier</text>
+
+<circle cx="355" cy="495" r="5" fill="#f97316"/>
+<text x="367" y="491" fill="#f97316" font-size="11" font-family="'Courier New',monospace">IN6</text>
+<text x="393" y="503" fill="#475569" font-size="9" font-family="'Courier New',monospace">GPIO 33  Heat Mat</text>
+
+<circle cx="355" cy="535" r="5" fill="#f97316"/>
+<text x="367" y="531" fill="#f97316" font-size="11" font-family="'Courier New',monospace">IN7</text>
+<text x="393" y="543" fill="#475569" font-size="9" font-family="'Courier New',monospace">GPIO 32  Watering</text>
+
+<circle cx="355" cy="575" r="5" fill="#f97316"/>
+<text x="367" y="571" fill="#f97316" font-size="11" font-family="'Courier New',monospace">IN8</text>
+<text x="393" y="583" fill="#475569" font-size="9" font-family="'Courier New',monospace">GPIO 13  Extra (spare)</text>
+
+<!-- ── CONTACTS SIDE (right) ── -->
+<text x="600" y="172" text-anchor="end" fill="#475569" font-size="10" font-family="'Courier New',monospace">─ CONTACTS ─</text>
+
+<!-- R1 -->
+<text x="567" y="289" text-anchor="end" fill="#9ca3af" font-size="10" font-family="'Courier New',monospace">COM1</text>
+<circle cx="575" cy="285" r="4" fill="#b45309"/>
+<text x="567" y="307" text-anchor="end" fill="#fbbf24" font-size="10" font-family="'Courier New',monospace">NO1</text>
+<circle cx="575" cy="303" r="4" fill="#ca8a04"/>
+
+<!-- R2 -->
+<text x="567" y="329" text-anchor="end" fill="#9ca3af" font-size="10" font-family="'Courier New',monospace">COM2</text>
+<circle cx="575" cy="325" r="4" fill="#b45309"/>
+<text x="567" y="347" text-anchor="end" fill="#fbbf24" font-size="10" font-family="'Courier New',monospace">NO2</text>
+<circle cx="575" cy="343" r="4" fill="#ca8a04"/>
+
+<!-- R3 -->
+<text x="567" y="369" text-anchor="end" fill="#9ca3af" font-size="10" font-family="'Courier New',monospace">COM3</text>
+<circle cx="575" cy="365" r="4" fill="#b45309"/>
+<text x="567" y="387" text-anchor="end" fill="#fbbf24" font-size="10" font-family="'Courier New',monospace">NO3</text>
+<circle cx="575" cy="383" r="4" fill="#ca8a04"/>
+
+<!-- R4 -->
+<text x="567" y="409" text-anchor="end" fill="#9ca3af" font-size="10" font-family="'Courier New',monospace">COM4</text>
+<circle cx="575" cy="405" r="4" fill="#b45309"/>
+<text x="567" y="427" text-anchor="end" fill="#fbbf24" font-size="10" font-family="'Courier New',monospace">NO4</text>
+<circle cx="575" cy="423" r="4" fill="#ca8a04"/>
+
+<!-- R5 -->
+<text x="567" y="449" text-anchor="end" fill="#9ca3af" font-size="10" font-family="'Courier New',monospace">COM5</text>
+<circle cx="575" cy="445" r="4" fill="#b45309"/>
+<text x="567" y="467" text-anchor="end" fill="#fbbf24" font-size="10" font-family="'Courier New',monospace">NO5</text>
+<circle cx="575" cy="463" r="4" fill="#ca8a04"/>
+
+<!-- R6 -->
+<text x="567" y="489" text-anchor="end" fill="#9ca3af" font-size="10" font-family="'Courier New',monospace">COM6</text>
+<circle cx="575" cy="485" r="4" fill="#b45309"/>
+<text x="567" y="507" text-anchor="end" fill="#fbbf24" font-size="10" font-family="'Courier New',monospace">NO6</text>
+<circle cx="575" cy="503" r="4" fill="#ca8a04"/>
+
+<!-- R7 -->
+<text x="567" y="529" text-anchor="end" fill="#9ca3af" font-size="10" font-family="'Courier New',monospace">COM7</text>
+<circle cx="575" cy="525" r="4" fill="#b45309"/>
+<text x="567" y="547" text-anchor="end" fill="#fbbf24" font-size="10" font-family="'Courier New',monospace">NO7</text>
+<circle cx="575" cy="543" r="4" fill="#ca8a04"/>
+
+<!-- R8 Extra -->
+<text x="567" y="569" text-anchor="end" fill="#9ca3af" font-size="10" font-family="'Courier New',monospace">COM8</text>
+<circle cx="575" cy="565" r="4" fill="#b45309"/>
+<text x="567" y="587" text-anchor="end" fill="#fbbf24" font-size="10" font-family="'Courier New',monospace">NO8</text>
+<circle cx="575" cy="583" r="4" fill="#ca8a04"/>
+
+<!-- Isolation note -->
+<rect x="355" y="545" width="268" height="40" rx="6" fill="#1c1c0a" stroke="#d97706" stroke-width="1"/>
+<text x="489" y="561" text-anchor="middle" fill="#d97706" font-size="9.5" font-weight="bold" font-family="'Courier New',monospace">Remove VCC–JD-VCC jumper</text>
+<text x="489" y="576" text-anchor="middle" fill="#92400e" font-size="9" font-family="'Courier New',monospace">Opto (3.3V) isolated from coil (12V)</text>
+
+
+<!-- ════════════════════════════════════════════════════════════
+     220V Mains supply block
+     ════════════════════════════════════════════════════════════ -->
+<rect x="755" y="110" width="200" height="110" rx="8" fill="#2d0000" stroke="#ef4444" stroke-width="2.5"/>
+<text x="855" y="133" text-anchor="middle" fill="#ef4444" font-size="13" font-weight="bold" font-family="'Courier New',monospace">220V AC MAINS</text>
+<text x="855" y="148" text-anchor="middle" fill="#7f1d1d" font-size="10" font-family="'Courier New',monospace">IEC socket / terminal block</text>
+
+<circle cx="790" cy="170" r="5" fill="#b45309"/>
+<text x="802" y="174" fill="#b45309" font-size="12" font-weight="bold" font-family="'Courier New',monospace">L  (Live / Brown)</text>
+
+<circle cx="790" cy="195" r="5" fill="#1d4ed8"/>
+<text x="802" y="199" fill="#3b82f6" font-size="12" font-weight="bold" font-family="'Courier New',monospace">N  (Neutral / Blue)</text>
+
+<circle cx="790" cy="220" r="5" fill="#15803d"/>
+<text x="802" y="224" fill="#22c55e" font-size="12" font-weight="bold" font-family="'Courier New',monospace">PE (Earth / Green-Yel)</text>
+
+
+<!-- ════════════════════════════════════════════════════════════
+     Load boxes — Relays 1–4
+     ════════════════════════════════════════════════════════════ -->
+<rect x="1060" y="140" width="200" height="80" rx="8" fill="#1e293b" stroke="#6b7280" stroke-width="1.5"/>
+<text x="1160" y="163" text-anchor="middle" fill="#e2e8f0" font-size="13" font-weight="bold" font-family="'Courier New',monospace">TOP FAN</text>
+<text x="1160" y="178" text-anchor="middle" fill="#475569" font-size="10" font-family="'Courier New',monospace">220V  —  Exhaust (main)</text>
+<circle cx="1075" cy="198" r="4" fill="#b45309"/>
+<circle cx="1115" cy="198" r="4" fill="#1d4ed8"/>
+<circle cx="1155" cy="198" r="4" fill="#15803d"/>
+<text x="1085" y="202" fill="#b45309" font-size="10" font-family="'Courier New',monospace">L</text>
+<text x="1125" y="202" fill="#3b82f6" font-size="10" font-family="'Courier New',monospace">N</text>
+<text x="1165" y="202" fill="#22c55e" font-size="10" font-family="'Courier New',monospace">PE</text>
+
+<rect x="1060" y="255" width="200" height="80" rx="8" fill="#1e293b" stroke="#6b7280" stroke-width="1.5"/>
+<text x="1160" y="278" text-anchor="middle" fill="#e2e8f0" font-size="13" font-weight="bold" font-family="'Courier New',monospace">BOTTOM FAN</text>
+<text x="1160" y="293" text-anchor="middle" fill="#475569" font-size="10" font-family="'Courier New',monospace">220V  —  Heat recycle</text>
+<circle cx="1075" cy="313" r="4" fill="#b45309"/>
+<circle cx="1115" cy="313" r="4" fill="#1d4ed8"/>
+<circle cx="1155" cy="313" r="4" fill="#15803d"/>
+<text x="1085" y="317" fill="#b45309" font-size="10" font-family="'Courier New',monospace">L</text>
+<text x="1125" y="317" fill="#3b82f6" font-size="10" font-family="'Courier New',monospace">N</text>
+<text x="1165" y="317" fill="#22c55e" font-size="10" font-family="'Courier New',monospace">PE</text>
+
+<rect x="1060" y="370" width="200" height="80" rx="8" fill="#1e293b" stroke="#6b7280" stroke-width="1.5"/>
+<text x="1160" y="393" text-anchor="middle" fill="#e2e8f0" font-size="13" font-weight="bold" font-family="'Courier New',monospace">HUMIDIFIER</text>
+<text x="1160" y="408" text-anchor="middle" fill="#475569" font-size="10" font-family="'Courier New',monospace">220V  —  Fogger</text>
+<circle cx="1075" cy="428" r="4" fill="#b45309"/>
+<circle cx="1115" cy="428" r="4" fill="#1d4ed8"/>
+<circle cx="1155" cy="428" r="4" fill="#15803d"/>
+<text x="1085" y="432" fill="#b45309" font-size="10" font-family="'Courier New',monospace">L</text>
+<text x="1125" y="432" fill="#3b82f6" font-size="10" font-family="'Courier New',monospace">N</text>
+<text x="1165" y="432" fill="#22c55e" font-size="10" font-family="'Courier New',monospace">PE</text>
+
+<rect x="1060" y="485" width="200" height="80" rx="8" fill="#1e293b" stroke="#eab308" stroke-width="2"/>
+<text x="1160" y="508" text-anchor="middle" fill="#eab308" font-size="13" font-weight="bold" font-family="'Courier New',monospace">GROW LIGHTS</text>
+<text x="1160" y="523" text-anchor="middle" fill="#475569" font-size="10" font-family="'Courier New',monospace">220V  —  Photo-period</text>
+<circle cx="1075" cy="543" r="4" fill="#b45309"/>
+<circle cx="1115" cy="543" r="4" fill="#1d4ed8"/>
+<circle cx="1155" cy="543" r="4" fill="#15803d"/>
+<text x="1085" y="547" fill="#b45309" font-size="10" font-family="'Courier New',monospace">L</text>
+<text x="1125" y="547" fill="#3b82f6" font-size="10" font-family="'Courier New',monospace">N</text>
+<text x="1165" y="547" fill="#22c55e" font-size="10" font-family="'Courier New',monospace">PE</text>
+
+
+<!-- ════════════════════════════════════════════════════════════
+     Load boxes — Relays 5–7
+     ════════════════════════════════════════════════════════════ -->
+<rect x="1060" y="615" width="200" height="80" rx="8" fill="#1e293b" stroke="#6b7280" stroke-width="1.5"/>
+<text x="1160" y="638" text-anchor="middle" fill="#e2e8f0" font-size="13" font-weight="bold" font-family="'Courier New',monospace">DEHUMIDIFIER</text>
+<text x="1160" y="653" text-anchor="middle" fill="#475569" font-size="10" font-family="'Courier New',monospace">220V  —  Humidity control</text>
+<circle cx="1075" cy="673" r="4" fill="#b45309"/>
+<circle cx="1115" cy="673" r="4" fill="#1d4ed8"/>
+<circle cx="1155" cy="673" r="4" fill="#15803d"/>
+<text x="1085" y="677" fill="#b45309" font-size="10" font-family="'Courier New',monospace">L</text>
+<text x="1125" y="677" fill="#3b82f6" font-size="10" font-family="'Courier New',monospace">N</text>
+<text x="1165" y="677" fill="#22c55e" font-size="10" font-family="'Courier New',monospace">PE</text>
+
+<rect x="1060" y="725" width="200" height="80" rx="8" fill="#1e293b" stroke="#6b7280" stroke-width="1.5"/>
+<text x="1160" y="748" text-anchor="middle" fill="#e2e8f0" font-size="13" font-weight="bold" font-family="'Courier New',monospace">HEAT MAT</text>
+<text x="1160" y="763" text-anchor="middle" fill="#475569" font-size="10" font-family="'Courier New',monospace">220V  —  Root zone heating</text>
+<circle cx="1075" cy="783" r="4" fill="#b45309"/>
+<circle cx="1115" cy="783" r="4" fill="#1d4ed8"/>
+<circle cx="1155" cy="783" r="4" fill="#15803d"/>
+<text x="1085" y="787" fill="#b45309" font-size="10" font-family="'Courier New',monospace">L</text>
+<text x="1125" y="787" fill="#3b82f6" font-size="10" font-family="'Courier New',monospace">N</text>
+<text x="1165" y="787" fill="#22c55e" font-size="10" font-family="'Courier New',monospace">PE</text>
+
+<rect x="1060" y="835" width="200" height="80" rx="8" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+<text x="1160" y="858" text-anchor="middle" fill="#e2e8f0" font-size="13" font-weight="bold" font-family="'Courier New',monospace">WATERING</text>
+<text x="1160" y="873" text-anchor="middle" fill="#475569" font-size="10" font-family="'Courier New',monospace">220V  —  Irrigation (timer)</text>
+<circle cx="1075" cy="893" r="4" fill="#b45309"/>
+<circle cx="1115" cy="893" r="4" fill="#1d4ed8"/>
+<circle cx="1155" cy="893" r="4" fill="#15803d"/>
+<text x="1085" y="897" fill="#b45309" font-size="10" font-family="'Courier New',monospace">L</text>
+<text x="1125" y="897" fill="#3b82f6" font-size="10" font-family="'Courier New',monospace">N</text>
+<text x="1165" y="897" fill="#22c55e" font-size="10" font-family="'Courier New',monospace">PE</text>
+
+
+<!-- ════════════════════════════════════════════════════════════
+     WIRES — DC LOW VOLTAGE
+     ════════════════════════════════════════════════════════════ -->
+
+<!-- 3V3 bus: ESP32 3V3 → relay VCC -->
+<polyline points="23,178 12,178 12,192 345,192" fill="none" stroke="#ef4444" stroke-width="2"/>
+<!-- 3V3 branch → DHT22 VCC -->
+<polyline points="55,715 18,715 18,178" fill="none" stroke="#ef4444" stroke-width="1.5"/>
+
+<!-- GND bus: ESP32 GND → relay GND + PSU GND + DHT22 GND -->
+<polyline points="23,218 8,218 8,882 50,882" fill="none" stroke="#9ca3af" stroke-width="2"/>
+<polyline points="8,244 345,244" fill="none" stroke="#9ca3af" stroke-width="2"/>
+<polyline points="165,715 185,715 185,882 8,882" fill="none" stroke="#9ca3af" stroke-width="1.5"/>
+
+<!-- 12V: PSU +12V → relay JD-VCC -->
+<polyline points="50,860 28,860 28,218 345,218" fill="none" stroke="#d97706" stroke-width="2.5"/>
+
+<!-- GPIO 4 → DHT22 DATA (purple dashed) + pull-up -->
+<polyline points="225,175 265,175 265,650 193,650 193,735 165,735" fill="none" stroke="#a855f7" stroke-width="1.5" stroke-dasharray="6,3"/>
+<rect x="235" y="605" width="50" height="18" rx="3" fill="#1e293b" stroke="#a855f7" stroke-width="1"/>
+<text x="260" y="618" text-anchor="middle" fill="#a855f7" font-size="9" font-family="'Courier New',monospace">10kΩ</text>
+<line x1="245" y1="605" x2="245" y2="178" stroke="#a855f7" stroke-width="1" stroke-dasharray="3,3" opacity="0.5"/>
+<text x="248" y="580" fill="#a855f7" font-size="8.5" font-family="'Courier New',monospace">pull-up</text>
+<text x="248" y="590" fill="#a855f7" font-size="8.5" font-family="'Courier New',monospace">to 3V3</text>
+
+<!-- GPIO → IN wires (orange) — near-horizontal -->
+<line x1="225" y1="225" x2="355" y2="295" stroke="#f97316" stroke-width="2"/>
+<line x1="225" y1="270" x2="355" y2="335" stroke="#f97316" stroke-width="2"/>
+<line x1="225" y1="315" x2="355" y2="375" stroke="#f97316" stroke-width="2"/>
+<line x1="225" y1="360" x2="355" y2="415" stroke="#f97316" stroke-width="2"/>
+<line x1="225" y1="405" x2="355" y2="455" stroke="#f97316" stroke-width="2"/>
+<line x1="225" y1="450" x2="355" y2="495" stroke="#f97316" stroke-width="2"/>
+<line x1="225" y1="495" x2="355" y2="535" stroke="#f97316" stroke-width="2"/>
+<!-- GPIO 13 → IN8 Extra -->
+<line x1="225" y1="540" x2="355" y2="575" stroke="#f97316" stroke-width="2"/>
+<!-- GPIO 35 → Soil sensor (cyan, left side) -->
+<polyline points="23,555 8,555 8,772 55,772" fill="none" stroke="#06b6d4" stroke-width="1.5" stroke-dasharray="5,3"/>
+
+
+<!-- ════════════════════════════════════════════════════════════
+     WIRES — HIGH VOLTAGE AC
+     ════════════════════════════════════════════════════════════ -->
+
+<!-- 220V LIVE bus: Mains L → vertical at x=755 → all COM pins -->
+<polyline points="790,170 755,170" fill="none" stroke="#b45309" stroke-width="2.5"/>
+<line x1="755" y1="170" x2="755" y2="530" stroke="#b45309" stroke-width="3"/>
+
+<!-- COM branches from live bus to relay contacts -->
+<polyline points="755,285 623,285 575,285" fill="none" stroke="#b45309" stroke-width="2.5"/>
+<polyline points="755,325 623,325 575,325" fill="none" stroke="#b45309" stroke-width="2.5"/>
+<polyline points="755,365 623,365 575,365" fill="none" stroke="#b45309" stroke-width="2.5"/>
+<polyline points="755,405 623,405 575,405" fill="none" stroke="#b45309" stroke-width="2.5"/>
+<polyline points="755,445 623,445 575,445" fill="none" stroke="#b45309" stroke-width="2.5"/>
+<polyline points="755,485 623,485 575,485" fill="none" stroke="#b45309" stroke-width="2.5"/>
+<polyline points="755,525 623,525 575,525" fill="none" stroke="#b45309" stroke-width="2.5"/>
+
+<!-- NO1 → Top Fan L — fused F1 (goes UP from y=303 to y=198) -->
+<polyline points="575,303 656,303 656,198 1075,198" fill="none" stroke="#ca8a04" stroke-width="2"/>
+<rect x="670" y="297" width="24" height="12" rx="4" fill="#1e293b" stroke="#ca8a04" stroke-width="1.2"/>
+<text x="682" y="307" text-anchor="middle" fill="#ca8a04" font-size="8" font-family="'Courier New',monospace">F1</text>
+
+<!-- NO2 → Bottom Fan L — fused F2 -->
+<polyline points="575,343 668,343 668,313 1075,313" fill="none" stroke="#ca8a04" stroke-width="2"/>
+<rect x="682" y="337" width="24" height="12" rx="4" fill="#1e293b" stroke="#ca8a04" stroke-width="1.2"/>
+<text x="694" y="347" text-anchor="middle" fill="#ca8a04" font-size="8" font-family="'Courier New',monospace">F2</text>
+
+<!-- NO3 → Humidifier L — fused F3 (goes DOWN) -->
+<polyline points="575,383 680,383 680,428 1075,428" fill="none" stroke="#ca8a04" stroke-width="2"/>
+<rect x="694" y="377" width="24" height="12" rx="4" fill="#1e293b" stroke="#ca8a04" stroke-width="1.2"/>
+<text x="706" y="387" text-anchor="middle" fill="#ca8a04" font-size="8" font-family="'Courier New',monospace">F3</text>
+
+<!-- NO4 → Lights L — fused F4 -->
+<polyline points="575,423 692,423 692,543 1075,543" fill="none" stroke="#ca8a04" stroke-width="2"/>
+<rect x="706" y="417" width="24" height="12" rx="4" fill="#1e293b" stroke="#ca8a04" stroke-width="1.2"/>
+<text x="718" y="427" text-anchor="middle" fill="#ca8a04" font-size="8" font-family="'Courier New',monospace">F4</text>
+
+<!-- NO5 → Dehumidifier L — fused F5 -->
+<polyline points="575,463 704,463 704,673 1075,673" fill="none" stroke="#ca8a04" stroke-width="2"/>
+<rect x="718" y="457" width="24" height="12" rx="4" fill="#1e293b" stroke="#ca8a04" stroke-width="1.2"/>
+<text x="730" y="467" text-anchor="middle" fill="#ca8a04" font-size="8" font-family="'Courier New',monospace">F5</text>
+
+<!-- NO6 → Heat Mat L — fused F6 -->
+<polyline points="575,503 716,503 716,783 1075,783" fill="none" stroke="#ca8a04" stroke-width="2"/>
+<rect x="730" y="497" width="24" height="12" rx="4" fill="#1e293b" stroke="#ca8a04" stroke-width="1.2"/>
+<text x="742" y="507" text-anchor="middle" fill="#ca8a04" font-size="8" font-family="'Courier New',monospace">F6</text>
+
+<!-- NO7 → Watering L — fused F7 -->
+<polyline points="575,543 728,543 728,893 1075,893" fill="none" stroke="#ca8a04" stroke-width="2"/>
+<rect x="742" y="537" width="24" height="12" rx="4" fill="#1e293b" stroke="#ca8a04" stroke-width="1.2"/>
+<text x="754" y="547" text-anchor="middle" fill="#ca8a04" font-size="8" font-family="'Courier New',monospace">F7</text>
+
+<!-- NEUTRAL bus: Mains N → vertical at x=770 → all load N pins -->
+<polyline points="790,195 770,195" fill="none" stroke="#1d4ed8" stroke-width="2.5"/>
+<line x1="770" y1="195" x2="770" y2="900" stroke="#1d4ed8" stroke-width="3"/>
+<line x1="770" y1="198" x2="1115" y2="198" stroke="#1d4ed8" stroke-width="2"/>
+<line x1="770" y1="313" x2="1115" y2="313" stroke="#1d4ed8" stroke-width="2"/>
+<line x1="770" y1="428" x2="1115" y2="428" stroke="#1d4ed8" stroke-width="2"/>
+<line x1="770" y1="543" x2="1115" y2="543" stroke="#1d4ed8" stroke-width="2"/>
+<line x1="770" y1="673" x2="1115" y2="673" stroke="#1d4ed8" stroke-width="2"/>
+<line x1="770" y1="783" x2="1115" y2="783" stroke="#1d4ed8" stroke-width="2"/>
+<line x1="770" y1="893" x2="1115" y2="893" stroke="#1d4ed8" stroke-width="2"/>
+
+<!-- EARTH bus: Mains PE → vertical at x=780 → all load PE pins -->
+<polyline points="790,220 780,220" fill="none" stroke="#15803d" stroke-width="2"/>
+<line x1="780" y1="220" x2="780" y2="900" stroke="#15803d" stroke-width="2"/>
+<line x1="780" y1="198" x2="1155" y2="198" stroke="#15803d" stroke-width="1.5" opacity="0.7"/>
+<line x1="780" y1="313" x2="1155" y2="313" stroke="#15803d" stroke-width="1.5" opacity="0.7"/>
+<line x1="780" y1="428" x2="1155" y2="428" stroke="#15803d" stroke-width="1.5" opacity="0.7"/>
+<line x1="780" y1="543" x2="1155" y2="543" stroke="#15803d" stroke-width="1.5" opacity="0.7"/>
+<line x1="780" y1="673" x2="1155" y2="673" stroke="#15803d" stroke-width="1.5" opacity="0.7"/>
+<line x1="780" y1="783" x2="1155" y2="783" stroke="#15803d" stroke-width="1.5" opacity="0.7"/>
+<line x1="780" y1="893" x2="1155" y2="893" stroke="#15803d" stroke-width="1.5" opacity="0.7"/>
+
+
+<!-- ════════════════════════════════════════════════════════════
+     Capacitive Soil Moisture Sensor  (DC side)
+     ════════════════════════════════════════════════════════════ -->
+<rect x="38" y="756" width="175" height="100" rx="8" fill="#1e293b" stroke="#06b6d4" stroke-width="2"/>
+<text x="125" y="778" text-anchor="middle" fill="#06b6d4" font-size="12" font-weight="bold" font-family="'Courier New',monospace">SOIL SENSOR</text>
+<text x="125" y="793" text-anchor="middle" fill="#475569" font-size="10" font-family="'Courier New',monospace">Capacitive  v1.2 / v2.0</text>
+
+<circle cx="55" cy="815" r="3.5" fill="#ef4444"/>
+<text x="64" y="819" fill="#ef4444" font-size="10" font-family="'Courier New',monospace">VCC → 3.3V</text>
+
+<circle cx="55" cy="833" r="3.5" fill="#06b6d4"/>
+<text x="64" y="837" fill="#06b6d4" font-size="10" font-family="'Courier New',monospace">AOUT → GPIO 35</text>
+
+<circle cx="165" cy="815" r="3.5" fill="#9ca3af"/>
+<text x="157" y="819" text-anchor="end" fill="#9ca3af" font-size="10" font-family="'Courier New',monospace">GND</text>
+<text x="125" y="853" text-anchor="middle" fill="#64748b" font-size="8.5" font-family="'Courier New',monospace">No DOUT needed — AOUT only</text>
+
+<!-- Soil sensor power wires -->
+<!-- VCC from 3V3 bus -->
+<polyline points="55,815 20,815 20,178" fill="none" stroke="#ef4444" stroke-width="1.5" opacity="0.6"/>
+<!-- GND to GND bus -->
+<polyline points="165,815 185,815 185,882 8,882" fill="none" stroke="#9ca3af" stroke-width="1.5" opacity="0.6"/>
+
+<!-- ════════════════════════════════════════════════════════════
+     Load box — Relay 8 Extra  (AC side)
+     ════════════════════════════════════════════════════════════ -->
+<rect x="1060" y="945" width="200" height="80" rx="8" fill="#1e293b" stroke="#475569" stroke-width="1.5" stroke-dasharray="8,4"/>
+<text x="1160" y="968" text-anchor="middle" fill="#94a3b8" font-size="13" font-weight="bold" font-family="'Courier New',monospace">EXTRA  (spare)</text>
+<text x="1160" y="983" text-anchor="middle" fill="#475569" font-size="10" font-family="'Courier New',monospace">220V  —  Future device</text>
+<circle cx="1075" cy="1003" r="4" fill="#b45309"/>
+<circle cx="1115" cy="1003" r="4" fill="#1d4ed8"/>
+<circle cx="1155" cy="1003" r="4" fill="#15803d"/>
+<text x="1085" y="1007" fill="#b45309" font-size="10" font-family="'Courier New',monospace">L</text>
+<text x="1125" y="1007" fill="#3b82f6" font-size="10" font-family="'Courier New',monospace">N</text>
+<text x="1165" y="1007" fill="#22c55e" font-size="10" font-family="'Courier New',monospace">PE</text>
+
+<!-- NO8 → Extra L (fused F8) -->
+<polyline points="575,583 740,583 740,1003 1075,1003" fill="none" stroke="#ca8a04" stroke-width="2" stroke-dasharray="8,4"/>
+<rect x="754" y="577" width="24" height="12" rx="4" fill="#1e293b" stroke="#ca8a04" stroke-width="1.2"/>
+<text x="766" y="587" text-anchor="middle" fill="#ca8a04" font-size="8" font-family="'Courier New',monospace">F8</text>
+<!-- COM8 branch from live bus -->
+<polyline points="755,565 623,565 575,565" fill="none" stroke="#b45309" stroke-width="2.5" stroke-dasharray="8,4"/>
+<!-- N and PE for Extra load -->
+<line x1="770" y1="1003" x2="1115" y2="1003" stroke="#1d4ed8" stroke-width="2" stroke-dasharray="8,4"/>
+<line x1="780" y1="1003" x2="1155" y2="1003" stroke="#15803d" stroke-width="1.5" stroke-dasharray="8,4" opacity="0.7"/>
+
+<!-- Live bus extension for COM8 -->
+<line x1="755" y1="530" x2="755" y2="570" stroke="#b45309" stroke-width="3" stroke-dasharray="8,4"/>
+<!-- N bus extension -->
+<line x1="770" y1="900" x2="770" y2="1010" stroke="#1d4ed8" stroke-width="3" stroke-dasharray="8,4"/>
+<!-- PE bus extension -->
+<line x1="780" y1="900" x2="780" y2="1010" stroke="#15803d" stroke-width="2" stroke-dasharray="8,4"/>
+
+<!-- Dashed = connected but optional / spare -->
+<text x="1160" y="1038" text-anchor="middle" fill="#475569" font-size="8.5" font-family="'Courier New',monospace">Dashed = wired but spare</text>
+
+<!-- ════════════════════════════════════════════════════════════
+     LEGEND
+     ════════════════════════════════════════════════════════════ -->
+<rect x="30" y="960" width="680" height="140" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+<text x="370" y="980" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="bold" font-family="'Courier New',monospace">WIRE LEGEND</text>
+
+<line x1="50" y1="998" x2="85" y2="998" stroke="#ef4444" stroke-width="2.5"/>
+<text x="92" y="1002" fill="#e2e8f0" font-size="10" font-family="'Courier New',monospace">3.3V DC (power)</text>
+<line x1="50" y1="1018" x2="85" y2="1018" stroke="#d97706" stroke-width="2.5"/>
+<text x="92" y="1022" fill="#e2e8f0" font-size="10" font-family="'Courier New',monospace">12V DC (relay coil)</text>
+<line x1="50" y1="1038" x2="85" y2="1038" stroke="#9ca3af" stroke-width="2.5"/>
+<text x="92" y="1042" fill="#e2e8f0" font-size="10" font-family="'Courier New',monospace">GND / 0V (common)</text>
+<line x1="50" y1="1058" x2="85" y2="1058" stroke="#f97316" stroke-width="2.5"/>
+<text x="92" y="1062" fill="#e2e8f0" font-size="10" font-family="'Courier New',monospace">GPIO signal (3.3V logic)</text>
+<line x1="50" y1="1078" x2="85" y2="1078" stroke="#a855f7" stroke-width="2" stroke-dasharray="6,3"/>
+<text x="92" y="1082" fill="#e2e8f0" font-size="10" font-family="'Courier New',monospace">DHT22 data</text>
+
+<line x1="250" y1="998" x2="285" y2="998" stroke="#b45309" stroke-width="2.5"/>
+<text x="292" y="1002" fill="#e2e8f0" font-size="10" font-family="'Courier New',monospace">AC Live (L) — Brown</text>
+<line x1="250" y1="1018" x2="285" y2="1018" stroke="#ca8a04" stroke-width="2.5"/>
+<text x="292" y="1022" fill="#e2e8f0" font-size="10" font-family="'Courier New',monospace">AC Switched Live — post relay</text>
+<line x1="250" y1="1038" x2="285" y2="1038" stroke="#1d4ed8" stroke-width="2.5"/>
+<text x="292" y="1042" fill="#e2e8f0" font-size="10" font-family="'Courier New',monospace">AC Neutral (N) — Blue</text>
+<line x1="250" y1="1058" x2="285" y2="1058" stroke="#15803d" stroke-width="2.5"/>
+<text x="292" y="1062" fill="#e2e8f0" font-size="10" font-family="'Courier New',monospace">Earth / PE — Green-Yellow</text>
+<rect x="250" y="1070" width="22" height="12" rx="4" fill="#1e293b" stroke="#ca8a04" stroke-width="1.2"/>
+<text x="261" y="1080" text-anchor="middle" fill="#ca8a04" font-size="8" font-family="'Courier New',monospace">Fn</text>
+<text x="292" y="1082" fill="#e2e8f0" font-size="10" font-family="'Courier New',monospace">Fuse — one per load (F1–F7)</text>
+
+<text x="490" y="1000" fill="#94a3b8" font-size="10" font-weight="bold" font-family="'Courier New',monospace">KEY NOTES:</text>
+<text x="490" y="1017" fill="#64748b" font-size="9.5" font-family="'Courier New',monospace">1. Remove VCC–JD-VCC jumper on relay board</text>
+<text x="490" y="1032" fill="#64748b" font-size="9.5" font-family="'Courier New',monospace">2. All 220V wiring in conduit / rated cable</text>
+<text x="490" y="1047" fill="#64748b" font-size="9.5" font-family="'Courier New',monospace">3. Main RCD/GFCI on 220V feed — mandatory</text>
+<text x="490" y="1062" fill="#64748b" font-size="9.5" font-family="'Courier New',monospace">4. Fuse each load branch F1–F7</text>
+<text x="490" y="1077" fill="#64748b" font-size="9.5" font-family="'Courier New',monospace">5. Relay switches LIVE wire only (N direct)</text>
+<text x="490" y="1092" fill="#64748b" font-size="9.5" font-family="'Courier New',monospace">6. Earth all metal enclosures and loads</text>
+
+
+<!-- ════════════════════════════════════════════════════════════
+     Connection table
+     ════════════════════════════════════════════════════════════ -->
+<rect x="30" y="1120" width="1460" height="230" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+<text x="760" y="1142" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="bold" font-family="'Courier New',monospace">CONNECTION SUMMARY</text>
+
+<rect x="37" y="1148" width="1446" height="18" fill="#0f172a"/>
+<text x="60"  y="1161" fill="#475569" font-size="9.5" font-weight="bold" font-family="'Courier New',monospace">FROM</text>
+<text x="300" y="1161" fill="#475569" font-size="9.5" font-weight="bold" font-family="'Courier New',monospace">TO</text>
+<text x="620" y="1161" fill="#475569" font-size="9.5" font-weight="bold" font-family="'Courier New',monospace">WIRE</text>
+<text x="840" y="1161" fill="#475569" font-size="9.5" font-weight="bold" font-family="'Courier New',monospace">NOTE</text>
+<line x1="37" y1="1166" x2="1483" y2="1166" stroke="#334155" stroke-width="0.5"/>
+
+<text x="50"  y="1179" fill="#ef4444" font-size="9.5" font-family="'Courier New',monospace">ESP32  3V3</text>
+<text x="290" y="1179" fill="#ef4444" font-size="9.5" font-family="'Courier New',monospace">Relay VCC</text>
+<text x="610" y="1179" fill="#ef4444" font-size="9.5" font-family="'Courier New',monospace">Red  3.3V</text>
+<text x="830" y="1179" fill="#475569" font-size="9.5" font-family="'Courier New',monospace">opto coupler supply</text>
+
+<text x="50"  y="1195" fill="#9ca3af" font-size="9.5" font-family="'Courier New',monospace">ESP32  GND</text>
+<text x="290" y="1195" fill="#9ca3af" font-size="9.5" font-family="'Courier New',monospace">Relay GND + PSU GND + DHT22 GND</text>
+<text x="610" y="1195" fill="#9ca3af" font-size="9.5" font-family="'Courier New',monospace">Black</text>
+<text x="830" y="1195" fill="#475569" font-size="9.5" font-family="'Courier New',monospace">common ground bus</text>
+
+<text x="50"  y="1211" fill="#d97706" font-size="9.5" font-family="'Courier New',monospace">12V PSU  +12V</text>
+<text x="290" y="1211" fill="#d97706" font-size="9.5" font-family="'Courier New',monospace">Relay JD-VCC</text>
+<text x="610" y="1211" fill="#d97706" font-size="9.5" font-family="'Courier New',monospace">Yellow  12V</text>
+<text x="830" y="1211" fill="#475569" font-size="9.5" font-family="'Courier New',monospace">relay coil power</text>
+
+<text x="50"  y="1227" fill="#a855f7" font-size="9.5" font-family="'Courier New',monospace">ESP32  GPIO 4</text>
+<text x="290" y="1227" fill="#a855f7" font-size="9.5" font-family="'Courier New',monospace">DHT22 DATA</text>
+<text x="610" y="1227" fill="#a855f7" font-size="9.5" font-family="'Courier New',monospace">Purple</text>
+<text x="830" y="1227" fill="#475569" font-size="9.5" font-family="'Courier New',monospace">+ 10kΩ pull-up to 3V3</text>
+
+<text x="50"  y="1243" fill="#f97316" font-size="9.5" font-family="'Courier New',monospace">GPIO 26/27/14/12</text>
+<text x="290" y="1243" fill="#f97316" font-size="9.5" font-family="'Courier New',monospace">IN1–IN4</text>
+<text x="610" y="1243" fill="#f97316" font-size="9.5" font-family="'Courier New',monospace">Orange</text>
+<text x="830" y="1243" fill="#475569" font-size="9.5" font-family="'Courier New',monospace">Top Fan / Bot Fan / Humidifier / Lights</text>
+
+<text x="50"  y="1259" fill="#f97316" font-size="9.5" font-family="'Courier New',monospace">GPIO 25/33/32</text>
+<text x="290" y="1259" fill="#f97316" font-size="9.5" font-family="'Courier New',monospace">IN5–IN7</text>
+<text x="610" y="1259" fill="#f97316" font-size="9.5" font-family="'Courier New',monospace">Orange</text>
+<text x="830" y="1259" fill="#475569" font-size="9.5" font-family="'Courier New',monospace">Dehumidifier / Heat Mat / Watering</text>
+
+<line x1="37" y1="1265" x2="1483" y2="1265" stroke="#334155" stroke-width="0.5"/>
+
+<text x="50"  y="1278" fill="#b45309" font-size="9.5" font-family="'Courier New',monospace">220V Mains  L</text>
+<text x="290" y="1278" fill="#b45309" font-size="9.5" font-family="'Courier New',monospace">COM1–COM7 (live bus)</text>
+<text x="610" y="1278" fill="#b45309" font-size="9.5" font-family="'Courier New',monospace">Brown  L</text>
+<text x="830" y="1278" fill="#475569" font-size="9.5" font-family="'Courier New',monospace">switched live to all COM pins</text>
+
+<text x="50"  y="1294" fill="#ca8a04" font-size="9.5" font-family="'Courier New',monospace">Relay NO1–NO7</text>
+<text x="290" y="1294" fill="#ca8a04" font-size="9.5" font-family="'Courier New',monospace">Load L terminals (all 7 loads)</text>
+<text x="610" y="1294" fill="#ca8a04" font-size="9.5" font-family="'Courier New',monospace">Brown  (fused)</text>
+<text x="830" y="1294" fill="#475569" font-size="9.5" font-family="'Courier New',monospace">fuse F1–F7 on each branch</text>
+
+<text x="50"  y="1310" fill="#1d4ed8" font-size="9.5" font-family="'Courier New',monospace">220V Mains  N</text>
+<text x="290" y="1310" fill="#1d4ed8" font-size="9.5" font-family="'Courier New',monospace">All 7 load N terminals</text>
+<text x="610" y="1310" fill="#1d4ed8" font-size="9.5" font-family="'Courier New',monospace">Blue  N</text>
+<text x="830" y="1310" fill="#475569" font-size="9.5" font-family="'Courier New',monospace">direct — unswitched neutral</text>
+
+<text x="50"  y="1326" fill="#15803d" font-size="9.5" font-family="'Courier New',monospace">220V Mains  PE</text>
+<text x="290" y="1326" fill="#15803d" font-size="9.5" font-family="'Courier New',monospace">All 7 load PE terminals</text>
+<text x="610" y="1326" fill="#15803d" font-size="9.5" font-family="'Courier New',monospace">Green-Yellow</text>
+<text x="830" y="1326" fill="#475569" font-size="9.5" font-family="'Courier New',monospace">mandatory earth — all loads</text>
+
+<text x="50"  y="1342" fill="#d97706" font-size="9.5" font-family="'Courier New',monospace">ESP32  USB</text>
+<text x="290" y="1342" fill="#d97706" font-size="9.5" font-family="'Courier New',monospace">Phone charger / PC USB</text>
+<text x="610" y="1342" fill="#d97706" font-size="9.5" font-family="'Courier New',monospace">USB cable</text>
+<text x="830" y="1342" fill="#475569" font-size="9.5" font-family="'Courier New',monospace">5V ESP32 power</text>
+
+</svg>
