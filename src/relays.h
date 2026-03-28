@@ -47,9 +47,22 @@ struct RelayState {
     // Physical output
     bool physicalOn;
 
-    // Timing guards (hysteresis / min on-off)
+    // Timing guards (per-relay, replaces global MIN_RELAY_ON/OFF_MS)
     unsigned long lastOnMs;
     unsigned long lastOffMs;
+
+    // Manual override timeout — auto-revert to AUTO after this many seconds (0 = disabled)
+    uint32_t      manualTimeoutSec;
+    unsigned long manualStartMs;
+
+    // Per-relay AUTO mode tuning
+    float    autoBuffer;   // deadband for this relay's control variable
+                           //   VPD relays (fan/humidifier):  kPa
+                           //   Humidity relays (dehumidifier): %RH
+                           //   Temperature relays (heat mat):  °C
+    uint32_t minOnSec;     // minimum ON  duration before state may change
+    uint32_t minOffSec;    // minimum OFF duration before state may change
+    uint32_t maxOnSec;     // maximum ON duration in AUTO (0 = unlimited)
 };
 
 class RelayManager {
@@ -67,6 +80,8 @@ public:
     void setManual(RelayIndex idx, bool on);
     void setTimer(RelayIndex idx, uint32_t onSec, uint32_t offSec);
     void setSchedule(RelayIndex idx, const ScheduleCfg& cfg);
+    void setBuffer(RelayIndex idx, float buf);
+    void setDuration(RelayIndex idx, uint32_t minOnSec, uint32_t maxOnSec);
 
     const RelayState& get(RelayIndex idx) const { return _r[idx]; }
 

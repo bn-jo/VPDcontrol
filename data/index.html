@@ -62,7 +62,19 @@ section { margin-bottom: 1.25rem; }
 }
 
 /* ─── Metric cards ────────────────────────────────────────────────────────── */
-.metrics { display: grid; grid-template-columns: repeat(5, 1fr); gap: .75rem; }
+.metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: .75rem; }
+.metric-sm {
+  grid-column: span 4;
+  padding: .45rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.metric-sm .metric-label {
+  font-size: .65rem; margin-bottom: 0; min-width: 60px;
+}
+.metric-sm .metric-value { font-size: 1.2rem; margin-bottom: 0; }
+.metric-sm .metric-badge { font-size: .65rem; padding: .12rem .4rem; }
 .metric {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -186,6 +198,12 @@ section { margin-bottom: 1.25rem; }
 .btn-apply:hover { background: #2563eb; }
 
 .auto-note { color: var(--muted); font-size: .78rem; line-height: 1.5; }
+.auto-tuning { display: flex; flex-direction: column; gap: .35rem; margin-top: .35rem; padding-top: .35rem; border-top: 1px solid var(--border); }
+.tuning-row { display: flex; align-items: center; gap: .4rem; font-size: .78rem; }
+.tuning-row label { color: var(--muted); min-width: 52px; }
+.tuning-row input[type=number] { width: 56px; background: #111827; border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: .2rem .35rem; font-size: .78rem; text-align: center; }
+.tuning-row span { color: var(--muted); font-size: .72rem; }
+.tuning-sep { color: var(--muted); font-weight: 700; margin: 0 .1rem; }
 
 /* Schedule section */
 .sched-body { display: flex; flex-direction: column; gap: .4rem; }
@@ -298,6 +316,29 @@ canvas { width: 100% !important; height: 100% !important; }
 .dot-conn { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--red); margin-right: .3rem; vertical-align: middle; }
 .dot-conn.ok { background: var(--green); }
 
+/* ─── VPD Target card ────────────────────────────────────────────────────── */
+.vpdt-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:.85rem 1rem; }
+.vpdt-card.active { border-color: var(--accent); }
+.vpdt-header { display:flex; align-items:center; justify-content:space-between; }
+.vpdt-title  { font-weight:700; font-size:.92rem; }
+.vpdt-sub    { font-size:.72rem; color:var(--muted); margin-top:.15rem; }
+.vpdt-body   { margin-top:.75rem; display:flex; flex-direction:column; gap:.5rem; }
+.vpdt-kpa-row { display:flex; align-items:center; justify-content:center; gap:1rem; }
+.vpdt-kpa-val { font-size:1.6rem; font-weight:700; min-width:110px; text-align:center; }
+.vpdt-btn { background:var(--bg); border:1px solid var(--border); color:var(--text);
+            width:2.2rem; height:2.2rem; border-radius:50%; font-size:1.2rem;
+            cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.vpdt-btn:hover { background: var(--accent); border-color: var(--accent); }
+.vpdt-detail-row { display:flex; align-items:center; justify-content:center; gap:.5rem; }
+/* Toggle switch */
+.toggle-wrap { position:relative; display:inline-block; width:44px; height:24px; cursor:pointer; }
+.toggle-wrap input { opacity:0; width:0; height:0; }
+.toggle-slider { position:absolute; inset:0; background:#374151; border-radius:24px; transition:.3s; }
+.toggle-slider::before { content:''; position:absolute; width:18px; height:18px;
+  left:3px; bottom:3px; background:#fff; border-radius:50%; transition:.3s; }
+.toggle-wrap input:checked + .toggle-slider { background:var(--accent); }
+.toggle-wrap input:checked + .toggle-slider::before { transform:translateX(20px); }
+
 /* ─── Day / Night badge ───────────────────────────────────────────────────── */
 .phase-badge {
   display: inline-flex; align-items: center; gap: .35rem;
@@ -344,7 +385,8 @@ canvas { width: 100% !important; height: 100% !important; }
 .extra-toggle input[type=checkbox] { cursor: pointer; accent-color: var(--blue); }
 
 @media (max-width: 780px) {
-  .metrics { grid-template-columns: repeat(3, 1fr); }
+  .metrics { grid-template-columns: repeat(2, 1fr); }
+  .metric-sm { grid-column: span 2; }
 }
 @media (max-width: 620px) {
   .relay-grid { grid-template-columns: 1fr; }
@@ -379,11 +421,18 @@ canvas { width: 100% !important; height: 100% !important; }
 <header>
   <div class="logo">🌿 <span>VPD</span> Control</div>
   <span class="phase-badge" id="phaseBadge" style="display:none"></span>
-  <select class="grow-mode" id="growMode" onchange="requestStageChange(parseInt(this.value))">
-    <option value="0">🌱 Seedling</option>
-    <option value="1">🍃 Vegetative</option>
-    <option value="2">🌸 Flowering</option>
-  </select>
+  <div id="clockBox" style="display:flex;flex-direction:column;align-items:center;line-height:1.2">
+    <span id="clockTime" style="font-size:.95rem;font-weight:700;letter-spacing:.03em;font-variant-numeric:tabular-nums">--:--:--</span>
+    <span id="clockDate" style="font-size:.68rem;color:var(--muted)">--- -- ----</span>
+  </div>
+  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.15rem">
+    <select class="grow-mode" id="growMode" onchange="requestStageChange(parseInt(this.value))">
+      <option value="0">🌱 Seedling</option>
+      <option value="1">🍃 Vegetative</option>
+      <option value="2">🌸 Flowering</option>
+    </select>
+    <span id="stageDayBadge" style="font-size:.68rem;color:var(--muted);padding-right:.2rem"></span>
+  </div>
 </header>
 
 <!-- Alert banner — shown only when active alerts exist -->
@@ -405,6 +454,7 @@ canvas { width: 100% !important; height: 100% !important; }
       <div class="metric" id="card-temp">
         <div class="metric-label">Temperature</div>
         <div class="metric-value" id="val-temp">--</div>
+        <div style="font-size:.75rem;color:#888;margin-top:.1rem" id="val-temp-f"></div>
         <span class="metric-badge" id="badge-temp">--</span>
       </div>
       <div class="metric" id="card-hum">
@@ -422,10 +472,15 @@ canvas { width: 100% !important; height: 100% !important; }
         <div class="metric-value" id="val-soil">--</div>
         <span class="metric-badge" id="badge-soil">--</span>
       </div>
-      <div class="metric" id="card-lights">
+      <div class="metric metric-sm" id="card-lights">
         <div class="metric-label">Lights</div>
         <div class="metric-value" id="val-lights">--</div>
         <span class="metric-badge" id="badge-lights">--</span>
+      </div>
+      <div class="metric metric-sm" id="card-stageday">
+        <div class="metric-label" id="label-stageday">Grow Day</div>
+        <div class="metric-value" id="val-stageday">--</div>
+        <span class="metric-badge" id="badge-stageday">--</span>
       </div>
     </div>
   </section>
@@ -443,6 +498,37 @@ canvas { width: 100% !important; height: 100% !important; }
       </div>
       <div class="chart-wrap">
         <canvas id="histChart"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── VPD Target ─────────────────────────────────────────────────────── -->
+  <section>
+    <div class="vpdt-card" id="vpdTargetCard">
+      <div class="vpdt-header">
+        <div>
+          <div class="vpdt-title">VPD Target</div>
+          <div class="vpdt-sub" id="vpdtSub">Overrides profile range for all AUTO relays</div>
+        </div>
+        <label class="toggle-wrap">
+          <input type="checkbox" id="vpdtEnabled" onchange="sendVpdTarget()">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="vpdt-body" id="vpdtBody">
+        <div class="vpdt-kpa-row">
+          <button class="vpdt-btn" onclick="stepVpdTarget(-0.05)">−</button>
+          <div class="vpdt-kpa-val" id="vpdtKpa">1.00 kPa</div>
+          <button class="vpdt-btn" onclick="stepVpdTarget(+0.05)">+</button>
+        </div>
+        <div class="vpdt-detail-row">
+          <span style="color:var(--muted);font-size:.78rem">Buffer ±</span>
+          <input type="number" id="vpdtBuf" value="0.10" min="0.01" max="1" step="0.01"
+                 style="width:56px;background:#111827;border:1px solid var(--border);color:var(--text);
+                        border-radius:4px;padding:.2rem .35rem;font-size:.78rem;text-align:center"
+                 onchange="sendVpdTarget()">
+          <span style="color:var(--muted);font-size:.78rem">kPa</span>
+        </div>
       </div>
     </div>
   </section>
@@ -526,6 +612,7 @@ function handleState(s) {
   try { localStorage.setItem('relayModes', JSON.stringify(s.relays.map(r => r.mode))); } catch(_) {}
   updatePhaseBadge(s.lightSched);
   updateAlerts(s.alerts || []);
+  updateVpdTargetUI(s.vpdTarget);
   _confirmedStage = s.growMode;
   document.getElementById('growMode').value = String(s.growMode);
   try { localStorage.setItem('growStage', String(s.growMode)); } catch(_) {}
@@ -545,9 +632,12 @@ function updateMetrics(s) {
   const humMargin  = (p.humMax  - p.humMin)  * 0.3;
   const vpdMargin  = (p.vpdMax  - p.vpdMin)  * 0.3;
 
+  const tempF = s.temp * 9 / 5 + 32;
   setMetric('temp', s.temp.toFixed(1) + '°C',
             colorForValue(s.temp, p.tempMin, p.tempMax, tempMargin),
             s.temp < p.tempMin ? 'Too Cold' : s.temp > p.tempMax ? 'Too Hot' : 'Optimal');
+  const elF = document.getElementById('val-temp-f');
+  if (elF) elF.textContent = tempF.toFixed(1) + '°F';
 
   setMetric('hum', s.hum.toFixed(0) + '%',
             colorForValue(s.hum, p.humMin, p.humMax, humMargin),
@@ -561,6 +651,22 @@ function updateMetrics(s) {
   setMetric('lights', lightsOn ? 'ON' : 'OFF',
             lightsOn ? 'yellow' : 'blue',
             lightsOn ? 'Day' : 'Night');
+
+  // Grow day counter
+  const day = s.stageDay || 0;
+  const stageName = STAGE_NAMES[s.growMode] || '';
+  const labelEl = document.getElementById('label-stageday');
+  if (day > 0) {
+    if (labelEl) labelEl.textContent = 'Grow Day ' + stageName;
+    setMetric('stageday', 'Day ' + day, 'green', stageName);
+    const badge = document.getElementById('stageDayBadge');
+    if (badge) badge.textContent = 'Day ' + day;
+  } else {
+    if (labelEl) labelEl.textContent = 'Grow Day';
+    setMetric('stageday', '--', 'muted', 'NTP needed');
+    const badge = document.getElementById('stageDayBadge');
+    if (badge) badge.textContent = '';
+  }
 }
 
 function setMetric(key, value, color, badge) {
@@ -713,17 +819,39 @@ function renderRelayCard(card, r) {
     } else if (r.id === EXTRA_RELAY_ID) {
       body = `<span class="auto-note">Spare output — use Manual, Timer or Sched</span>`;
     } else {
-      body = `<span class="auto-note">Controlled by climate logic</span>`;
+      const buf   = (r.buffer  ?? 0.05).toFixed(2);
+      const minOn = r.minOn ?? 30;
+      const maxOn = r.maxOn ?? 0;
+      body = `<span class="auto-note">Controlled by climate logic</span>
+        <div class="auto-tuning">
+          <div class="tuning-row">
+            <label>Buffer</label>
+            <input type="number" id="buf_${r.id}" value="${buf}" min="0" max="10" step="0.01">
+            <span>kPa / %</span>
+          </div>
+          <div class="tuning-row">
+            <label>Min ON</label>
+            <input type="number" id="mion_${r.id}" value="${minOn}" min="0" max="3600">
+            <span class="tuning-sep">|</span>
+            <label>Max ON</label>
+            <input type="number" id="mxon_${r.id}" value="${maxOn}" min="0" max="86400">
+            <span>sec (0=off)</span>
+          </div>
+          <button class="btn-apply" onclick="applyAutoTuning(${r.id})">Apply</button>
+        </div>`;
     }
 
   } else if (r.mode === 1) {
     // ── Manual ────────────────────────────────────────────────────────────────
     const onA  = r.state  ? ' active' : '';
     const offA = !r.state ? ' active' : '';
+    const revertNote = (r.manualRemain > 0)
+      ? `<div style="font-size:.72rem;color:var(--muted);margin-top:.3rem">Auto-revert in ${fmtDuration(r.manualRemain)}</div>`
+      : '';
     body = `<div class="manual-btns">
       <button class="btn btn-on${onA}"  onclick="setManual(${r.id},true)">ON</button>
       <button class="btn btn-off${offA}" onclick="setManual(${r.id},false)">OFF</button>
-    </div>`;
+    </div>${revertNote}`;
 
   } else if (r.mode === 2) {
     // ── Cycle Timer ───────────────────────────────────────────────────────────
@@ -812,6 +940,12 @@ function confirmStageChange() {
   document.getElementById('growMode').value = String(mode);
   try { localStorage.setItem('growStage', String(mode)); } catch(_) {}
   send({ type: 'setMode', mode });
+  // Update lights card preview immediately (no ESP32 echo when disconnected)
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    _lightSched = mockSchedForMode(mode);
+    const card = document.getElementById('rcard-' + LIGHTS_ID);
+    if (card && _cache[LIGHTS_ID]) renderRelayCard(card, _cache[LIGHTS_ID]);
+  }
 }
 
 function setGrowMode(mode) {   // kept for direct calls
@@ -824,6 +958,45 @@ function saveRelayModesToLocal() {
     for (let i = 0; i < 8; i++) arr.push(_cache[i] ? _cache[i].mode : 0);
     localStorage.setItem('relayModes', JSON.stringify(arr));
   } catch(_) {}
+}
+
+// ─── VPD Target ───────────────────────────────────────────────────────────────
+let _vpdTargetKpa = 1.0;
+
+function updateVpdTargetUI(vt) {
+  if (!vt) return;
+  _vpdTargetKpa = vt.kpa || 1.0;
+  const enEl  = document.getElementById('vpdtEnabled');
+  const kpaEl = document.getElementById('vpdtKpa');
+  const bufEl = document.getElementById('vpdtBuf');
+  const card  = document.getElementById('vpdTargetCard');
+  const sub   = document.getElementById('vpdtSub');
+  if (enEl)  enEl.checked    = !!vt.enabled;
+  if (kpaEl) kpaEl.textContent = _vpdTargetKpa.toFixed(2) + ' kPa';
+  if (bufEl) bufEl.value     = (vt.buffer || 0.1).toFixed(2);
+  if (card)  card.classList.toggle('active', !!vt.enabled);
+  if (sub)   sub.textContent = vt.enabled
+    ? `Active — targeting ${_vpdTargetKpa.toFixed(2)} kPa ± ${(vt.buffer||0.1).toFixed(2)}`
+    : 'Overrides profile range for all AUTO relays';
+}
+
+function stepVpdTarget(delta) {
+  _vpdTargetKpa = Math.max(0.1, Math.round((_vpdTargetKpa + delta) * 100) / 100);
+  const kpaEl = document.getElementById('vpdtKpa');
+  if (kpaEl) kpaEl.textContent = _vpdTargetKpa.toFixed(2) + ' kPa';
+  sendVpdTarget();
+}
+
+function sendVpdTarget() {
+  const en  = document.getElementById('vpdtEnabled')?.checked || false;
+  const buf = parseFloat(document.getElementById('vpdtBuf')?.value) || 0.1;
+  const card = document.getElementById('vpdTargetCard');
+  const sub  = document.getElementById('vpdtSub');
+  if (card) card.classList.toggle('active', en);
+  if (sub)  sub.textContent = en
+    ? `Active — targeting ${_vpdTargetKpa.toFixed(2)} kPa ± ${buf.toFixed(2)}`
+    : 'Overrides profile range for all AUTO relays';
+  send({ type: 'setVpdTarget', enabled: en, kpa: _vpdTargetKpa, buffer: buf });
 }
 
 function setRelayMode(id, mode) {
@@ -889,6 +1062,18 @@ function applySchedule(id) {
   if (_cache[id]) { _cache[id] = { ..._cache[id], mode: 3 }; saveRelayModesToLocal(); }
   send({ type: 'relay', id, action: 'mode',     value: 3 });
   send({ type: 'relay', id, action: 'schedule', slots, days });
+}
+
+function applyAutoTuning(id) {
+  const bufEl  = document.getElementById('buf_'  + id);
+  const mionEl = document.getElementById('mion_' + id);
+  const mxonEl = document.getElementById('mxon_' + id);
+  if (!bufEl || !mionEl || !mxonEl) return;
+  const buf   = Math.max(0, parseFloat(bufEl.value)  || 0.05);
+  const minOn = Math.max(0, parseInt(mionEl.value, 10) || 0);
+  const maxOn = Math.max(0, parseInt(mxonEl.value, 10) || 0);
+  send({ type: 'relay', id, action: 'buffer',   value: buf });
+  send({ type: 'relay', id, action: 'duration', minOn, maxOn });
 }
 
 function applyTimer(id) {
@@ -989,27 +1174,69 @@ function setStatus(ok, msg) {
   document.getElementById('statusText').textContent = msg;
 }
 
+// ─── Clock ────────────────────────────────────────────────────────────────────
+(function tickClock() {
+  const DAYS  = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function update() {
+    const now = new Date();
+    const hh  = String(now.getHours()).padStart(2,'0');
+    const mm  = String(now.getMinutes()).padStart(2,'0');
+    const ss  = String(now.getSeconds()).padStart(2,'0');
+    const day = DAYS[now.getDay()];
+    const mon = MONTHS[now.getMonth()];
+    const d   = String(now.getDate()).padStart(2,'0');
+    const y   = now.getFullYear();
+    const tEl = document.getElementById('clockTime');
+    const dEl = document.getElementById('clockDate');
+    if (tEl) tEl.textContent = `${hh}:${mm}:${ss}`;
+    if (dEl) dEl.textContent = `${day} ${d} ${mon} ${y}`;
+  }
+  update();
+  setInterval(update, 1000);
+})();
+
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 applyExtraVisibility();
 
+// Light schedule hours per grow mode: [onHours, offHours]
+const LIGHT_HOURS = [[24, 0], [18, 6], [12, 12]];
+
+function mockSchedForMode(mode) {
+  const [on, off] = LIGHT_HOURS[mode] || [18, 6];
+  const durSec = on === 24 ? 86400 : (on + off) * 3600;
+  return { isOn: true, remSec: Math.round(on * 3600 * 0.5), durSec,
+           onHours: on, offHours: off, ntpOk: false };
+}
+
 // Populate UI with placeholder data so layout is visible before ESP32 connects
 (function showPreview() {
+  // Read saved stage now so mock schedule matches
+  let previewStage = 0;
+  try {
+    const s = localStorage.getItem('growStage');
+    if (s !== null) previewStage = parseInt(s, 10);
+  } catch(_) {}
+
   const names = ['Top Fan','Bottom Fan','Humidifier','Lights',
                  'Dehumidifier','Heat Mat','Watering','Extra'];
+  const DEFAULT_BUFFERS = [0.05, 0.05, 0.05, 0, 3.0, 0.5, 0, 0];
   const mockRelays = names.map((name, i) => ({
     id: i, name, mode: 0, state: false, manual: false,
+    buffer: DEFAULT_BUFFERS[i], minOn: 30, maxOn: 0,
     timer: { on: 3600, off: 1800 },
     sched: { slots: [{ sh: 8, sm: 0, eh: 9, em: 0 }], days: 127 }
   }));
   mockRelays.forEach(r => { _cache[r.id] = r; });
-  const mockSched = { isOn: true, remSec: 21600, durSec: 43200,
-                      onHours: 12, offHours: 12, ntpOk: false };
-  updateRelays(mockRelays, mockSched);
+  updateRelays(mockRelays, mockSchedForMode(previewStage));
   setMetric('temp',   '--',  'muted', '');
+  const elFReset = document.getElementById('val-temp-f');
+  if (elFReset) elFReset.textContent = '';
   setMetric('hum',    '--',  'muted', '');
-  setMetric('vpd',    '--',  'muted', '');
-  setMetric('soil',   '--',  'muted', '');
-  setMetric('lights', '--',  'muted', '');
+  setMetric('vpd',      '--', 'muted', '');
+  setMetric('soil',     '--', 'muted', '');
+  setMetric('lights',   '--', 'muted', '');
+  setMetric('stageday', '--', 'muted', '');
 
   // Restore last-known relay modes so tabs show correctly before WS connects
   try {

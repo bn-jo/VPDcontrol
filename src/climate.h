@@ -22,6 +22,13 @@ struct GrowProfile {
 
 enum GrowMode : uint8_t { GROW_SEEDLING = 0, GROW_VEG, GROW_FLOWER, NUM_GROW_MODES };
 
+// ─── Manual VPD target (overrides grow-profile vpdMin/vpdMax when enabled) ───
+struct VpdTargetCfg {
+    bool  enabled = false;
+    float kpa     = 1.0f;   // target kPa
+    float buffer  = 0.1f;   // deadband each side of target (kPa)
+};
+
 // ─── Alert flags (bit mask) ───────────────────────────────────────────────────
 #define ALERT_NTP_MISSING    0x01u  // NTP not synced — schedule position uncertain
 #define ALERT_SCHED_OVERDUE  0x02u  // Phase ran past its duration (schedule may be frozen)
@@ -72,6 +79,12 @@ public:
     const LightSchedule&  lightSchedule()  const { return _sched; }
     uint8_t               alertFlags()     const { return _sched.alerts(); }
 
+    void                  setVpdTarget(bool enabled, float kpa, float buffer);
+    const VpdTargetCfg&   vpdTarget()      const { return _vpdTarget; }
+
+    // Days elapsed since current stage was set (0 if NTP not yet synced)
+    uint32_t              stageDay()        const;
+
     void savePrefs();
     void loadPrefs();
 
@@ -79,6 +92,8 @@ private:
     GrowMode      _mode;
     GrowProfile   _profiles[NUM_GROW_MODES];
     LightSchedule _sched;
+    VpdTargetCfg  _vpdTarget;
+    int64_t       _stageStartEpoch;   // Unix epoch when current stage was last set
 
     // Hysteresis state (persist between control ticks)
     bool _humidifierOn;

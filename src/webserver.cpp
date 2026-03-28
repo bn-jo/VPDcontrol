@@ -24,12 +24,20 @@ static void buildStateJson(String& out) {
     doc["soilValid"] = sd_soil.valid;
 
     const SensorData& sd = sensors.data();
-    doc["temp"]  = sd.temperature;
-    doc["hum"]   = sd.humidity;
-    doc["vpd"]   = sd.vpd;
-    doc["valid"] = sd.valid;
+    doc["temp"]     = sd.temperature;
+    doc["hum"]      = sd.humidity;
+    doc["vpd"]      = sd.vpd;
+    doc["vpdTrend"] = sd.vpdTrend;   // kPa/min — positive = drying, negative = humidifying
+    doc["valid"]    = sd.valid;
 
     doc["growMode"] = (int)climate.getMode();
+    doc["stageDay"] = climate.stageDay();   // Day 1 = first day of current stage
+
+    const VpdTargetCfg& vt = climate.vpdTarget();
+    JsonObject vtObj        = doc["vpdTarget"].to<JsonObject>();
+    vtObj["enabled"]        = vt.enabled;
+    vtObj["kpa"]            = vt.kpa;
+    vtObj["buffer"]         = vt.buffer;
 
     // Active profile targets — correct day/night set
     const bool         lightsOn = climate.isLightsOn();
@@ -80,6 +88,17 @@ static void buildStateJson(String& out) {
         rel["mode"]   = (int)r.mode;
         rel["state"]  = r.physicalOn;
         rel["manual"] = r.manualOn;
+        rel["buffer"] = r.autoBuffer;
+        rel["minOn"]  = r.minOnSec;
+        rel["maxOn"]  = r.maxOnSec;
+        // Seconds remaining before auto-revert to AUTO (0 if not in manual or no timeout)
+        uint32_t manualRemain = 0;
+        if (r.mode == RELAY_MANUAL && r.manualTimeoutSec > 0 && r.manualStartMs > 0) {
+            unsigned long elapsed   = millis() - r.manualStartMs;
+            unsigned long timeoutMs = (unsigned long)r.manualTimeoutSec * 1000UL;
+            manualRemain = (elapsed < timeoutMs) ? (uint32_t)((timeoutMs - elapsed) / 1000UL) : 0;
+        }
+        rel["manualRemain"] = manualRemain;
         JsonObject tmr = rel["timer"].to<JsonObject>();
         tmr["on"]  = r.timer.onSec;
         tmr["off"] = r.timer.offSec;
@@ -119,7 +138,12 @@ static void onWsEvent(AsyncWebSocket*       server,
 
     const char* msgType = doc["type"] | "";
 
-    if (strcmp(msgType, "setMode") == 0) {
+    if (strcmp(msgType, "setVpdTarget") == 0) {
+        bool  en  = doc["enabled"] | false;
+        float kpa = doc["kpa"]     | 1.0f;
+        float buf = doc["buffer"]  | 0.1f;
+        climate.setVpdTarget(en, kpa, buf);
+    } else if (strcmp(msgType, "setMode") == 0) {
         int m = doc["mode"] | -1;
         if (m >= 0 && m < NUM_GROW_MODES) {
             climate.setMode((GrowMode)m);
@@ -141,6 +165,13 @@ static void onWsEvent(AsyncWebSocket*       server,
             uint32_t onSec  = doc["on"]  | 3600;
             uint32_t offSec = doc["off"] | 1800;
             relays.setTimer(idx, onSec, offSec);
+        } else if (strcmp(action, "buffer") == 0) {
+            float buf = doc["value"] | 0.05f;
+            relays.setBuffer(idx, buf);
+        } else if (strcmp(action, "duration") == 0) {
+            uint32_t minOn = doc["minOn"] | (uint32_t)30;
+            uint32_t maxOn = doc["maxOn"] | (uint32_t)0;
+            relays.setDuration(idx, minOn, maxOn);
         } else if (strcmp(action, "schedule") == 0) {
             ScheduleCfg cfg;
             cfg.daysMask  = doc["days"] | 0x7F;

@@ -166,7 +166,8 @@ void LightSchedule::load() {
 ClimateController::ClimateController()
     : _mode(GROW_VEG),
       _humidifierOn(false), _topFanOn(false), _bottomFanOn(false),
-      _dehumidifierOn(false), _heatMatOn(false)
+      _dehumidifierOn(false), _heatMatOn(false),
+      _stageStartEpoch(0)
 {
     // ── Seedling ─────────────────────────────────────────────────────────────
     //                             tMin  tMax  hMin  hMax  vMin  vMax  vTgt
@@ -203,7 +204,18 @@ void ClimateController::setMode(GrowMode m) {
     // Option A: keep the clock, update phase lengths only
     _sched.onModeChange(m, _profiles);
     _mode = m;
+    // Record when this stage started (requires NTP; stored as 0 if not yet synced)
+    time_t now = time(nullptr);
+    _stageStartEpoch = (now > 1000000000L) ? (int64_t)now : 0;
     savePrefs();
+}
+
+uint32_t ClimateController::stageDay() const {
+    if (_stageStartEpoch <= 0) return 0;
+    time_t now = time(nullptr);
+    if (now < 1000000000L) return 0;
+    int64_t elapsed = (int64_t)now - _stageStartEpoch;
+    return (elapsed > 0) ? (uint32_t)(elapsed / 86400) + 1 : 1;
 }
 
 void ClimateController::update(const SensorData& sd) {
@@ -241,14 +253,35 @@ void ClimateController::computeOutputs(const SensorData& sd) {
     const float h   = sd.humidity;
     const float vpd = sd.vpd;
 
+    // ── Predictive VPD: project trend VPD_LOOKAHEAD_MIN minutes ahead ─────────
+    // Suppresses small sensor noise via VPD_TREND_MIN floor.
+    // Temperature and humidity flags still use current measured values.
+    float trend = sd.vpdTrend;
+    if (fabsf(trend) < VPD_TREND_MIN) trend = 0.0f;
+    const float vpdP = vpd + trend * VPD_LOOKAHEAD_MIN;  // projected VPD
+
+    // ── Per-relay buffers (configurable in UI, persisted in NVS) ─────────────
+    const float humBuf  = relays.get(HUMIDIFIER).autoBuffer;
+    const float fanBuf  = relays.get(TOP_FAN).autoBuffer;
+    const float dehBuf  = relays.get(DEHUMIDIFIER).autoBuffer;
+    const float heatBuf = relays.get(HEAT_MAT).autoBuffer;
+
+    // ── VPD thresholds — profile range, or overridden by manual VPD target ───
+    float vpdMin = p.vpdMin;
+    float vpdMax = p.vpdMax;
+    if (_vpdTarget.enabled) {
+        vpdMin = _vpdTarget.kpa - _vpdTarget.buffer;
+        vpdMax = _vpdTarget.kpa + _vpdTarget.buffer;
+    }
+
     // ── Threshold flags ───────────────────────────────────────────────────────
-    const bool tempHigh  = t   > (p.tempMax + TEMP_HYST);
-    const bool tempLow   = t   < (p.tempMin - TEMP_HYST);
-    const bool humHigh   = h   > (p.humMax  + HUMIDITY_HYST);
-    // Asymmetric VPD: turn-ON uses outer band; turn-OFF uses inner band (see below)
-    const bool vpdHigh   = vpd > (p.vpdMax  + VPD_HYST);          // clearly too dry
-    const bool vpdLow    = vpd < (p.vpdMin  - VPD_HYST);          // clearly too humid
-    const bool vpdCrisis = vpd > (p.vpdMax  + 2.0f * VPD_HYST);   // severe dryness
+    const bool tempHigh  = t    > (p.tempMax + TEMP_HYST);          // shared — keep global
+    const bool tempLow   = t    < (p.tempMin - heatBuf);
+    const bool humHigh   = h    > (p.humMax  + dehBuf);
+    // VPD flags use projected value — devices activate before the spike arrives
+    const bool vpdHigh   = vpdP > (vpdMax + humBuf);                // heading too dry
+    const bool vpdLow    = vpdP < (vpdMin - fanBuf);                // heading too humid
+    const bool vpdCrisis = vpdP > (vpdMax + 2.0f * humBuf);         // severe dryness
 
     // ── LIGHTS (relay 4) ─────────────────────────────────────────────────────
     relays.setAutoState(LIGHTS, lightsOn);
@@ -259,7 +292,7 @@ void ClimateController::computeOutputs(const SensorData& sd) {
     {
         bool want;
         if (_topFanOn) {
-            want = (vpd < p.vpdMin) || tempHigh;     // OFF at inner boundary
+            want = (vpd < vpdMin) || tempHigh;       // OFF at inner boundary
         } else {
             want = vpdLow || tempHigh;               // ON only at outer boundary
         }
@@ -313,7 +346,7 @@ void ClimateController::computeOutputs(const SensorData& sd) {
     {
         bool want;
         if (_humidifierOn) {
-            want = (vpd > p.vpdMax) && !humHigh;    // OFF at inner boundary
+            want = (vpd > vpdMax) && !humHigh;      // OFF at inner boundary
         } else {
             want = vpdHigh && !humHigh;             // ON only at outer boundary
         }
@@ -385,11 +418,22 @@ void ClimateController::computeOutputs(const SensorData& sd) {
     }
 }
 
+void ClimateController::setVpdTarget(bool enabled, float kpa, float buffer) {
+    _vpdTarget.enabled = enabled;
+    _vpdTarget.kpa     = kpa;
+    _vpdTarget.buffer  = buffer;
+    savePrefs();
+}
+
 // ─── Persistence ─────────────────────────────────────────────────────────────
 void ClimateController::savePrefs() {
     Preferences p;
     p.begin("climate", false);
-    p.putUChar("mode", (uint8_t)_mode);
+    p.putUChar  ("mode",    (uint8_t)_mode);
+    p.putBool   ("vtEn",    _vpdTarget.enabled);
+    p.putFloat  ("vtKpa",   _vpdTarget.kpa);
+    p.putFloat  ("vtBuf",   _vpdTarget.buffer);
+    p.putLong64 ("stEpoch", _stageStartEpoch);
     p.end();
 }
 
@@ -398,5 +442,9 @@ void ClimateController::loadPrefs() {
     p.begin("climate", true);
     uint8_t m = p.getUChar("mode", (uint8_t)GROW_VEG);
     _mode = (m < NUM_GROW_MODES) ? (GrowMode)m : GROW_VEG;
+    _vpdTarget.enabled   = p.getBool   ("vtEn",    false);
+    _vpdTarget.kpa       = p.getFloat  ("vtKpa",   1.0f);
+    _vpdTarget.buffer    = p.getFloat  ("vtBuf",   0.1f);
+    _stageStartEpoch     = p.getLong64 ("stEpoch", 0LL);
     p.end();
 }

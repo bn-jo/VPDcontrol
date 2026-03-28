@@ -2,16 +2,16 @@
 #include <Arduino.h>
 
 // ─── GPIO ────────────────────────────────────────────────────────────────────
-#define DHT_PIN             4
+#define DHT_PIN             16   // GPIO16 (RX2) — GPIO34/35 are input-only, can't drive DHT
 #define DHT_TYPE            DHT22
 
 // Relay pins — active LOW (relay board energises on LOW signal)
-#define RELAY_ACTIVE_LOW    true
+#define RELAY_ACTIVE_LOW    false   // NO (Normally Open) wiring — HIGH = relay energised
 
 #define RELAY_TOP_FAN_PIN      26   // Relay 1: Top exhaust fan (main airflow)
 #define RELAY_BOTTOM_FAN_PIN   27   // Relay 2: Bottom fan (heat extraction, NOT intake)
 #define RELAY_HUMIDIFIER_PIN   14   // Relay 3: Humidifier / fogger
-#define RELAY_LIGHTS_PIN       12   // Relay 4: Grow lights
+#define RELAY_LIGHTS_PIN       22   // Relay 4: Grow lights  (was 12 — GPIO 12 is a boot strapping pin)
 #define RELAY_DEHUMIDIFIER_PIN 25   // Relay 5: Dehumidifier
 #define RELAY_HEAT_MAT_PIN     33   // Relay 6: Heat mat (root zone heating)
 #define RELAY_WATERING_PIN     32   // Relay 7: Watering / irrigation
@@ -35,13 +35,20 @@
 #define CONTROL_INTERVAL_MS   30000UL   // Run climate logic every 30 s
 #define LOG_INTERVAL_MS      300000UL   // Log to flash every 5 min
 #define WS_PUSH_INTERVAL_MS    2000UL   // Push WebSocket state every 2 s
-#define MIN_RELAY_ON_MS       30000UL   // Minimum relay ON time
-#define MIN_RELAY_OFF_MS      30000UL   // Minimum relay OFF time
+#define MIN_RELAY_ON_MS             30000UL   // Minimum relay ON time
+#define MIN_RELAY_OFF_MS            30000UL   // Minimum relay OFF time
+#define LIGHTS_MANUAL_TIMEOUT_SEC    1200UL   // Auto-revert lights to AUTO after 20 min
 
 // ─── Hysteresis ──────────────────────────────────────────────────────────────
 #define TEMP_HYST       0.5f    // °C deadband around setpoints
 #define HUMIDITY_HYST   3.0f    // %RH deadband
 #define VPD_HYST        0.05f   // kPa deadband
+
+// ─── Predictive VPD control ───────────────────────────────────────────────────
+// dVPD/dt is computed over a 60 s window (6 × SENSOR_INTERVAL_MS).
+// The projected VPD used for control = current VPD + trend × lookahead.
+#define VPD_LOOKAHEAD_MIN   2.0f    // minutes to project ahead
+#define VPD_TREND_MIN       0.03f   // kPa/min — ignore trend below this (noise floor)
 
 // ─── Sensor ──────────────────────────────────────────────────────────────────
 #define LEAF_TEMP_OFFSET    -2.0f   // Leaf is ~2°C cooler than air
@@ -55,5 +62,5 @@
 
 // ─── NTP ─────────────────────────────────────────────────────────────────────
 #define NTP_SERVER          "pool.ntp.org"
-#define NTP_GMT_OFFSET_SEC  0       // Adjust for your timezone (e.g. 7200 = UTC+2)
-#define NTP_DST_OFFSET_SEC  0
+#define NTP_GMT_OFFSET_SEC  7200    // UTC+2 (Israel/Eastern Europe standard time)
+#define NTP_DST_OFFSET_SEC  3600    // +1 h daylight saving (summer → UTC+3)

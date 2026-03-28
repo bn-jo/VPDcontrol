@@ -11,7 +11,7 @@ static DHT dht(DHT_PIN, DHT_TYPE);
 SensorManager::SensorManager()
     : _lastValidMs(0)
 {
-    _data      = {0, 0, 0, false, 0};
+    _data      = {0, 0, 0, 0.0f, false, 0};
     _lastValid = _data;
 }
 
@@ -36,6 +36,8 @@ bool SensorManager::read() {
     float rawT = dht.readTemperature();
 
     if (isnan(rawH) || isnan(rawT)) {
+        Serial.printf("[SENSOR] Read failed — T=%.1f H=%.1f (check wiring on GPIO %d)\n",
+                      rawT, rawH, DHT_PIN);
         // Use stale smoothed data for up to SENSOR_STALE_MS
         if (millis() - _lastValidMs < SENSOR_STALE_MS) {
             _data       = _lastValid;
@@ -47,9 +49,12 @@ bool SensorManager::read() {
     }
 
     // Apply rolling average — smooths out sensor noise over ~120 s
+    float rawVpd      = calcVPD(rawT, rawH);
     _data.temperature = _avgTemp.add(rawT);
     _data.humidity    = _avgHum.add(rawH);
-    _data.vpd         = _avgVpd.add(calcVPD(rawT, rawH));
+    _data.vpd         = _avgVpd.add(rawVpd);
+    // Trend: slope over last 6 raw VPD samples, converted to kPa/min
+    _data.vpdTrend    = _slopeVpd.add(rawVpd) * (60000.0f / SENSOR_INTERVAL_MS);
     _data.valid       = true;
     _data.timestamp   = time(nullptr);
 

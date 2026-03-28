@@ -15,6 +15,22 @@ static const char* const NAMES[NUM_RELAYS] = { "Top Fan", "Bottom Fan",
                                                 "Dehumidifier", "Heat Mat",
                                                 "Watering", "Extra" };
 
+// Default autoBuffer per relay — matches the control variable for each relay:
+//   VPD relays:      VPD_HYST      (kPa)
+//   Humidity relay:  HUMIDITY_HYST (%RH)
+//   Temp relay:      TEMP_HYST     (°C)
+//   Schedule/spare:  0
+static const float DEFAULT_BUFFER[NUM_RELAYS] = {
+    VPD_HYST,       // TOP_FAN      — VPD low
+    VPD_HYST,       // BOTTOM_FAN   — VPD crisis
+    VPD_HYST,       // HUMIDIFIER   — VPD high
+    0.0f,           // LIGHTS       — schedule-driven
+    HUMIDITY_HYST,  // DEHUMIDIFIER — humidity high
+    TEMP_HYST,      // HEAT_MAT     — temp low
+    0.0f,           // WATERING     — timer-driven
+    0.0f,           // EXTRA        — spare
+};
+
 // ─── Construction ─────────────────────────────────────────────────────────────
 RelayManager::RelayManager() {
     for (int i = 0; i < NUM_RELAYS; i++) {
@@ -29,6 +45,12 @@ RelayManager::RelayManager() {
         _r[i].lastOffMs        = 0;
         _r[i].timerPhaseStart  = 0;
         _r[i].timerInOnPhase   = false;
+        _r[i].autoBuffer       = DEFAULT_BUFFER[i];
+        _r[i].minOnSec         = MIN_RELAY_ON_MS  / 1000;
+        _r[i].minOffSec        = MIN_RELAY_OFF_MS / 1000;
+        _r[i].maxOnSec         = 0;
+        _r[i].manualTimeoutSec = (i == LIGHTS) ? LIGHTS_MANUAL_TIMEOUT_SEC : 0;
+        _r[i].manualStartMs    = 0;
     }
     // Lights default autoOn = false; ClimateController drives them via schedule
 }
@@ -49,7 +71,9 @@ void RelayManager::setAutoState(RelayIndex idx, bool on) {
 
 void RelayManager::setMode(RelayIndex idx, RelayMode mode) {
     _r[idx].mode = mode;
-    if (mode == RELAY_TIMER) {
+    if (mode == RELAY_MANUAL) {
+        _r[idx].manualStartMs = millis();   // start auto-revert countdown
+    } else if (mode == RELAY_TIMER) {
         _r[idx].timerPhaseStart = millis();
         _r[idx].timerInOnPhase  = true;
         request(idx, true);
@@ -85,10 +109,24 @@ void RelayManager::update() {
         RelayIndex idx = (RelayIndex)i;
         switch (_r[i].mode) {
             case RELAY_AUTO:
-                request(idx, _r[i].autoOn);
+                // Enforce MAX ON duration — hard-cut if relay has been on too long
+                if (_r[i].physicalOn && _r[i].maxOnSec > 0 &&
+                    (millis() - _r[i].lastOnMs) >= (unsigned long)_r[i].maxOnSec * 1000UL) {
+                    applyPhysical(idx, false);
+                } else {
+                    request(idx, _r[i].autoOn);
+                }
                 break;
             case RELAY_MANUAL:
-                request(idx, _r[i].manualOn);
+                // Auto-revert to AUTO after timeout (lights = 20 min default)
+                if (_r[i].manualTimeoutSec > 0 && _r[i].manualStartMs > 0 &&
+                    (millis() - _r[i].manualStartMs) >= (unsigned long)_r[i].manualTimeoutSec * 1000UL) {
+                    _r[i].mode         = RELAY_AUTO;
+                    _r[i].manualStartMs = 0;
+                    savePrefs();
+                } else {
+                    request(idx, _r[i].manualOn);
+                }
                 break;
             case RELAY_TIMER:
                 tickTimer(idx);
@@ -118,11 +156,11 @@ bool RelayManager::canChange(RelayIndex idx, bool newOn) const {
     unsigned long now = millis();
 
     if (newOn && !r.physicalOn) {
-        // Want to turn ON — check minimum OFF time has elapsed
-        if (r.lastOffMs > 0 && (now - r.lastOffMs) < MIN_RELAY_OFF_MS) return false;
+        // Want to turn ON — check per-relay minimum OFF time has elapsed
+        if (r.lastOffMs > 0 && (now - r.lastOffMs) < (unsigned long)r.minOffSec * 1000UL) return false;
     } else if (!newOn && r.physicalOn) {
-        // Want to turn OFF — check minimum ON time has elapsed
-        if (r.lastOnMs > 0 && (now - r.lastOnMs) < MIN_RELAY_ON_MS) return false;
+        // Want to turn OFF — check per-relay minimum ON time has elapsed
+        if (r.lastOnMs > 0 && (now - r.lastOnMs) < (unsigned long)r.minOnSec * 1000UL) return false;
     }
     return true;
 }
@@ -185,6 +223,17 @@ void RelayManager::tickSchedule(RelayIndex idx) {
     request(idx, inAny);
 }
 
+void RelayManager::setBuffer(RelayIndex idx, float buf) {
+    _r[idx].autoBuffer = buf;
+    savePrefs();
+}
+
+void RelayManager::setDuration(RelayIndex idx, uint32_t minOnSec, uint32_t maxOnSec) {
+    _r[idx].minOnSec = minOnSec;
+    _r[idx].maxOnSec = maxOnSec;
+    savePrefs();
+}
+
 // ─── Persistence ──────────────────────────────────────────────────────────────
 void RelayManager::savePrefs() {
     Preferences p;
@@ -204,6 +253,10 @@ void RelayManager::savePrefs() {
             snprintf(sk, sizeof(sk), "r%d_%d_eh", i, s); p.putUChar(sk, _r[i].schedule.slots[s].endHour);
             snprintf(sk, sizeof(sk), "r%d_%d_em", i, s); p.putUChar(sk, _r[i].schedule.slots[s].endMin);
         }
+        snprintf(k, sizeof(k), "r%d_buf",  i);   p.putFloat(k, _r[i].autoBuffer);
+        snprintf(k, sizeof(k), "r%d_mion", i);   p.putUInt (k, _r[i].minOnSec);
+        snprintf(k, sizeof(k), "r%d_miof", i);   p.putUInt (k, _r[i].minOffSec);
+        snprintf(k, sizeof(k), "r%d_mxon", i);   p.putUInt (k, _r[i].maxOnSec);
     }
     p.end();
 }
@@ -228,6 +281,10 @@ void RelayManager::loadPrefs() {
             snprintf(sk, sizeof(sk), "r%d_%d_eh", i, s); _r[i].schedule.slots[s].endHour   = p.getUChar(sk, 9);
             snprintf(sk, sizeof(sk), "r%d_%d_em", i, s); _r[i].schedule.slots[s].endMin    = p.getUChar(sk, 0);
         }
+        snprintf(k, sizeof(k), "r%d_buf",  i);   _r[i].autoBuffer = p.getFloat(k, DEFAULT_BUFFER[i]);
+        snprintf(k, sizeof(k), "r%d_mion", i);   _r[i].minOnSec   = p.getUInt (k, MIN_RELAY_ON_MS  / 1000);
+        snprintf(k, sizeof(k), "r%d_miof", i);   _r[i].minOffSec  = p.getUInt (k, MIN_RELAY_OFF_MS / 1000);
+        snprintf(k, sizeof(k), "r%d_mxon", i);   _r[i].maxOnSec   = p.getUInt (k, 0);
     }
     p.end();
 }
