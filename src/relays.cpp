@@ -12,7 +12,7 @@ static const uint8_t    PINS[NUM_RELAYS]  = { RELAY_TOP_FAN_PIN, RELAY_BOTTOM_FA
                                                RELAY_WATERING_PIN, RELAY_EXTRA_PIN };
 static const char* const NAMES[NUM_RELAYS] = { "Top Fan", "Bottom Fan",
                                                 "Humidifier", "Lights",
-                                                "Dehumidifier", "Heat Mat",
+                                                "Dehumidifier", "Heat",
                                                 "Watering", "Extra" };
 
 // Default autoBuffer per relay — matches the control variable for each relay:

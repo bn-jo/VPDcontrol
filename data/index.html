@@ -63,18 +63,21 @@ section { margin-bottom: 1.25rem; }
 
 /* ─── Metric cards ────────────────────────────────────────────────────────── */
 .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: .75rem; }
-.metric-sm {
-  grid-column: span 4;
-  padding: .45rem 1rem;
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-.metric-sm .metric-label {
-  font-size: .65rem; margin-bottom: 0; min-width: 60px;
-}
-.metric-sm .metric-value { font-size: 1.2rem; margin-bottom: 0; }
+.metric-sm { grid-column: span 1; padding: .6rem .85rem; }
+.metric-sm .metric-value { font-size: 1.25rem; }
+.metric-sm .metric-label { font-size: .65rem; margin-bottom: .2rem; }
 .metric-sm .metric-badge { font-size: .65rem; padding: .12rem .4rem; }
+.metric-mood {
+  grid-column: span 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: .3rem;
+  padding: .8rem 1rem;
+}
+.mood-emoji { font-size: 2rem; line-height: 1; }
+.mood-msg   { font-size: .85rem; font-style: italic; text-align: center; line-height: 1.35; }
 .metric {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -386,7 +389,7 @@ canvas { width: 100% !important; height: 100% !important; }
 
 @media (max-width: 780px) {
   .metrics { grid-template-columns: repeat(2, 1fr); }
-  .metric-sm { grid-column: span 2; }
+  .metric-mood { grid-column: span 2; }
 }
 @media (max-width: 620px) {
   .relay-grid { grid-template-columns: 1fr; }
@@ -481,6 +484,11 @@ canvas { width: 100% !important; height: 100% !important; }
         <div class="metric-label" id="label-stageday">Grow Day</div>
         <div class="metric-value" id="val-stageday">--</div>
         <span class="metric-badge" id="badge-stageday">--</span>
+      </div>
+      <div class="metric metric-mood" id="card-mood">
+        <div class="metric-label">Plant Status</div>
+        <div class="mood-emoji" id="mood-emoji">🌿</div>
+        <div class="mood-msg"  id="mood-msg">"connecting..."</div>
       </div>
     </div>
   </section>
@@ -613,6 +621,7 @@ function handleState(s) {
   updatePhaseBadge(s.lightSched);
   updateAlerts(s.alerts || []);
   updateVpdTargetUI(s.vpdTarget);
+  updatePlantMood(s);
   _confirmedStage = s.growMode;
   document.getElementById('growMode').value = String(s.growMode);
   try { localStorage.setItem('growStage', String(s.growMode)); } catch(_) {}
@@ -1196,6 +1205,40 @@ function setStatus(ok, msg) {
   setInterval(update, 1000);
 })();
 
+// ─── Plant mood ───────────────────────────────────────────────────────────────
+function updatePlantMood(s) {
+  const emojiEl = document.getElementById('mood-emoji');
+  const msgEl   = document.getElementById('mood-msg');
+  const card    = document.getElementById('card-mood');
+  if (!emojiEl || !msgEl || !card) return;
+
+  let emoji, msg, cls;
+
+  if (!s || !s.valid) {
+    emoji = '🔌'; msg = '"hello? is anyone there?"'; cls = '';
+  } else {
+    const vpd    = s.vpd   || 0;
+    const temp   = s.temp  || 0;
+    const soil   = s.soil  || 0;
+    const lights = s.lightSched && s.lightSched.isOn;
+
+    if      (temp > 32)                                             { emoji = '🔥'; msg = '"too hot, I\'m melting"';           cls = 'red'; }
+    else if (temp < 17)                                             { emoji = '🥶'; msg = '"brrr... freezing in here"';        cls = 'blue'; }
+    else if (vpd > 1.6)                                             { emoji = '😤'; msg = '"someone bring water, NOW"';        cls = 'red'; }
+    else if (vpd > 1.3)                                             { emoji = '😓'; msg = '"getting really thirsty..."';       cls = 'yellow'; }
+    else if (vpd < 0.3)                                             { emoji = '🌫️'; msg = '"way too humid, can\'t breathe"'; cls = 'blue'; }
+    else if (vpd < 0.6)                                             { emoji = '💧'; msg = '"a little stuffy in here"';         cls = ''; }
+    else if (soil < 20)                                             { emoji = '🥺'; msg = '"roots are thirsty"';               cls = 'yellow'; }
+    else if (!lights)                                               { emoji = '💤'; msg = '"shh... lights out, sleeping"';     cls = ''; }
+    else if (vpd >= 0.8 && vpd <= 1.2 && temp >= 22 && temp <= 28) { emoji = '🌿'; msg = '"absolutely thriving"';             cls = 'green'; }
+    else                                                            { emoji = '😌'; msg = '"feeling good today"';              cls = 'green'; }
+  }
+
+  emojiEl.textContent = emoji;
+  msgEl.textContent   = msg;
+  card.className = 'metric metric-mood' + (cls ? ' ' + cls : '');
+}
+
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 applyExtraVisibility();
 
@@ -1219,7 +1262,7 @@ function mockSchedForMode(mode) {
   } catch(_) {}
 
   const names = ['Top Fan','Bottom Fan','Humidifier','Lights',
-                 'Dehumidifier','Heat Mat','Watering','Extra'];
+                 'Dehumidifier','Heat','Watering','Extra'];
   const DEFAULT_BUFFERS = [0.05, 0.05, 0.05, 0, 3.0, 0.5, 0, 0];
   const mockRelays = names.map((name, i) => ({
     id: i, name, mode: 0, state: false, manual: false,
@@ -1229,6 +1272,7 @@ function mockSchedForMode(mode) {
   }));
   mockRelays.forEach(r => { _cache[r.id] = r; });
   updateRelays(mockRelays, mockSchedForMode(previewStage));
+  updatePlantMood(null);
   setMetric('temp',   '--',  'muted', '');
   const elFReset = document.getElementById('val-temp-f');
   if (elFReset) elFReset.textContent = '';
