@@ -10,6 +10,7 @@
 #include "climate.h"
 #include "datalogger.h"
 #include "webserver.h"
+#include "autotune.h"
 
 // ─── FreeRTOS task: sensor reading + climate control ─────────────────────────
 // Runs on Core 0 to leave Core 1 free for WiFi + web server
@@ -25,9 +26,14 @@ static void controlTask(void* pvParam) {
         if (now - lastSensorMs >= SENSOR_INTERVAL_MS) {
             bool ok = sensors.read();
             if (!ok) Serial.println("[SNS] Read failed — using stale data");
+            if (ok) {
+                const SensorData& sd = sensors.data();
+                autoTuner.feed(sd.temperature, sd.humidity, sd.vpd);
+            }
             lastSensorMs = now;
         }
         soil.update();   // Self-throttles at SOIL_INTERVAL_MS
+        relays.setSoilMoisture(soil.data().moisture, soil.data().valid);
 
         // ── Climate control ───────────────────────────────────────────────────
         if (now - lastControlMs >= CONTROL_INTERVAL_MS) {
@@ -37,11 +43,13 @@ static void controlTask(void* pvParam) {
 
         // ── Relay state machine (timers + hysteresis guards) ──────────────────
         relays.update();
+        autoTuner.tick();
 
         // ── Data logging ──────────────────────────────────────────────────────
         if (now - lastLogMs >= LOG_INTERVAL_MS) {
             if (sensors.data().valid) {
-                logger.log(sensors.data());
+                float soilPct = soil.data().valid ? soil.data().moisture : -1.0f;
+                logger.log(sensors.data(), soilPct);
             }
             lastLogMs = now;
         }
@@ -81,6 +89,7 @@ void setup() {
     relays.begin();
     climate.begin();
     logger.begin();
+    autoTuner.begin();
 
     // WiFi
     if (wifiConnect()) {

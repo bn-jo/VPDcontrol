@@ -44,11 +44,16 @@ public:
     // Option A: keep running clock, just update phase lengths for new mode
     void onModeChange(GrowMode newMode, const GrowProfile* profiles);
 
+    // Fixed daily start time (hour < 24 = enabled; 255 = disabled, use elapsed clock)
+    void setDayStart(uint8_t hour, uint8_t min);
+
     bool     isOn()           const { return _isOn; }
     uint32_t remainingSec()   const;
     uint32_t phaseTotalSec()  const { return _isOn ? _onSec : _offSec; }
     uint8_t  alerts()         const { return _alertFlags; }
     bool     ntpSynced()      const { return _ntpSynced; }
+    uint8_t  dayStartHour()   const { return _dayStartHour; }
+    uint8_t  dayStartMin()    const { return _dayStartMin;  }
 
 private:
     bool     _isOn;
@@ -58,6 +63,8 @@ private:
     GrowMode _mode;
     bool     _ntpSynced;
     uint8_t  _alertFlags;
+    uint8_t  _dayStartHour = 0xFF;   // 255 = disabled
+    uint8_t  _dayStartMin  = 0;
 
     void save();
     void load();
@@ -79,6 +86,7 @@ public:
     const LightSchedule&  lightSchedule()  const { return _sched; }
     uint8_t               alertFlags()     const { return _sched.alerts(); }
 
+    void                  setDayStart(uint8_t hour, uint8_t min);
     void                  setVpdTarget(bool enabled, float kpa, float buffer);
     const VpdTargetCfg&   vpdTarget()      const { return _vpdTarget; }
 

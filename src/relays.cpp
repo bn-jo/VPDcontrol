@@ -47,10 +47,13 @@ RelayManager::RelayManager() {
         _r[i].timerInOnPhase   = false;
         _r[i].autoBuffer       = DEFAULT_BUFFER[i];
         _r[i].minOnSec         = MIN_RELAY_ON_MS  / 1000;
-        _r[i].minOffSec        = MIN_RELAY_OFF_MS / 1000;
+        _r[i].minOffSec        = (i == WATERING) ? 1800 : MIN_RELAY_OFF_MS / 1000;  // 30 min rest between watering cycles
         _r[i].maxOnSec         = 0;
         _r[i].manualTimeoutSec = (i == LIGHTS) ? LIGHTS_MANUAL_TIMEOUT_SEC : 0;
         _r[i].manualStartMs    = 0;
+        _r[i].soilThreshold    = 0;      // disabled by default
+        _r[i].waterDurationSec = 300;    // 5 min default watering cycle
+        _r[i].fanIntake        = false;  // default: exhaust
     }
     // Lights default autoOn = false; ClimateController drives them via schedule
 }
@@ -84,7 +87,7 @@ void RelayManager::setMode(RelayIndex idx, RelayMode mode) {
 void RelayManager::setManual(RelayIndex idx, bool on) {
     _r[idx].manualOn = on;
     if (_r[idx].mode == RELAY_MANUAL) {
-        request(idx, on);
+        applyPhysical(idx, on);   // bypass canChange — manual override is immediate
     }
     savePrefs();
 }
@@ -109,23 +112,38 @@ void RelayManager::update() {
         RelayIndex idx = (RelayIndex)i;
         switch (_r[i].mode) {
             case RELAY_AUTO:
-                // Enforce MAX ON duration — hard-cut if relay has been on too long
-                if (_r[i].physicalOn && _r[i].maxOnSec > 0 &&
-                    (millis() - _r[i].lastOnMs) >= (unsigned long)_r[i].maxOnSec * 1000UL) {
-                    applyPhysical(idx, false);
+                if (idx == WATERING && _r[i].soilThreshold > 0 && _r[i].waterDurationSec > 0) {
+                    // ── Soil-triggered watering cycle ──────────────────────────
+                    if (_r[i].physicalOn) {
+                        // Cycle running — cut off when duration elapsed
+                        if ((millis() - _r[i].lastOnMs) >= (unsigned long)_r[i].waterDurationSec * 1000UL) {
+                            applyPhysical(idx, false);
+                        }
+                    } else if (_soilValid && _soilPct < (float)_r[i].soilThreshold) {
+                        // Soil is dry — wait for minOffSec rest before starting cycle
+                        bool rested = (_r[i].lastOffMs == 0 ||
+                            (millis() - _r[i].lastOffMs) >= (unsigned long)_r[i].minOffSec * 1000UL);
+                        if (rested) applyPhysical(idx, true);
+                    }
                 } else {
-                    request(idx, _r[i].autoOn);
+                    // Standard AUTO: climate controller drives via setAutoState()
+                    if (_r[i].physicalOn && _r[i].maxOnSec > 0 &&
+                        (millis() - _r[i].lastOnMs) >= (unsigned long)_r[i].maxOnSec * 1000UL) {
+                        applyPhysical(idx, false);
+                    } else {
+                        request(idx, _r[i].autoOn);
+                    }
                 }
                 break;
             case RELAY_MANUAL:
                 // Auto-revert to AUTO after timeout (lights = 20 min default)
                 if (_r[i].manualTimeoutSec > 0 && _r[i].manualStartMs > 0 &&
                     (millis() - _r[i].manualStartMs) >= (unsigned long)_r[i].manualTimeoutSec * 1000UL) {
-                    _r[i].mode         = RELAY_AUTO;
+                    _r[i].mode          = RELAY_AUTO;
                     _r[i].manualStartMs = 0;
                     savePrefs();
                 } else {
-                    request(idx, _r[i].manualOn);
+                    applyPhysical(idx, _r[i].manualOn);  // bypass timing guards — manual is immediate
                 }
                 break;
             case RELAY_TIMER:
@@ -234,6 +252,22 @@ void RelayManager::setDuration(RelayIndex idx, uint32_t minOnSec, uint32_t maxOn
     savePrefs();
 }
 
+void RelayManager::setSoilWater(RelayIndex idx, uint8_t threshold, uint32_t durationSec) {
+    _r[idx].soilThreshold    = threshold;
+    _r[idx].waterDurationSec = durationSec;
+    savePrefs();
+}
+
+void RelayManager::setFanIntake(RelayIndex idx, bool intake) {
+    _r[idx].fanIntake = intake;
+    savePrefs();
+}
+
+void RelayManager::setSoilMoisture(float pct, bool valid) {
+    _soilPct   = pct;
+    _soilValid = valid;
+}
+
 // ─── Persistence ──────────────────────────────────────────────────────────────
 void RelayManager::savePrefs() {
     Preferences p;
@@ -257,6 +291,9 @@ void RelayManager::savePrefs() {
         snprintf(k, sizeof(k), "r%d_mion", i);   p.putUInt (k, _r[i].minOnSec);
         snprintf(k, sizeof(k), "r%d_miof", i);   p.putUInt (k, _r[i].minOffSec);
         snprintf(k, sizeof(k), "r%d_mxon", i);   p.putUInt (k, _r[i].maxOnSec);
+        snprintf(k, sizeof(k), "r%d_sthr", i);   p.putUChar(k, _r[i].soilThreshold);
+        snprintf(k, sizeof(k), "r%d_wdur", i);   p.putUInt (k, _r[i].waterDurationSec);
+        snprintf(k, sizeof(k), "r%d_fi",   i);   p.putBool (k, _r[i].fanIntake);
     }
     p.end();
 }
@@ -281,10 +318,13 @@ void RelayManager::loadPrefs() {
             snprintf(sk, sizeof(sk), "r%d_%d_eh", i, s); _r[i].schedule.slots[s].endHour   = p.getUChar(sk, 9);
             snprintf(sk, sizeof(sk), "r%d_%d_em", i, s); _r[i].schedule.slots[s].endMin    = p.getUChar(sk, 0);
         }
-        snprintf(k, sizeof(k), "r%d_buf",  i);   _r[i].autoBuffer = p.getFloat(k, DEFAULT_BUFFER[i]);
-        snprintf(k, sizeof(k), "r%d_mion", i);   _r[i].minOnSec   = p.getUInt (k, MIN_RELAY_ON_MS  / 1000);
-        snprintf(k, sizeof(k), "r%d_miof", i);   _r[i].minOffSec  = p.getUInt (k, MIN_RELAY_OFF_MS / 1000);
-        snprintf(k, sizeof(k), "r%d_mxon", i);   _r[i].maxOnSec   = p.getUInt (k, 0);
+        snprintf(k, sizeof(k), "r%d_buf",  i);   _r[i].autoBuffer       = p.getFloat(k, DEFAULT_BUFFER[i]);
+        snprintf(k, sizeof(k), "r%d_mion", i);   _r[i].minOnSec         = p.getUInt (k, MIN_RELAY_ON_MS  / 1000);
+        snprintf(k, sizeof(k), "r%d_miof", i);   _r[i].minOffSec        = p.getUInt (k, (i == WATERING) ? 1800 : MIN_RELAY_OFF_MS / 1000);
+        snprintf(k, sizeof(k), "r%d_mxon", i);   _r[i].maxOnSec         = p.getUInt (k, 0);
+        snprintf(k, sizeof(k), "r%d_sthr", i);   _r[i].soilThreshold    = p.getUChar(k, 0);
+        snprintf(k, sizeof(k), "r%d_wdur", i);   _r[i].waterDurationSec = p.getUInt (k, 300);
+        snprintf(k, sizeof(k), "r%d_fi",   i);   _r[i].fanIntake        = p.getBool (k, false);
     }
     p.end();
 }

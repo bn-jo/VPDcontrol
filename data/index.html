@@ -115,6 +115,7 @@ section { margin-bottom: 1.25rem; }
 .metric-badge.yellow { background: #eab30818; color: var(--yellow); }
 .metric-badge.red { background: #ef444418; color: var(--red); }
 .metric-badge.blue { background: #3b82f618; color: var(--blue); }
+.metric-range { display: block; font-size: .65rem; color: var(--muted); margin: .1rem 0 .2rem; }
 
 /* ─── Relay grid ──────────────────────────────────────────────────────────── */
 .relay-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
@@ -197,10 +198,30 @@ section { margin-bottom: 1.25rem; }
   background: var(--accent); border: none; color: #fff;
   padding: .3rem .85rem; border-radius: 5px;
   font-size: .78rem; font-weight: 600; cursor: pointer;
+  transition: background .2s;
 }
-.btn-apply:hover { background: #2563eb; }
+.btn-apply:hover  { background: #2563eb; }
+.btn-apply.saved  { background: var(--green) !important; }
+
 
 .auto-note { color: var(--muted); font-size: .78rem; line-height: 1.5; }
+
+/* ─── Soil watering panel ─────────────────────────────────────────────────── */
+.soil-water { display:flex; flex-direction:column; gap:.5rem; margin-top:.2rem; }
+.soil-water-row { display:flex; align-items:center; justify-content:space-between; font-size:.78rem; }
+.soil-water-row label { color:var(--muted); }
+.soil-water-val { font-weight:700; font-size:.9rem; min-width:38px; text-align:right; }
+.soil-slider {
+  width:100%; accent-color:var(--blue);
+  height:6px; cursor:pointer;
+}
+.dur-btns { display:flex; gap:.3rem; flex-wrap:wrap; }
+.dur-btn {
+  padding:.22rem .5rem; border-radius:5px; border:1px solid var(--border);
+  background:transparent; color:var(--muted); font-size:.72rem; cursor:pointer;
+}
+.dur-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+.water-status { font-size:.72rem; color:var(--green); font-weight:600; }
 .auto-tuning { display: flex; flex-direction: column; gap: .35rem; margin-top: .35rem; padding-top: .35rem; border-top: 1px solid var(--border); }
 .tuning-row { display: flex; align-items: center; gap: .4rem; font-size: .78rem; }
 .tuning-row label { color: var(--muted); min-width: 52px; }
@@ -378,12 +399,56 @@ canvas { width: 100% !important; height: 100% !important; }
 .sched-bar { height: 100%; border-radius: 3px; background: var(--green); transition: width .5s; }
 .sched-bar.night { background: #818cf8; }
 
-/* ─── Responsive ──────────────────────────────────────────────────────────── */
-/* ─── Extra relay visibility toggle ─────────────────────────────────────────── */
-.extra-toggle {
-  display: inline-flex; align-items: center; gap: .4rem;
-  float: right; font-size: .7rem; font-weight: 400; color: var(--muted);
+/* ─── Auto-Tune panel ─────────────────────────────────────────────────────── */
+.at-panel {
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: .85rem 1rem;
+  margin-bottom: .75rem;
+  display: none;
+}
+.at-panel.visible { display: block; }
+.at-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: .6rem; }
+.at-title  { font-weight: 700; font-size: .95rem; }
+.at-phase-label { font-size: .8rem; color: var(--muted); }
+.at-row { display: flex; align-items: center; gap: .6rem; font-size: .8rem; margin-bottom: .35rem; }
+.at-bar-wrap { flex: 1; background: var(--bg); border-radius: 4px; height: 6px; overflow: hidden; }
+.at-bar { height: 100%; border-radius: 4px; background: var(--accent); transition: width .5s; }
+.at-bar.baseline { background: var(--muted); }
+.at-bar.on       { background: var(--green); }
+.at-bar.cooldown { background: var(--blue);  }
+.at-relay-name { font-weight: 700; font-size: .9rem; }
+.at-step       { color: var(--muted); font-size: .78rem; }
+.at-results { margin-top: .75rem; border-top: 1px solid var(--border); padding-top: .75rem; }
+.at-results table { width: 100%; border-collapse: collapse; font-size: .78rem; }
+.at-results th { color: var(--muted); font-weight: 600; text-align: left; padding: .18rem .4rem; }
+.at-results td { padding: .22rem .4rem; border-top: 1px solid var(--border); }
+.at-results .pos { color: var(--green); }
+.at-results .neg { color: var(--blue);  }
+.btn-at {
+  float: right; font-size: .7rem; font-weight: 600;
   text-transform: none; letter-spacing: 0;
+  background: var(--accent); border: none; color: #fff;
+  padding: .28rem .7rem; border-radius: 5px; cursor: pointer;
+}
+.btn-at:hover { background: #2563eb; }
+.btn-at-cancel {
+  background: var(--bg); border: 1px solid var(--red); color: var(--red);
+  padding: .26rem .65rem; border-radius: 5px;
+  font-size: .78rem; font-weight: 600; cursor: pointer;
+}
+.btn-at-cancel:hover { background: var(--red); color: #fff; }
+
+/* ─── Responsive ──────────────────────────────────────────────────────────── */
+/* ─── Relay visibility toggles ───────────────────────────────────────────────── */
+.relay-vis-row {
+  display: flex; flex-wrap: wrap; gap: .4rem .9rem;
+  padding: .4rem .1rem .1rem; font-size: .7rem; font-weight: 400;
+  color: var(--muted); text-transform: none; letter-spacing: 0;
+}
+.extra-toggle {
+  display: inline-flex; align-items: center; gap: .35rem; cursor: pointer;
 }
 .extra-toggle input[type=checkbox] { cursor: pointer; accent-color: var(--blue); }
 
@@ -421,12 +486,36 @@ canvas { width: 100% !important; height: 100% !important; }
   </div>
 </div>
 
+<div class="modal-overlay" id="atModal">
+  <div class="modal" style="border-color:var(--accent)">
+    <div class="modal-warn">🔬</div>
+    <div class="modal-title" style="color:var(--blue)">Start Auto-Tune?</div>
+    <div class="modal-body">
+      The system will test <strong>5 relays</strong> one by one — measuring how each
+      device affects VPD, humidity, and temperature.<br><br>
+      Each relay takes ~<strong>7 min</strong> &nbsp;(total ≈ <strong>35 min</strong>).
+      Other relays continue running normally during the test.<br><br>
+      <strong>Do not start if plants are in a critical state.</strong>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-cancel"  onclick="cancelAtModal()">Cancel</button>
+      <button class="modal-confirm" style="background:var(--accent)" onclick="confirmAutoTune()">Start Auto-Tune</button>
+    </div>
+  </div>
+</div>
+
 <header>
   <div class="logo">🌿 <span>VPD</span> Control</div>
   <span class="phase-badge" id="phaseBadge" style="display:none"></span>
-  <div id="clockBox" style="display:flex;flex-direction:column;align-items:center;line-height:1.2">
-    <span id="clockTime" style="font-size:.95rem;font-weight:700;letter-spacing:.03em;font-variant-numeric:tabular-nums">--:--:--</span>
-    <span id="clockDate" style="font-size:.68rem;color:var(--muted)">--- -- ----</span>
+  <div style="display:flex;align-items:center;gap:.75rem">
+    <div id="clockBox" style="display:flex;flex-direction:column;align-items:center;line-height:1.3">
+      <span id="clockTime" style="font-size:.95rem;font-weight:700;letter-spacing:.03em;font-variant-numeric:tabular-nums">--:--:--</span>
+      <span id="clockDate" style="font-size:.68rem;color:var(--muted)">--- -- ----</span>
+      <span id="connStatus" style="font-size:.62rem;display:flex;align-items:center;gap:.25rem;margin-top:.15rem">
+        <span class="dot-conn" id="dot"></span><span id="statusText" style="color:var(--muted)">Connecting…</span><span id="rssiText" style="color:var(--muted);margin-left:.2rem"></span>
+      </span>
+    </div>
+    <div id="headerMood" style="font-size:.72rem;font-style:italic;color:var(--muted);max-width:120px;line-height:1.3;border-left:1px solid var(--border);padding-left:.65rem">"connecting..."</div>
   </div>
   <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.15rem">
     <select class="grow-mode" id="growMode" onchange="requestStageChange(parseInt(this.value))">
@@ -457,17 +546,19 @@ canvas { width: 100% !important; height: 100% !important; }
       <div class="metric" id="card-temp">
         <div class="metric-label">Temperature</div>
         <div class="metric-value" id="val-temp">--</div>
-        <div style="font-size:.75rem;color:#888;margin-top:.1rem" id="val-temp-f"></div>
+        <span class="metric-range" id="range-temp"></span>
         <span class="metric-badge" id="badge-temp">--</span>
       </div>
       <div class="metric" id="card-hum">
         <div class="metric-label">Humidity</div>
         <div class="metric-value" id="val-hum">--</div>
+        <span class="metric-range" id="range-hum"></span>
         <span class="metric-badge" id="badge-hum">--</span>
       </div>
       <div class="metric" id="card-vpd">
         <div class="metric-label">VPD</div>
         <div class="metric-value" id="val-vpd">--</div>
+        <span class="metric-range" id="range-vpd"></span>
         <span class="metric-badge" id="badge-vpd">--</span>
       </div>
       <div class="metric" id="card-soil">
@@ -544,20 +635,57 @@ canvas { width: 100% !important; height: 100% !important; }
   <!-- ─── Relay controls ───────────────────────────────────────────────────── -->
   <section>
     <div class="section-title">Outputs
-      <label class="extra-toggle">
-        <span>Show Extra relay</span>
-        <input type="checkbox" id="showExtra" onchange="setExtraVisible(this.checked)">
-      </label>
+      <button class="btn-at" onclick="showAtModal()">Auto-Tune</button>
     </div>
+    <div class="relay-vis-row">
+      <label class="extra-toggle"><input type="checkbox" id="showRelay_0" checked onchange="setRelayVisible(0,this.checked)"><span>Top Fan</span></label>
+      <label class="extra-toggle"><input type="checkbox" id="showRelay_1" checked onchange="setRelayVisible(1,this.checked)"><span>Bottom Fan</span></label>
+      <label class="extra-toggle"><input type="checkbox" id="showRelay_2" checked onchange="setRelayVisible(2,this.checked)"><span>Humidifier</span></label>
+      <label class="extra-toggle"><input type="checkbox" id="showRelay_3" checked onchange="setRelayVisible(3,this.checked)"><span>Lights</span></label>
+      <label class="extra-toggle"><input type="checkbox" id="showRelay_4" checked onchange="setRelayVisible(4,this.checked)"><span>Dehumidifier</span></label>
+      <label class="extra-toggle"><input type="checkbox" id="showRelay_5" checked onchange="setRelayVisible(5,this.checked)"><span>Heat</span></label>
+      <label class="extra-toggle"><input type="checkbox" id="showRelay_6" checked onchange="setRelayVisible(6,this.checked)"><span>Watering</span></label>
+      <label class="extra-toggle"><input type="checkbox" id="showRelay_7" checked onchange="setRelayVisible(7,this.checked)"><span>Extra</span></label>
+    </div>
+
+    <!-- Auto-Tune progress panel — visible while tuning or after completion -->
+    <div class="at-panel" id="atPanel">
+      <div class="at-header">
+        <div>
+          <span class="at-title">Auto-Tune</span>
+          <span class="at-phase-label" id="atPhaseLabel"> — </span>
+        </div>
+        <button class="btn-at-cancel" id="atCancelBtn" onclick="cancelAutoTune()" style="display:none">Cancel</button>
+      </div>
+      <div class="at-row">
+        <span class="at-relay-name" id="atRelayName">—</span>
+        <span class="at-step" id="atStepCount"></span>
+        <span style="margin-left:auto;color:var(--muted);font-size:.75rem" id="atTimeRem"></span>
+      </div>
+      <div style="font-size:.72rem;color:var(--muted);margin-bottom:.3rem" id="atTotalRem"></div>
+      <div style="margin-bottom:.4rem">
+        <div class="at-bar-wrap"><div class="at-bar" id="atPhaseBar" style="width:0%"></div></div>
+      </div>
+      <div class="at-row" style="margin-bottom:0">
+        <span style="color:var(--muted);font-size:.72rem;min-width:3.5rem">Overall</span>
+        <div class="at-bar-wrap"><div class="at-bar" id="atOverallBar" style="width:0%"></div></div>
+        <span style="color:var(--muted);font-size:.72rem;min-width:2.5rem;text-align:right" id="atOverallPct">0%</span>
+      </div>
+      <div class="at-results" id="atResults" style="display:none">
+        <table>
+          <thead><tr>
+            <th>Relay</th><th>Baseline</th><th>ON avg</th><th>Effect</th><th>Buffer set</th>
+          </tr></thead>
+          <tbody id="atResultRows"></tbody>
+        </table>
+      </div>
+    </div>
+
     <div class="relay-grid" id="relayGrid">
       <!-- populated by JS -->
     </div>
   </section>
 
-  <div class="status-bar">
-    <span class="dot-conn" id="dot"></span>
-    <span id="statusText">Connecting…</span>
-  </div>
 
 </main>
 
@@ -621,7 +749,12 @@ function handleState(s) {
   updatePhaseBadge(s.lightSched);
   updateAlerts(s.alerts || []);
   updateVpdTargetUI(s.vpdTarget);
+  updateAutoTune(s.autoTune);
   updatePlantMood(s);
+  if (s.rssi != null) {
+    const el = document.getElementById('rssiText');
+    if (el) el.textContent = s.rssi + ' dBm';
+  }
   _confirmedStage = s.growMode;
   document.getElementById('growMode').value = String(s.growMode);
   try { localStorage.setItem('growStage', String(s.growMode)); } catch(_) {}
@@ -634,6 +767,16 @@ function colorForValue(v, min, max, margin) {
   return 'red';
 }
 
+// Badge text aligned with colorForValue zones so badge never contradicts card color.
+// Yellow zone → mild label ("Warm"/"Cool"), red zone → strong label ("Too Hot"/"Too Cold").
+function rangeBadge(v, min, max, margin, aboveRed, aboveYellow, belowRed, belowYellow) {
+  if (v > max + margin)  return aboveRed;
+  if (v > max)           return aboveYellow;
+  if (v < min - margin)  return belowRed;
+  if (v < min)           return belowYellow;
+  return 'Optimal';
+}
+
 function updateMetrics(s) {
   const p = s.profile;
 
@@ -642,19 +785,23 @@ function updateMetrics(s) {
   const vpdMargin  = (p.vpdMax  - p.vpdMin)  * 0.3;
 
   const tempF = s.temp * 9 / 5 + 32;
-  setMetric('temp', s.temp.toFixed(1) + '°C',
+  setMetric('temp', s.temp.toFixed(1) + '°C (' + tempF.toFixed(1) + '°F)',
             colorForValue(s.temp, p.tempMin, p.tempMax, tempMargin),
-            s.temp < p.tempMin ? 'Too Cold' : s.temp > p.tempMax ? 'Too Hot' : 'Optimal');
-  const elF = document.getElementById('val-temp-f');
-  if (elF) elF.textContent = tempF.toFixed(1) + '°F';
+            rangeBadge(s.temp, p.tempMin, p.tempMax, tempMargin,
+                       'Too Hot', 'Warm', 'Too Cold', 'Cool'));
+  setRange('temp', p.tempMin.toFixed(0) + '–' + p.tempMax.toFixed(0) + '°C');
 
   setMetric('hum', s.hum.toFixed(0) + '%',
             colorForValue(s.hum, p.humMin, p.humMax, humMargin),
-            s.hum < p.humMin ? 'Too Dry' : s.hum > p.humMax ? 'Too Humid' : 'Optimal');
+            rangeBadge(s.hum, p.humMin, p.humMax, humMargin,
+                       'Too Humid', 'Humid', 'Too Dry', 'Dry'));
+  setRange('hum', p.humMin.toFixed(0) + '–' + p.humMax.toFixed(0) + '%');
 
   setMetric('vpd', s.vpd.toFixed(2) + ' kPa',
             colorForValue(s.vpd, p.vpdMin, p.vpdMax, vpdMargin),
-            s.vpd < p.vpdMin ? 'Too Low' : s.vpd > p.vpdMax ? 'Too High' : 'Optimal');
+            rangeBadge(s.vpd, p.vpdMin, p.vpdMax, vpdMargin,
+                       'Too High', 'High', 'Too Low', 'Low'));
+  setRange('vpd', p.vpdMin.toFixed(2) + '–' + p.vpdMax.toFixed(2) + ' kPa');
 
   const lightsOn = s.lightSched && s.lightSched.isOn;
   setMetric('lights', lightsOn ? 'ON' : 'OFF',
@@ -678,11 +825,17 @@ function updateMetrics(s) {
   }
 }
 
+function setRange(key, text) {
+  const el = document.getElementById('range-' + key);
+  if (el) el.textContent = text;
+}
+
 function setMetric(key, value, color, badge) {
   const card  = document.getElementById('card-'  + key);
   const val   = document.getElementById('val-'   + key);
   const bdg   = document.getElementById('badge-' + key);
-  card.className  = 'metric ' + color;
+  // Preserve structural modifier classes (metric-sm, metric-mood, etc.)
+  card.className  = card.className.replace(/\s*\b(green|yellow|red|muted|blue)\b/g, '').trimEnd() + ' ' + color;
   val.className   = 'metric-value ' + color;
   val.textContent = value;
   bdg.className   = 'metric-badge ' + color;
@@ -702,19 +855,35 @@ function updateSoil(s) {
   setMetric('soil', pct.toFixed(0) + '%', color, badge);
 }
 
-// ─── Extra relay visibility ───────────────────────────────────────────────────
+// ─── Relay visibility (per-relay checkboxes) ──────────────────────────────────
 const EXTRA_ID = 7;
+let _disabledRelays = new Set();
 
-function setExtraVisible(show) {
-  localStorage.setItem('extraVisible', show ? '1' : '0');
-  applyExtraVisibility();
+function loadDisabledRelays() {
+  try {
+    // Migrate old single-Extra setting
+    const legacy = localStorage.getItem('extraVisible');
+    if (legacy === '0') _disabledRelays.add(EXTRA_ID);
+    const s = JSON.parse(localStorage.getItem('disabledRelays') || '[]');
+    _disabledRelays = new Set(s);
+  } catch(_) { _disabledRelays = new Set(); }
 }
-
-function applyExtraVisibility() {
-  const show = localStorage.getItem('extraVisible') !== '0';
-  document.getElementById('showExtra').checked = show;
-  const card = document.getElementById('rcard-' + EXTRA_ID);
-  if (card) card.style.display = show ? '' : 'none';
+function saveDisabledRelays() {
+  try { localStorage.setItem('disabledRelays', JSON.stringify([..._disabledRelays])); } catch(_) {}
+}
+function setRelayVisible(id, show) {
+  if (show) _disabledRelays.delete(id);
+  else _disabledRelays.add(id);
+  saveDisabledRelays();
+  applyDisabledRelays();
+}
+function applyDisabledRelays() {
+  for (let i = 0; i < 8; i++) {
+    const card = document.getElementById('rcard-' + i);
+    if (card) card.style.display = _disabledRelays.has(i) ? 'none' : '';
+    const cb = document.getElementById('showRelay_' + i);
+    if (cb) cb.checked = !_disabledRelays.has(i);
+  }
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -783,7 +952,7 @@ function updateRelays(relayArr, lightSched) {
     }
     renderRelayCard(card, r);
   });
-  applyExtraVisibility();
+  applyDisabledRelays();
 }
 
 // Relay index 3 = Lights (schedule-driven AUTO body)
@@ -808,6 +977,29 @@ function renderRelayCard(card, r) {
     // ── Auto ──────────────────────────────────────────────────────────────────
     if (r.id === LIGHTS_ID && _lightSched) {
       const ls = _lightSched;
+      const dsHour   = (ls.dayStartHour != null && ls.dayStartHour < 24) ? ls.dayStartHour : null;
+      const dsMins   = ls.dayStartMin ?? 0;
+      const dsOn     = dsHour !== null;
+      const dsHStr   = String(dsOn ? dsHour : 8).padStart(2, '0');
+      const dsMStr   = String(dsOn ? dsMins : 0).padStart(2, '0');
+      const dsOpaque = dsOn ? '' : 'opacity:.45;pointer-events:none';
+      const dayStartRow = (ls.onHours === 24) ? '' : `
+        <div style="margin-top:.45rem;padding-top:.4rem;border-top:1px solid var(--border);
+                    display:flex;flex-wrap:wrap;align-items:center;gap:.35rem;font-size:.78rem">
+          <label style="display:flex;align-items:center;gap:.3rem;cursor:pointer;color:var(--muted)">
+            <input type="checkbox" id="lsen_${r.id}" ${dsOn?'checked':''} onchange="onDayStartToggle(${r.id})">
+            Day starts at
+          </label>
+          <input type="number" id="lsh_${r.id}" value="${dsHStr}" min="0" max="23"
+            style="width:38px;background:#111827;border:1px solid var(--border);color:var(--text);
+                   border-radius:4px;padding:.2rem .3rem;font-size:.78rem;text-align:center;${dsOpaque}">
+          <span style="color:var(--muted)">:</span>
+          <input type="number" id="lsm_${r.id}" value="${dsMStr}" min="0" max="59"
+            style="width:38px;background:#111827;border:1px solid var(--border);color:var(--text);
+                   border-radius:4px;padding:.2rem .3rem;font-size:.78rem;text-align:center;${dsOpaque}">
+          <button class="btn-apply" onclick="applyDayStart(${r.id},this)">Set</button>
+        </div>`;
+
       if (ls.onHours === 24) {
         body = `<span style="color:var(--green);font-size:.82rem">Always ON — 24/7 seedling</span>`;
       } else {
@@ -821,17 +1013,54 @@ function renderRelayCard(card, r) {
           </div>
           <div class="sched-bar-wrap"><div class="sched-bar${ls.isOn?'':' night'}" style="width:${pct}%"></div></div>
           <div style="color:var(--muted);font-size:.72rem">${ls.onHours}h on / ${ls.offHours}h off</div>
-        </div>`;
+        </div>${dayStartRow}`;
       }
     } else if (r.id === WATERING_ID) {
-      body = `<span class="auto-note">No sensor input — use Timer or Sched tab</span>`;
+      const thr     = r.soilThresh  ?? 0;
+      const wdur    = r.waterDur    ?? 300;
+      const soilNow = (lastState && lastState.soil != null)
+                      ? lastState.soil.toFixed(0) + '%' : '--';
+      const thrLabel = thr === 0 ? '<span style="color:var(--muted)">OFF</span>'
+                                 : `<span style="color:var(--blue)">${thr}%</span>`;
+      const durPresets = [60, 120, 300, 600, 900, 1200];
+      const durLabels  = ['1m','2m','5m','10m','15m','20m'];
+      const durBtns = durPresets.map((s, i) =>
+        `<button class="dur-btn${wdur===s?' active':''}" onclick="pickWaterDur(${r.id},${s},this)">${durLabels[i]}</button>`
+      ).join('');
+      const wateringNow = r.state ? '<span class="water-status">💧 Watering now</span>' : '';
+      body = `<div class="soil-water">
+        <div class="soil-water-row">
+          <label>Water when below</label>
+          <span class="soil-water-val" id="wtval_${r.id}">${thrLabel}</span>
+        </div>
+        <input type="range" class="soil-slider" id="wtslider_${r.id}"
+               min="0" max="80" value="${thr}"
+               oninput="onWaterSlider(${r.id},this.value)">
+        <div class="soil-water-row" style="margin-top:.15rem">
+          <label>Cycle duration</label>
+          <div class="dur-btns" id="wdurbtns_${r.id}">${durBtns}</div>
+        </div>
+        <div class="soil-water-row" style="color:var(--muted)">
+          <span>Soil now: ${soilNow}</span>
+          ${wateringNow}
+        </div>
+        <button class="btn-apply" onclick="applyWaterCfg(${r.id},this)">Apply</button>
+      </div>`;
     } else if (r.id === EXTRA_RELAY_ID) {
       body = `<span class="auto-note">Spare output — use Manual, Timer or Sched</span>`;
     } else {
       const buf   = (r.buffer  ?? 0.05).toFixed(2);
       const minOn = r.minOn ?? 30;
       const maxOn = r.maxOn ?? 0;
-      body = `<span class="auto-note">Controlled by climate logic</span>
+      const isFan = (r.id === 0 || r.id === 1);
+      const fanIntake = r.fanIntake ?? false;
+      const fanDirRow = isFan ? `
+        <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.4rem;font-size:.78rem">
+          <span style="color:var(--muted);flex:1">Direction</span>
+          <button class="tab${!fanIntake?' active':''}" onclick="setFanDirection(${r.id},false,this)">Exhaust</button>
+          <button class="tab${fanIntake?' active':''}"  onclick="setFanDirection(${r.id},true,this)">Intake</button>
+        </div>` : '';
+      body = `${fanDirRow}<span class="auto-note">Controlled by climate logic</span>
         <div class="auto-tuning">
           <div class="tuning-row">
             <label>Buffer</label>
@@ -846,7 +1075,7 @@ function renderRelayCard(card, r) {
             <input type="number" id="mxon_${r.id}" value="${maxOn}" min="0" max="86400">
             <span>sec (0=off)</span>
           </div>
-          <button class="btn-apply" onclick="applyAutoTuning(${r.id})">Apply</button>
+          <button class="btn-apply" onclick="applyAutoTuning(${r.id},this)">Apply</button>
         </div>`;
     }
 
@@ -875,7 +1104,7 @@ function renderRelayCard(card, r) {
         <label>OFF for</label>
         <input type="number" id="toff_${r.id}" value="${offMin}" min="1" max="1440"><span>min</span>
       </div>
-      <button class="btn-apply" onclick="applyTimer(${r.id})">Apply</button>
+      <button class="btn-apply" onclick="applyTimer(${r.id},this)">Apply</button>
     </div>`;
 
   } else if (r.mode === 3) {
@@ -900,7 +1129,7 @@ function renderRelayCard(card, r) {
       ${slotRows}
       ${slots.length < 4 ? `<button class="sched-add" onclick="addSchedSlot(${r.id})">+ Add time</button>` : ''}
       <div class="day-btns">${dayBtns}</div>
-      <button class="btn-apply" onclick="applySchedule(${r.id})">Apply</button>
+      <button class="btn-apply" onclick="applySchedule(${r.id},this)">Apply</button>
     </div>`;
   }
 
@@ -912,7 +1141,9 @@ function renderRelayCard(card, r) {
     <div class="tabs">${modeTabs}</div>
     <div class="ctrl-body">${body}</div>`;
 
-  if (card.innerHTML !== html) card.innerHTML = html;
+  const lastTouch = parseInt(card.dataset.touch || '0');
+  const touched   = (Date.now() - lastTouch) < 5000;
+  if (card.innerHTML !== html && !touched) card.innerHTML = html;
 }
 
 // ─── User actions → WebSocket ─────────────────────────────────────────────────
@@ -1012,7 +1243,10 @@ function setRelayMode(id, mode) {
   if (_cache[id]) {
     _cache[id] = { ..._cache[id], mode };
     const card = document.getElementById('rcard-' + id);
-    if (card) renderRelayCard(card, _cache[id]);
+    if (card) {
+      renderRelayCard(card, _cache[id]);
+      card.dataset.touch = Date.now();  // block stale WS push from reverting the mode
+    }
     saveRelayModesToLocal();
   }
   send({ type: 'relay', id, action: 'mode', value: mode });
@@ -1022,7 +1256,10 @@ function setManual(id, state) {
   if (_cache[id]) {
     _cache[id] = { ..._cache[id], mode: 1, state };
     const card = document.getElementById('rcard-' + id);
-    if (card) renderRelayCard(card, _cache[id]);
+    if (card) {
+      renderRelayCard(card, _cache[id]);
+      card.dataset.touch = Date.now();
+    }
     saveRelayModesToLocal();
   }
   send({ type: 'relay', id, action: 'mode',   value: 1 });
@@ -1055,7 +1292,20 @@ function removeSchedSlot(id, si) {
   if (card) renderRelayCard(card, _cache[id]);
 }
 
-function applySchedule(id) {
+function flashApply(btn) {
+  if (!btn) return;
+  const orig = btn.textContent;
+  btn.textContent = '✓ Saved';
+  btn.classList.add('saved');
+  btn.disabled = true;
+  setTimeout(() => {
+    btn.textContent = orig;
+    btn.classList.remove('saved');
+    btn.disabled = false;
+  }, 1500);
+}
+
+function applySchedule(id, btn) {
   const card = document.getElementById('rcard-' + id);
   const slotEls = card.querySelectorAll('.sched-slot');
   const slots = Array.from(slotEls).map((_, si) => ({
@@ -1071,9 +1321,19 @@ function applySchedule(id) {
   if (_cache[id]) { _cache[id] = { ..._cache[id], mode: 3 }; saveRelayModesToLocal(); }
   send({ type: 'relay', id, action: 'mode',     value: 3 });
   send({ type: 'relay', id, action: 'schedule', slots, days });
+  flashApply(btn);
 }
 
-function applyAutoTuning(id) {
+function setFanDirection(id, intake, btn) {
+  send({ type: 'relay', id, action: 'fanIntake', value: intake });
+  if (_cache[id]) {
+    _cache[id] = { ..._cache[id], fanIntake: intake };
+    const card = document.getElementById('rcard-' + id);
+    if (card) renderRelayCard(card, _cache[id]);
+  }
+}
+
+function applyAutoTuning(id, btn) {
   const bufEl  = document.getElementById('buf_'  + id);
   const mionEl = document.getElementById('mion_' + id);
   const mxonEl = document.getElementById('mxon_' + id);
@@ -1083,9 +1343,35 @@ function applyAutoTuning(id) {
   const maxOn = Math.max(0, parseInt(mxonEl.value, 10) || 0);
   send({ type: 'relay', id, action: 'buffer',   value: buf });
   send({ type: 'relay', id, action: 'duration', minOn, maxOn });
+  flashApply(btn);
 }
 
-function applyTimer(id) {
+function onWaterSlider(id, val) {
+  const v = parseInt(val, 10);
+  const el = document.getElementById('wtval_' + id);
+  if (el) el.innerHTML = v === 0
+    ? '<span style="color:var(--muted)">OFF</span>'
+    : `<span style="color:var(--blue)">${v}%</span>`;
+}
+
+function pickWaterDur(id, sec, btn) {
+  const container = document.getElementById('wdurbtns_' + id);
+  if (container) container.querySelectorAll('.dur-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+}
+
+function applyWaterCfg(id, btn) {
+  const slider = document.getElementById('wtslider_' + id);
+  const active = document.querySelector(`#wdurbtns_${id} .dur-btn.active`);
+  if (!slider) return;
+  const threshold = parseInt(slider.value, 10);
+  const match = (active ? active.textContent : '5m').match(/(\d+)m/);
+  const durSec = match ? parseInt(match[1], 10) * 60 : 300;
+  send({ type: 'relay', id, action: 'soilWater', threshold, duration: durSec });
+  flashApply(btn);
+}
+
+function applyTimer(id, btn) {
   const onEl  = document.getElementById('ton_'  + id);
   const offEl = document.getElementById('toff_' + id);
   if (!onEl || !offEl) return;
@@ -1094,6 +1380,25 @@ function applyTimer(id) {
   if (_cache[id]) { _cache[id] = { ..._cache[id], mode: 2 }; saveRelayModesToLocal(); }
   send({ type: 'relay', id, action: 'mode',  value: 2 });
   send({ type: 'relay', id, action: 'timer', on, off });
+  flashApply(btn);
+}
+
+function applyDayStart(id, btn) {
+  const en = document.getElementById('lsen_' + id)?.checked;
+  const h  = parseInt(document.getElementById('lsh_'  + id)?.value || '8',  10);
+  const m  = parseInt(document.getElementById('lsm_'  + id)?.value || '0', 10);
+  send({ type: 'setLightStart', hour: en ? h : 255, min: en ? m : 0 });
+  flashApply(btn);
+}
+
+function onDayStartToggle(id) {
+  const en = document.getElementById('lsen_' + id)?.checked;
+  const opacity = en ? '1' : '0.45';
+  const ptr     = en ? '' : 'none';
+  ['lsh_', 'lsm_'].forEach(pfx => {
+    const el = document.getElementById(pfx + id);
+    if (el) { el.style.opacity = opacity; el.style.pointerEvents = ptr; }
+  });
 }
 
 // ─── Chart ────────────────────────────────────────────────────────────────────
@@ -1119,23 +1424,29 @@ function renderChart(data) {
   const T = data.map(d => d.T);
   const H = data.map(d => d.H);
   const V = data.map(d => d.V);
+  const S = data.map(d => (d.S != null && d.S >= 0) ? d.S : null);
+  const hasSoil = S.some(v => v !== null);
 
   const ctx = document.getElementById('histChart').getContext('2d');
   if (chart) chart.destroy();
 
+  const datasets = [
+    { label: 'Temp (°C)', data: T, borderColor: '#ef4444', backgroundColor: '#ef444415',
+      yAxisID: 'yT', tension: 0.3, pointRadius: 0, borderWidth: 1.5 },
+    { label: 'Humidity (%)', data: H, borderColor: '#3b82f6', backgroundColor: '#3b82f615',
+      yAxisID: 'yH', tension: 0.3, pointRadius: 0, borderWidth: 1.5 },
+    { label: 'VPD (kPa)', data: V, borderColor: '#22c55e', backgroundColor: '#22c55e15',
+      yAxisID: 'yV', tension: 0.3, pointRadius: 0, borderWidth: 1.5 },
+  ];
+  if (hasSoil) {
+    datasets.push({ label: 'Soil (%)', data: S, borderColor: '#f59e0b', backgroundColor: '#f59e0b15',
+      yAxisID: 'yH', tension: 0.3, pointRadius: 0, borderWidth: 1.5,
+      borderDash: [4, 3], spanGaps: false });
+  }
+
   chart = new Chart(ctx, {
     type: 'line',
-    data: {
-      labels,
-      datasets: [
-        { label: 'Temp (°C)', data: T, borderColor: '#ef4444', backgroundColor: '#ef444415',
-          yAxisID: 'yT', tension: 0.3, pointRadius: 0, borderWidth: 1.5 },
-        { label: 'Humidity (%)', data: H, borderColor: '#3b82f6', backgroundColor: '#3b82f615',
-          yAxisID: 'yH', tension: 0.3, pointRadius: 0, borderWidth: 1.5 },
-        { label: 'VPD (kPa)', data: V, borderColor: '#22c55e', backgroundColor: '#22c55e15',
-          yAxisID: 'yV', tension: 0.3, pointRadius: 0, borderWidth: 1.5 },
-      ]
-    },
+    data: { labels, datasets },
     options: {
       responsive: true,
       maintainAspectRatio: false,
@@ -1181,6 +1492,7 @@ function renderChart(data) {
 function setStatus(ok, msg) {
   document.getElementById('dot').className       = 'dot-conn' + (ok ? ' ok' : '');
   document.getElementById('statusText').textContent = msg;
+  if (!ok) { const el = document.getElementById('rssiText'); if (el) el.textContent = ''; }
 }
 
 // ─── Clock ────────────────────────────────────────────────────────────────────
@@ -1207,40 +1519,166 @@ function setStatus(ok, msg) {
 
 // ─── Plant mood ───────────────────────────────────────────────────────────────
 function updatePlantMood(s) {
-  const emojiEl = document.getElementById('mood-emoji');
-  const msgEl   = document.getElementById('mood-msg');
-  const card    = document.getElementById('card-mood');
-  if (!emojiEl || !msgEl || !card) return;
-
-  let emoji, msg, cls;
+  let emoji, msg, cardCls, headerMsg, headerColor;
 
   if (!s || !s.valid) {
-    emoji = '🔌'; msg = '"hello? is anyone there?"'; cls = '';
+    emoji = '🔌'; msg = '"connecting..."'; cardCls = '';
+    headerMsg = '🔌 "connecting..."'; headerColor = 'var(--muted)';
   } else {
     const vpd    = s.vpd   || 0;
     const temp   = s.temp  || 0;
     const soil   = s.soil  || 0;
     const lights = s.lightSched && s.lightSched.isOn;
 
-    if      (temp > 32)                                             { emoji = '🔥'; msg = '"too hot, I\'m melting"';           cls = 'red'; }
-    else if (temp < 17)                                             { emoji = '🥶'; msg = '"brrr... freezing in here"';        cls = 'blue'; }
-    else if (vpd > 1.6)                                             { emoji = '😤'; msg = '"someone bring water, NOW"';        cls = 'red'; }
-    else if (vpd > 1.3)                                             { emoji = '😓'; msg = '"getting really thirsty..."';       cls = 'yellow'; }
-    else if (vpd < 0.3)                                             { emoji = '🌫️'; msg = '"way too humid, can\'t breathe"'; cls = 'blue'; }
-    else if (vpd < 0.6)                                             { emoji = '💧'; msg = '"a little stuffy in here"';         cls = ''; }
-    else if (soil < 20)                                             { emoji = '🥺'; msg = '"roots are thirsty"';               cls = 'yellow'; }
-    else if (!lights)                                               { emoji = '💤'; msg = '"shh... lights out, sleeping"';     cls = ''; }
-    else if (vpd >= 0.8 && vpd <= 1.2 && temp >= 22 && temp <= 28) { emoji = '🌿'; msg = '"absolutely thriving"';             cls = 'green'; }
-    else                                                            { emoji = '😌'; msg = '"feeling good today"';              cls = 'green'; }
+    if      (temp > 32)                                             { emoji='🔥'; msg='"too hot, I\'m melting"';       cardCls='red';    }
+    else if (temp < 17)                                             { emoji='🥶'; msg='"brrr... freezing in here"';    cardCls='blue';   }
+    else if (vpd > 1.6)                                             { emoji='😤'; msg='"need water, NOW"';             cardCls='red';    }
+    else if (vpd > 1.3)                                             { emoji='😓'; msg='"getting really thirsty..."';   cardCls='yellow'; }
+    else if (vpd < 0.3)                                             { emoji='🌫️'; msg='"can\'t breathe in here"';    cardCls='blue';   }
+    else if (vpd < 0.6)                                             { emoji='💧'; msg='"a little stuffy in here"';     cardCls='';       }
+    else if (soil < 20)                                             { emoji='🥺'; msg='"roots are thirsty"';           cardCls='yellow'; }
+    else if (!lights)                                               { emoji='💤'; msg='"lights out, sleeping"';        cardCls='';       }
+    else if (vpd >= 0.8 && vpd <= 1.2 && temp >= 22 && temp <= 28) { emoji='🌿'; msg='"absolutely thriving"';         cardCls='green';  }
+    else                                                            { emoji='😌'; msg='"feeling good today"';          cardCls='green';  }
+
+    const colorMap = { red:'var(--red)', blue:'var(--blue)', yellow:'var(--yellow)', green:'var(--green)', '':'var(--muted)' };
+    headerMsg   = emoji + ' ' + msg;
+    headerColor = colorMap[cardCls] || 'var(--muted)';
   }
 
-  emojiEl.textContent = emoji;
-  msgEl.textContent   = msg;
-  card.className = 'metric metric-mood' + (cls ? ' ' + cls : '');
+  // Card in metrics grid
+  const emojiEl = document.getElementById('mood-emoji');
+  const msgEl   = document.getElementById('mood-msg');
+  const card    = document.getElementById('card-mood');
+  if (emojiEl) emojiEl.textContent = emoji;
+  if (msgEl)   msgEl.textContent   = msg;
+  if (card)    card.className = 'metric metric-mood' + (cardCls ? ' ' + cardCls : '');
+
+  // Small text in header
+  const hdr = document.getElementById('headerMood');
+  if (hdr) { hdr.textContent = headerMsg; hdr.style.color = headerColor; }
+}
+
+// ─── Auto-Tune ────────────────────────────────────────────────────────────────
+// AT phase numbers: 0=IDLE 1=BASELINE 2=ON 3=COOLDOWN 4=DONE 5=ABORTED
+const AT_METRIC_UNIT = ['kPa', '%RH', '°C'];
+// relayId → metric index (matches METRIC[] in autotune.cpp)
+const AT_RELAY_METRIC = { 0: 0, 1: 2, 2: 0, 4: 1, 5: 2 };
+
+function showAtModal()  { document.getElementById('atModal').classList.add('visible'); }
+function cancelAtModal(){ document.getElementById('atModal').classList.remove('visible'); }
+function confirmAutoTune() { cancelAtModal(); send({ type: 'autoTune', action: 'start' }); }
+function cancelAutoTune()  { send({ type: 'autoTune', action: 'cancel' }); }
+
+function updateAutoTune(at) {
+  if (!at) return;
+  const panel      = document.getElementById('atPanel');
+  const phaseLabel = document.getElementById('atPhaseLabel');
+  const relayName  = document.getElementById('atRelayName');
+  const stepCount  = document.getElementById('atStepCount');
+  const timeRem    = document.getElementById('atTimeRem');
+  const phaseBar   = document.getElementById('atPhaseBar');
+  const overallBar = document.getElementById('atOverallBar');
+  const overallPct = document.getElementById('atOverallPct');
+  const cancelBtn  = document.getElementById('atCancelBtn');
+  const resultsDiv = document.getElementById('atResults');
+  const resultRows = document.getElementById('atResultRows');
+
+  const phase    = at.phase;
+  const isActive = phase >= 1 && phase <= 3;
+  const isDone   = phase === 4;
+  const isAborted= phase === 5;
+
+  // Hide panel when idle
+  if (phase === 0) { panel.classList.remove('visible'); return; }
+  panel.classList.add('visible');
+
+  // Phase label
+  const pNames = ['','Measuring baseline…','Device ON — observing effect…','Cooling down…'];
+  if (isActive) {
+    phaseLabel.textContent = ' — ' + pNames[phase];
+    phaseLabel.style.color = phase === 2 ? 'var(--green)' : 'var(--muted)';
+  } else if (isDone) {
+    phaseLabel.textContent = ' — Complete!';
+    phaseLabel.style.color = 'var(--green)';
+  } else {
+    phaseLabel.textContent = at.abortSafety ? ' — Aborted (safety limit)' : ' — Cancelled';
+    phaseLabel.style.color = 'var(--red)';
+  }
+
+  // Relay + step
+  relayName.textContent = at.relayName || (isDone ? 'All done' : '—');
+  stepCount.textContent = at.stepTotal > 0 ? `(${at.stepDone}/${at.stepTotal})` : '';
+
+  // Time remaining
+  if (isActive && at.phaseRemMs > 0) {
+    const s = Math.ceil(at.phaseRemMs / 1000);
+    const m = Math.floor(s / 60), ss = s % 60;
+    timeRem.textContent = m > 0 ? `${m}m ${ss}s` : `${ss}s`;
+
+    // Total remaining = current phase rem + remaining phases in this relay + remaining relays
+    const MS_PER_RELAY = (120 + 180 + 120) * 1000;
+    const phaseMs = [0, 120000, 180000, 120000];       // baseline, on, cooldown
+    const phaseDoneIdx = [0, 0, 1, 2][phase] || 0;    // phases done so far in this step
+    let totalMs = at.phaseRemMs;
+    for (let p = phaseDoneIdx + 1; p < 3; p++) totalMs += phaseMs[p + 1];
+    totalMs += (at.stepTotal - at.stepDone - 1) * MS_PER_RELAY;
+    const tm = Math.ceil(totalMs / 1000);
+    const tmH = Math.floor(tm / 3600), tmM = Math.floor((tm % 3600) / 60);
+    const totalEl = document.getElementById('atTotalRem');
+    if (totalEl) totalEl.textContent = `Total remaining: ~${tmH > 0 ? tmH + 'h ' : ''}${tmM}m`;
+  } else {
+    timeRem.textContent = '';
+    const totalEl = document.getElementById('atTotalRem');
+    if (totalEl) totalEl.textContent = '';
+  }
+
+  // Phase bar
+  const pbColors = ['','baseline','on','cooldown'];
+  if (isActive && at.phaseTotMs > 0) {
+    const pct = Math.min(100, Math.round((at.phaseTotMs - at.phaseRemMs) / at.phaseTotMs * 100));
+    phaseBar.style.width = pct + '%';
+    phaseBar.className = 'at-bar ' + (pbColors[phase] || '');
+  } else {
+    phaseBar.style.width = isDone ? '100%' : '0%';
+    phaseBar.className = 'at-bar' + (isDone ? ' on' : '');
+  }
+
+  // Overall bar: each relay = 3 phases; phase within step: baseline=0, on=1, cooldown=2
+  const totalPhases = at.stepTotal * 3;
+  const phaseOffset = [0, 0, 1, 2];
+  let done = at.stepDone * 3;
+  if (isActive && at.phaseTotMs > 0) {
+    done += (phaseOffset[phase] || 0) + (at.phaseTotMs - at.phaseRemMs) / at.phaseTotMs;
+  } else if (isDone) { done = totalPhases; }
+  const opct = totalPhases > 0 ? Math.min(100, Math.round(done / totalPhases * 100)) : 0;
+  overallBar.style.width = opct + '%';
+  overallBar.className = 'at-bar' + (isDone ? ' on' : '');
+  overallPct.textContent = opct + '%';
+
+  cancelBtn.style.display = isActive ? '' : 'none';
+
+  // Results table
+  if ((isDone || isAborted) && at.results && at.results.length > 0) {
+    resultsDiv.style.display = '';
+    resultRows.innerHTML = at.results.map(r => {
+      const unit = AT_RELAY_METRIC[r.id] !== undefined ? AT_METRIC_UNIT[AT_RELAY_METRIC[r.id]] : '';
+      const sign = r.delta >= 0 ? '+' : '';
+      const cls  = r.delta >= 0 ? 'pos' : 'neg';
+      return `<tr>
+        <td>${r.name}</td>
+        <td>${r.base.toFixed(3)} ${unit}</td>
+        <td>${r.on.toFixed(3)} ${unit}</td>
+        <td class="${cls}">${sign}${r.delta.toFixed(3)}</td>
+        <td style="color:var(--blue)">${r.buf.toFixed(3)}</td>
+      </tr>`;
+    }).join('');
+  } else { resultsDiv.style.display = 'none'; }
 }
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
-applyExtraVisibility();
+loadDisabledRelays();
+applyDisabledRelays();
 
 // Light schedule hours per grow mode: [onHours, offHours]
 const LIGHT_HOURS = [[24, 0], [18, 6], [12, 12]];
@@ -1267,6 +1705,7 @@ function mockSchedForMode(mode) {
   const mockRelays = names.map((name, i) => ({
     id: i, name, mode: 0, state: false, manual: false,
     buffer: DEFAULT_BUFFERS[i], minOn: 30, maxOn: 0,
+    soilThresh: 0, waterDur: 300,
     timer: { on: 3600, off: 1800 },
     sched: { slots: [{ sh: 8, sm: 0, eh: 9, em: 0 }], days: 127 }
   }));
@@ -1274,8 +1713,6 @@ function mockSchedForMode(mode) {
   updateRelays(mockRelays, mockSchedForMode(previewStage));
   updatePlantMood(null);
   setMetric('temp',   '--',  'muted', '');
-  const elFReset = document.getElementById('val-temp-f');
-  if (elFReset) elFReset.textContent = '';
   setMetric('hum',    '--',  'muted', '');
   setMetric('vpd',      '--', 'muted', '');
   setMetric('soil',     '--', 'muted', '');
@@ -1307,6 +1744,20 @@ function mockSchedForMode(mode) {
 })();
 
 connect();
+
+// ─── Relay card interaction guard ────────────────────────────────────────────
+// Stamp data-touch on any input/pointer event inside a relay card so the
+// re-render guard suppresses a 2s WebSocket push from clobbering user edits.
+(function() {
+  function stamp(e) {
+    const card = e.target.closest && e.target.closest('.relay-card');
+    if (card) card.dataset.touch = Date.now();
+  }
+  const g = document.getElementById('relayGrid');
+  if (g) {
+    g.addEventListener('input', stamp);
+  }
+})();
 </script>
 </body>
 </html>

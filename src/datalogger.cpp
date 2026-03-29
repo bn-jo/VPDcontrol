@@ -23,15 +23,16 @@ void DataLogger::begin() {
 }
 
 // ─── Append one row ───────────────────────────────────────────────────────────
-void DataLogger::log(const SensorData& sd) {
+void DataLogger::log(const SensorData& sd, float soilPct) {
     if (_entryCount >= LOG_MAX_ENTRIES) trimOldest();
 
     File f = LittleFS.open(LOG_FILE_PATH, "a");
     if (!f) { Serial.println("[LOG] Failed to open log file"); return; }
 
-    char row[64];
-    int  n = snprintf(row, sizeof(row), "%ld,%.1f,%.1f,%.3f\n",
-                      (long)sd.timestamp, sd.temperature, sd.humidity, sd.vpd);
+    char row[80];
+    int  n = snprintf(row, sizeof(row), "%ld,%.1f,%.1f,%.3f,%.1f\n",
+                      (long)sd.timestamp, sd.temperature, sd.humidity, sd.vpd,
+                      soilPct);
     f.write((const uint8_t*)row, n);
     f.close();
     _entryCount++;
@@ -57,7 +58,7 @@ int DataLogger::getJsonLast(int hours, char* buf, size_t bufSize) {
     bool   first = true;
     buf[w++] = '[';
 
-    char line[80];
+    char line[96];
     int  lp = 0;
 
     auto flush = [&]() {
@@ -66,15 +67,24 @@ int DataLogger::getJsonLast(int hours, char* buf, size_t bufSize) {
         lp = 0;
 
         long  ts;
-        float T, H, V;
-        if (sscanf(line, "%ld,%f,%f,%f", &ts, &T, &H, &V) != 4) return;
+        float T, H, V, S = -1.0f;
+        // Accept both old 4-field rows (no soil) and new 5-field rows
+        int fields = sscanf(line, "%ld,%f,%f,%f,%f", &ts, &T, &H, &V, &S);
+        if (fields < 4) return;
         if ((time_t)ts < cutoff) return;
-        if (w > bufSize - 80) return; // Guard against overflow
+        if (w > bufSize - 96) return; // Guard against overflow
 
-        char entry[80];
-        int  n = snprintf(entry, sizeof(entry),
-                          "%s{\"t\":%ld,\"T\":%.1f,\"H\":%.1f,\"V\":%.3f}",
-                          first ? "" : ",", ts, T, H, V);
+        char entry[96];
+        int  n;
+        if (S >= 0.0f) {
+            n = snprintf(entry, sizeof(entry),
+                         "%s{\"t\":%ld,\"T\":%.1f,\"H\":%.1f,\"V\":%.3f,\"S\":%.1f}",
+                         first ? "" : ",", ts, T, H, V, S);
+        } else {
+            n = snprintf(entry, sizeof(entry),
+                         "%s{\"t\":%ld,\"T\":%.1f,\"H\":%.1f,\"V\":%.3f}",
+                         first ? "" : ",", ts, T, H, V);
+        }
         if (w + n < bufSize - 4) {
             memcpy(buf + w, entry, n);
             w += n;

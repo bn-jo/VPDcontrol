@@ -7,8 +7,9 @@ public:
     DataLogger();
     void begin();
 
-    // Append one row to the CSV log (call every LOG_INTERVAL_MS)
-    void log(const SensorData& sd);
+    // Append one row to the CSV log (call every LOG_INTERVAL_MS).
+    // soilPct < 0 means no soil reading (stored as -1, omitted from JSON).
+    void log(const SensorData& sd, float soilPct = -1.0f);
 
     // Write a JSON array of the last `hours` hours of data into `buf`.
     // Returns number of characters written. buf is always null-terminated.

@@ -2,7 +2,7 @@
 #include <Arduino.h>
 
 // ─── GPIO ────────────────────────────────────────────────────────────────────
-#define DHT_PIN             16   // GPIO16 (RX2) — GPIO34/35 are input-only, can't drive DHT
+#define DHT_PIN              4   // GPIO4 — reliable general-purpose IO, not used by any peripheral
 #define DHT_TYPE            DHT22
 
 // Relay pins — active LOW (relay board energises on LOW signal)
@@ -52,6 +52,8 @@
 
 // ─── Sensor ──────────────────────────────────────────────────────────────────
 #define LEAF_TEMP_OFFSET    -2.0f   // Leaf is ~2°C cooler than air
+#define TEMP_CAL_OFFSET      0.0f   // °C  — adjust if sensor reads high/low
+#define HUM_CAL_OFFSET       0.0f   // %RH — adjust if sensor reads consistently high/low
 #define SENSOR_STALE_MS    60000UL  // Use last reading for up to 60 s on failure
 
 // ─── Logging ─────────────────────────────────────────────────────────────────
@@ -59,6 +61,13 @@
 #define LOG_MAX_ENTRIES     2016    // 7 days at 5-min intervals
 #define LOG_TRIM_TARGET     1008    // Keep 3.5 days after trim
 #define LOG_RESPONSE_BUF    40960   // 40 KB response buffer (covers ~24 h)
+
+// ─── Auto-Tune ───────────────────────────────────────────────────────────────
+// Step-response characterisation: BASELINE (relay OFF) → ON → COOLDOWN per relay.
+// Total time per relay ≈ 7 min; full run (5 relays) ≈ 35 min.
+#define AT_BASELINE_MS  120000UL   // 2 min — measure ambient before turning ON
+#define AT_ON_MS        180000UL   // 3 min — relay ON, measure effect
+#define AT_COOLDOWN_MS  120000UL   // 2 min — relay OFF, environment recovers
 
 // ─── NTP ─────────────────────────────────────────────────────────────────────
 #define NTP_SERVER          "pool.ntp.org"

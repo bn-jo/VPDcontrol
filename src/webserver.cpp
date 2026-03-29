@@ -5,10 +5,12 @@
 #include "relays.h"
 #include "climate.h"
 #include "datalogger.h"
+#include "autotune.h"
 
 #include <ESPAsyncWebServer.h>
 #include <ArduinoJson.h>
 #include <LittleFS.h>
+#include <WiFi.h>
 
 static AsyncWebServer server(80);
 static AsyncWebSocket ws("/ws");
@@ -17,6 +19,7 @@ static AsyncWebSocket ws("/ws");
 static void buildStateJson(String& out) {
     JsonDocument doc;
     doc["type"] = "state";
+    doc["rssi"] = WiFi.RSSI();
 
     // Soil moisture
     const SoilData& sd_soil = soil.data();
@@ -57,12 +60,14 @@ static void buildStateJson(String& out) {
     // Light schedule state
     const LightSchedule& sched = climate.lightSchedule();
     JsonObject ls   = doc["lightSched"].to<JsonObject>();
-    ls["isOn"]      = sched.isOn();
-    ls["remSec"]    = sched.remainingSec();
-    ls["durSec"]    = sched.phaseTotalSec();
-    ls["onHours"]   = gp.lightOnHours;
-    ls["offHours"]  = gp.lightOffHours;
-    ls["ntpOk"]     = sched.ntpSynced();
+    ls["isOn"]         = sched.isOn();
+    ls["remSec"]       = sched.remainingSec();
+    ls["durSec"]       = sched.phaseTotalSec();
+    ls["onHours"]      = gp.lightOnHours;
+    ls["offHours"]     = gp.lightOffHours;
+    ls["ntpOk"]        = sched.ntpSynced();
+    ls["dayStartHour"] = sched.dayStartHour();
+    ls["dayStartMin"]  = sched.dayStartMin();
 
     // Alerts
     uint8_t flags         = climate.alertFlags();
@@ -88,9 +93,12 @@ static void buildStateJson(String& out) {
         rel["mode"]   = (int)r.mode;
         rel["state"]  = r.physicalOn;
         rel["manual"] = r.manualOn;
-        rel["buffer"] = r.autoBuffer;
-        rel["minOn"]  = r.minOnSec;
-        rel["maxOn"]  = r.maxOnSec;
+        rel["buffer"]    = r.autoBuffer;
+        rel["minOn"]     = r.minOnSec;
+        rel["maxOn"]     = r.maxOnSec;
+        rel["soilThresh"]= r.soilThreshold;
+        rel["waterDur"]  = r.waterDurationSec;
+        rel["fanIntake"] = r.fanIntake;
         // Seconds remaining before auto-revert to AUTO (0 if not in manual or no timeout)
         uint32_t manualRemain = 0;
         if (r.mode == RELAY_MANUAL && r.manualTimeoutSec > 0 && r.manualStartMs > 0) {
@@ -112,6 +120,29 @@ static void buildStateJson(String& out) {
             sl["eh"] = r.schedule.slots[s].endHour;
             sl["em"] = r.schedule.slots[s].endMin;
         }
+    }
+
+    // Auto-Tune status
+    const ATStatus& at = autoTuner.status();
+    JsonObject atObj        = doc["autoTune"].to<JsonObject>();
+    atObj["phase"]          = (int)at.phase;
+    atObj["relayId"]        = at.relayId;
+    atObj["relayName"]      = at.relayName ? at.relayName : "";
+    atObj["stepDone"]       = at.stepDone;
+    atObj["stepTotal"]      = at.stepTotal;
+    atObj["phaseRemMs"]     = at.phaseRemMs;
+    atObj["phaseTotMs"]     = at.phaseTotMs;
+    atObj["abortSafety"]    = at.abortSafety;
+    JsonArray atResults     = atObj["results"].to<JsonArray>();
+    for (int i = 0; i < at.resultCount; i++) {
+        const ATResult& r = at.results[i];
+        JsonObject ro     = atResults.add<JsonObject>();
+        ro["id"]          = r.relayId;
+        ro["name"]        = relays.get((RelayIndex)r.relayId).name;
+        ro["base"]        = r.baseVal;
+        ro["on"]          = r.onVal;
+        ro["delta"]       = r.delta;
+        ro["buf"]         = r.bufApplied;
     }
 
     serializeJson(doc, out);
@@ -172,6 +203,13 @@ static void onWsEvent(AsyncWebSocket*       server,
             uint32_t minOn = doc["minOn"] | (uint32_t)30;
             uint32_t maxOn = doc["maxOn"] | (uint32_t)0;
             relays.setDuration(idx, minOn, maxOn);
+        } else if (strcmp(action, "fanIntake") == 0) {
+            bool v = doc["value"] | false;
+            relays.setFanIntake(idx, v);
+        } else if (strcmp(action, "soilWater") == 0) {
+            uint8_t  threshold   = (uint8_t)(doc["threshold"] | 0);
+            uint32_t durationSec = doc["duration"]  | (uint32_t)300;
+            relays.setSoilWater(idx, threshold, durationSec);
         } else if (strcmp(action, "schedule") == 0) {
             ScheduleCfg cfg;
             cfg.daysMask  = doc["days"] | 0x7F;
@@ -187,6 +225,17 @@ static void onWsEvent(AsyncWebSocket*       server,
             }
             if (cfg.slotCount == 0) cfg.slotCount = 1;
             relays.setSchedule(idx, cfg);
+        }
+    } else if (strcmp(msgType, "setLightStart") == 0) {
+        uint8_t hour = (uint8_t)(doc["hour"] | 0xFF);
+        uint8_t min  = (uint8_t)(doc["min"]  | 0);
+        climate.setDayStart(hour, min);
+    } else if (strcmp(msgType, "autoTune") == 0) {
+        const char* action = doc["action"] | "";
+        if (strcmp(action, "start") == 0) {
+            autoTuner.requestStart();
+        } else if (strcmp(action, "cancel") == 0) {
+            autoTuner.requestCancel();
         }
     }
 

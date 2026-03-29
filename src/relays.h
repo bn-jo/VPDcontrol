@@ -63,6 +63,14 @@ struct RelayState {
     uint32_t minOnSec;     // minimum ON  duration before state may change
     uint32_t minOffSec;    // minimum OFF duration before state may change
     uint32_t maxOnSec;     // maximum ON duration in AUTO (0 = unlimited)
+
+    // Soil-triggered auto watering (WATERING relay only)
+    uint8_t  soilThreshold;    // % — open valve when soil drops below this (0 = disabled)
+    uint32_t waterDurationSec; // how long to run each watering cycle (seconds)
+
+    // Fan direction — TOP_FAN and BOTTOM_FAN only
+    // false = exhaust (removes air from tent); true = intake (brings air in)
+    bool fanIntake;
 };
 
 class RelayManager {
@@ -82,6 +90,9 @@ public:
     void setSchedule(RelayIndex idx, const ScheduleCfg& cfg);
     void setBuffer(RelayIndex idx, float buf);
     void setDuration(RelayIndex idx, uint32_t minOnSec, uint32_t maxOnSec);
+    void setSoilWater(RelayIndex idx, uint8_t threshold, uint32_t durationSec);
+    void setFanIntake(RelayIndex idx, bool intake);
+    void setSoilMoisture(float pct, bool valid);
 
     const RelayState& get(RelayIndex idx) const { return _r[idx]; }
 
@@ -90,6 +101,8 @@ public:
 
 private:
     RelayState _r[NUM_RELAYS];
+    float      _soilPct   = 0.0f;
+    bool       _soilValid = false;
 
     void     applyPhysical(RelayIndex idx, bool on);
     bool     canChange(RelayIndex idx, bool newOn) const;

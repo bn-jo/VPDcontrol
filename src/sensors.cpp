@@ -1,12 +1,12 @@
 #include "sensors.h"
 #include "config.h"
-#include <DHT.h>
+#include <DHTesp.h>
 #include <math.h>
 #include <time.h>
 
 SensorManager sensors;
 
-static DHT dht(DHT_PIN, DHT_TYPE);
+static DHTesp dht;
 
 SensorManager::SensorManager()
     : _lastValidMs(0)
@@ -16,7 +16,7 @@ SensorManager::SensorManager()
 }
 
 void SensorManager::begin() {
-    dht.begin();
+    dht.setup(DHT_PIN, DHTesp::DHT22);
 }
 
 // Magnus formula: saturation vapour pressure (kPa)
@@ -32,13 +32,16 @@ float SensorManager::calcVPD(float tempC, float humidityPct, float leafOffset) {
 }
 
 bool SensorManager::read() {
-    float rawH = dht.readHumidity();
-    float rawT = dht.readTemperature();
+    TempAndHumidity th = dht.getTempAndHumidity();
+    float rawT = th.temperature;
+    float rawH = th.humidity;
 
-    if (isnan(rawH) || isnan(rawT)) {
-        Serial.printf("[SENSOR] Read failed — T=%.1f H=%.1f (check wiring on GPIO %d)\n",
-                      rawT, rawH, DHT_PIN);
-        // Use stale smoothed data for up to SENSOR_STALE_MS
+    rawT += TEMP_CAL_OFFSET;
+    rawH  = constrain(rawH + HUM_CAL_OFFSET, 0.0f, 100.0f);
+
+    if (dht.getStatus() != DHTesp::ERROR_NONE || isnan(rawH) || isnan(rawT)) {
+        Serial.printf("[SENSOR] Read failed — status=%d (check wiring on GPIO %d)\n",
+                      (int)dht.getStatus(), DHT_PIN);
         if (millis() - _lastValidMs < SENSOR_STALE_MS) {
             _data       = _lastValid;
             _data.valid = false;
@@ -60,5 +63,7 @@ bool SensorManager::read() {
 
     _lastValid   = _data;
     _lastValidMs = millis();
+
+    Serial.printf("[SENSOR] T=%.1f°C  H=%.1f%%  VPD=%.2fkPa\n", rawT, rawH, rawVpd);
     return true;
 }
