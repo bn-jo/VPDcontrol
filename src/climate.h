@@ -20,7 +20,7 @@ struct GrowProfile {
     uint8_t       lightOffHours;  // 0  = no off period
 };
 
-enum GrowMode : uint8_t { GROW_SEEDLING = 0, GROW_VEG, GROW_FLOWER, NUM_GROW_MODES };
+enum GrowMode : uint8_t { GROW_SEEDLING = 0, GROW_VEG, GROW_FLOWER, GROW_DRY_SLOW, GROW_DRY_FAST, NUM_GROW_MODES };
 
 // ─── Manual VPD target (overrides grow-profile vpdMin/vpdMax when enabled) ───
 struct VpdTargetCfg {

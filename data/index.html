@@ -486,9 +486,9 @@ canvas { width: 100% !important; height: 100% !important; }
     <div class="modal-body">
       You are changing from <strong id="mFromStage"></strong> to
       <strong id="mToStage"></strong>.<br><br>
-      This <strong>cannot be undone</strong>. Wrong timing — especially
+      <span id="mModalBody">This <strong>cannot be undone</strong>. Wrong timing — especially
       switching to Flowering early — can permanently harm your plants.
-      Only proceed if you are certain.
+      Only proceed if you are certain.</span>
     </div>
     <div class="modal-actions">
       <button class="modal-cancel"  onclick="cancelStageChange()">Cancel</button>
@@ -533,6 +533,8 @@ canvas { width: 100% !important; height: 100% !important; }
       <option value="0">🌱 Seedling</option>
       <option value="1">🍃 Vegetative</option>
       <option value="2">🌸 Flowering</option>
+      <option value="3">🍂 Slow Dry</option>
+      <option value="4">💨 Fast Dry</option>
     </select>
     <span id="stageDayBadge" style="font-size:.68rem;color:var(--muted);padding-right:.2rem"></span>
   </div>
@@ -921,7 +923,11 @@ function updatePhaseBadge(ls) {
   const el = document.getElementById('phaseBadge');
   if (!ls) { el.style.display = 'none'; return; }
   el.style.display = 'inline-flex';
-  if (ls.onHours === 24) {
+  if (ls.onHours === 0) {
+    // Drying: lights always off
+    el.className = 'phase-badge night';
+    el.textContent = '🌑 Drying';
+  } else if (ls.onHours === 24) {
     // Seedling 24/7
     el.className = 'phase-badge day';
     el.textContent = '☀️ 24/7';
@@ -1168,7 +1174,7 @@ function renderRelayCard(card, r) {
 }
 
 // ─── User actions → WebSocket ─────────────────────────────────────────────────
-const STAGE_NAMES = ['Seedling', 'Vegetative', 'Flowering'];
+const STAGE_NAMES = ['Seedling', 'Vegetative', 'Flowering', 'Slow Dry', 'Fast Dry'];
 let _pendingStage = null;
 
 function requestStageChange(newMode) {
@@ -1182,6 +1188,12 @@ function requestStageChange(newMode) {
   document.getElementById('mFromStage').textContent  = STAGE_NAMES[_confirmedStage];
   document.getElementById('mToStage').textContent    = STAGE_NAMES[newMode];
   document.getElementById('mConfirmBtn').textContent = 'Change to ' + STAGE_NAMES[newMode];
+  const isDrying = (newMode === 3 || newMode === 4);
+  document.getElementById('mModalBody').innerHTML = isDrying
+    ? (newMode === 3
+        ? 'Switching to <strong>Slow Dry</strong>: lights off, 15–18°C, 55–62% RH, VPD 0.5–0.8 kPa. Estimated <strong>10–14 days</strong>. Best terpene and potency preservation.'
+        : 'Switching to <strong>Fast Dry</strong>: lights off, 20–22°C, 45–55% RH, VPD 0.9–1.2 kPa. Estimated <strong>5–8 days</strong>. Good quality, slightly faster.')
+    : 'This <strong>cannot be undone</strong>. Wrong timing — especially switching to Flowering early — can permanently harm your plants. Only proceed if you are certain.';
   document.getElementById('stageModal').classList.add('visible');
   // Revert the dropdown — confirmed stage hasn't changed yet
   document.getElementById('growMode').value = String(_confirmedStage);
@@ -1765,8 +1777,8 @@ function updateAutoTune(at) {
 loadDisabledRelays();
 applyDisabledRelays();
 
-// Light schedule hours per grow mode: [onHours, offHours]
-const LIGHT_HOURS = [[24, 0], [18, 6], [12, 12]];
+/// Light schedule hours per grow mode: [onHours, offHours]
+const LIGHT_HOURS = [[24, 0], [18, 6], [12, 12], [0, 24], [0, 24]];
 
 function mockSchedForMode(mode) {
   const [on, off] = LIGHT_HOURS[mode] || [18, 6];

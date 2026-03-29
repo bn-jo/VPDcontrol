@@ -45,6 +45,12 @@ void LightSchedule::tick() {
         _alertFlags &= ~ALERT_SCHED_OVERDUE;
         return;
     }
+    // Drying: always OFF — lights never on
+    if (_onSec == 0) {
+        _isOn = false;
+        _alertFlags &= ~ALERT_SCHED_OVERDUE;
+        return;
+    }
 
     time_t now = time(nullptr);
 
@@ -108,6 +114,7 @@ void LightSchedule::tick() {
 
 uint32_t LightSchedule::remainingSec() const {
     if (_offSec == 0) return UINT32_MAX;  // Always ON
+    if (_onSec  == 0) return UINT32_MAX;  // Always OFF
     time_t now = time(nullptr);
     if (now < 1000000000L) return 0;
 
@@ -168,6 +175,11 @@ void LightSchedule::recoverFromNtp() {
     // Seedling: always ON, no recovery needed
     if (_offSec == 0) {
         _isOn = true;
+        return;
+    }
+    // Drying: always OFF, no recovery needed
+    if (_onSec == 0) {
+        _isOn = false;
         return;
     }
 
@@ -247,6 +259,31 @@ ClimateController::ClimateController()
         { 20.0f, 26.0f, 40.0f, 55.0f, 1.00f, 1.60f, 1.30f },  // day  12 h  (hum max 60→55)
         { 16.0f, 22.0f, 40.0f, 55.0f, 0.80f, 1.30f, 1.05f },  // night 12 h (hum 50-70→40-55, vpd 0.70-1.10→0.80-1.30)
         12, 12
+    };
+
+    // ── Slow Dry ─────────────────────────────────────────────────────────────
+    // 15-18°C / 55-62% RH / VPD 0.50-0.80 kPa — 10-14 day gentle drying.
+    // Low VPD keeps moisture evaporating slowly so trichomes and terpenes stay
+    // intact. Chlorophyll breaks down smoothly → smooth smoke.
+    // Lights OFF (0 h on / 24 h off) — darkness protects cannabinoids.
+    //                             tMin  tMax  hMin  hMax  vMin  vMax  vTgt
+    _profiles[GROW_DRY_SLOW] = {
+        "Slow Dry",
+        { 15.0f, 18.0f, 55.0f, 62.0f, 0.50f, 0.80f, 0.65f },  // unused (always dark)
+        { 15.0f, 18.0f, 55.0f, 62.0f, 0.50f, 0.80f, 0.65f },  // active profile
+        0, 24   // 0 h on → always OFF
+    };
+
+    // ── Fast Dry ─────────────────────────────────────────────────────────────
+    // 20-22°C / 45-55% RH / VPD 0.90-1.20 kPa — 5-8 day accelerated drying.
+    // Higher temp and VPD pull moisture out faster. Stay within bounds to avoid
+    // case-hardening (VPD > 1.2) or terpene loss (T > 24°C).
+    // Lights OFF — same reason as slow dry.
+    _profiles[GROW_DRY_FAST] = {
+        "Fast Dry",
+        { 20.0f, 22.0f, 45.0f, 55.0f, 0.90f, 1.20f, 1.05f },  // unused (always dark)
+        { 20.0f, 22.0f, 45.0f, 55.0f, 0.90f, 1.20f, 1.05f },  // active profile
+        0, 24   // 0 h on → always OFF
     };
 }
 
