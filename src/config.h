@@ -30,6 +30,19 @@
 #define WIFI_PASSWORD       "REDACTED"
 #define WIFI_TIMEOUT_MS     20000UL
 
+// ─── Remote sensor node ───────────────────────────────────────────────────────
+// Second ESP32 sensor at this address. If unreachable, main sensor is used alone.
+#define REMOTE_SENSOR_URL          "http://192.168.1.204"
+#define REMOTE_SENSOR_INTERVAL_MS  30000UL  // fetch every 30 s
+#define REMOTE_SENSOR_TIMEOUT_MS   2000     // 2 s HTTP timeout
+
+// Static IP — ESP32 will always appear at this address on your network.
+// If you ever get a conflict, change STATIC_IP to another unused address.
+#define STATIC_IP          192,168,1,200
+#define STATIC_GATEWAY     192,168,1,1
+#define STATIC_SUBNET      255,255,255,0
+#define STATIC_DNS         8,8,8,8
+
 // ─── Timing ──────────────────────────────────────────────────────────────────
 #define SENSOR_INTERVAL_MS    10000UL   // Read sensor every 10 s
 #define CONTROL_INTERVAL_MS   30000UL   // Run climate logic every 30 s

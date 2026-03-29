@@ -11,6 +11,7 @@
 #include "datalogger.h"
 #include "webserver.h"
 #include "autotune.h"
+#include "remotesensor.h"
 
 // ─── FreeRTOS task: sensor reading + climate control ─────────────────────────
 // Runs on Core 0 to leave Core 1 free for WiFi + web server
@@ -62,6 +63,17 @@ static void controlTask(void* pvParam) {
 static bool wifiConnect() {
     Serial.printf("[WIFI] Connecting to %s", WIFI_SSID);
     WiFi.mode(WIFI_STA);
+
+#ifdef STATIC_IP
+    WiFi.config(
+        IPAddress(STATIC_IP),
+        IPAddress(STATIC_GATEWAY),
+        IPAddress(STATIC_SUBNET),
+        IPAddress(STATIC_DNS)
+    );
+    Serial.printf(" (static IP %d.%d.%d.%d)", STATIC_IP);
+#endif
+
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
     unsigned long start = millis();
@@ -121,6 +133,8 @@ void setup() {
 // Handles WebSocket broadcast + keeps async server running
 void loop() {
     static unsigned long lastWsPushMs = 0;
+
+    remoteSensor.update();   // Non-blocking; self-throttles to REMOTE_SENSOR_INTERVAL_MS
 
     if (millis() - lastWsPushMs >= WS_PUSH_INTERVAL_MS) {
         webBroadcast();

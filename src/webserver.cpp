@@ -6,6 +6,7 @@
 #include "climate.h"
 #include "datalogger.h"
 #include "autotune.h"
+#include "remotesensor.h"
 
 #include <ESPAsyncWebServer.h>
 #include <ArduinoJson.h>
@@ -26,12 +27,27 @@ static void buildStateJson(String& out) {
     doc["soil"]      = sd_soil.moisture;
     doc["soilValid"] = sd_soil.valid;
 
-    const SensorData& sd = sensors.data();
-    doc["temp"]     = sd.temperature;
-    doc["hum"]      = sd.humidity;
-    doc["vpd"]      = sd.vpd;
-    doc["vpdTrend"] = sd.vpdTrend;   // kPa/min — positive = drying, negative = humidifying
-    doc["valid"]    = sd.valid;
+    const SensorData&       sd  = sensors.data();
+    const RemoteSensorData& rsd = remoteSensor.data();
+
+    // If the remote node is reachable, average its readings with the local sensor
+    float dispTemp, dispHum, dispVpd;
+    if (rsd.valid) {
+        dispTemp = (sd.temperature + rsd.temperature) / 2.0f;
+        dispHum  = (sd.humidity    + rsd.humidity)    / 2.0f;
+        dispVpd  = SensorManager::calcVPD(dispTemp, dispHum);
+    } else {
+        dispTemp = sd.temperature;
+        dispHum  = sd.humidity;
+        dispVpd  = sd.vpd;
+    }
+
+    doc["temp"]            = dispTemp;
+    doc["hum"]             = dispHum;
+    doc["vpd"]             = dispVpd;
+    doc["vpdTrend"]        = sd.vpdTrend;   // kPa/min — positive = drying, negative = humidifying
+    doc["valid"]           = sd.valid;
+    doc["remoteConnected"] = rsd.valid;
 
     doc["growMode"] = (int)climate.getMode();
     doc["stageDay"] = climate.stageDay();   // Day 1 = first day of current stage
