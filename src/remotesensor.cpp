@@ -12,7 +12,7 @@ void RemoteSensor::update() {
     _lastMs = millis();
 
     HTTPClient http;
-    http.begin(REMOTE_SENSOR_URL "/api/state");
+    http.begin(REMOTE_SENSOR_URL "/data");
     http.setTimeout(REMOTE_SENSOR_TIMEOUT_MS);
     int code = http.GET();
 

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>VPD Control</title>
+<title>Guetos Systems</title>
 <style>
 :root {
   --bg:      #111827;
@@ -516,7 +516,7 @@ canvas { width: 100% !important; height: 100% !important; }
 </div>
 
 <header>
-  <div class="logo">🌿 <span>VPD</span> Control</div>
+  <div class="logo">🌿 <span>Guetos</span> Systems</div>
   <span class="phase-badge" id="phaseBadge" style="display:none"></span>
   <div style="display:flex;align-items:center;gap:.75rem">
     <div id="clockBox" style="display:flex;flex-direction:column;align-items:center;line-height:1.3">
@@ -554,7 +554,7 @@ canvas { width: 100% !important; height: 100% !important; }
   <section>
     <div class="section-title" style="display:flex;align-items:center;gap:.5rem">
       Environment
-      <span id="remoteSensorDot" style="display:none;font-size:.65rem;font-weight:500;letter-spacing:.03em;color:var(--green);text-transform:none">● 2 sensors</span>
+      <span id="remoteSensorDot" style="font-size:.65rem;font-weight:500;letter-spacing:.03em;text-transform:none;color:var(--yellow)">● 1 sensor</span>
     </div>
     <div class="metrics">
       <div class="metric" id="card-temp">
@@ -762,7 +762,10 @@ function handleState(s) {
   updateRelays(s.relays, s.lightSched);
   updateRelayMini(s.relays);
   const dot = document.getElementById('remoteSensorDot');
-  if (dot) dot.style.display = s.remoteConnected ? '' : 'none';
+  if (dot) {
+    dot.textContent = s.remoteConnected ? '● 2 sensors' : '● 1 sensor';
+    dot.style.color = s.remoteConnected ? 'var(--green)' : 'var(--yellow)';
+  }
   try { localStorage.setItem('relayModes', JSON.stringify(s.relays.map(r => r.mode))); } catch(_) {}
   updatePhaseBadge(s.lightSched);
   updateAlerts(s.alerts || []);
