@@ -12,6 +12,7 @@
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 #include <WiFi.h>
+#include <Update.h>
 
 static AsyncWebServer server(80);
 static AsyncWebSocket ws("/ws");
@@ -290,6 +291,83 @@ void webBegin() {
         buildStateJson(out);
         req->send(200, "application/json", out);
     });
+
+    // ── OTA update page ──────────────────────────────────────────────────────
+    server.on("/update", HTTP_GET, [](AsyncWebServerRequest* req) {
+        req->send(200, "text/html",
+            "<!DOCTYPE html><html><head><meta charset='UTF-8'>"
+            "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+            "<title>Guetos Systems — OTA Update</title>"
+            "<style>"
+            "body{margin:0;font-family:system-ui;background:#111827;color:#f1f5f9;display:flex;align-items:center;justify-content:center;min-height:100vh}"
+            ".box{background:#1e293b;border-radius:16px;padding:2rem;width:320px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.5)}"
+            "h2{margin:0 0 1.5rem;font-size:1.2rem;color:#94a3b8}h2 span{color:#4ade80}"
+            "input[type=file]{width:100%;padding:.6rem;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#f1f5f9;margin-bottom:1rem;box-sizing:border-box}"
+            "button{width:100%;padding:.75rem;background:#16a34a;color:#fff;border:none;border-radius:8px;font-size:1rem;font-weight:600;cursor:pointer}"
+            "button:hover{background:#15803d}"
+            "#status{margin-top:1rem;font-size:.85rem;color:#94a3b8;min-height:1.2em}"
+            ".progress{width:100%;background:#0f172a;border-radius:8px;height:8px;margin-top:.75rem;display:none}"
+            ".progress-bar{height:8px;background:#4ade80;border-radius:8px;width:0%;transition:width .3s}"
+            "</style></head><body>"
+            "<div class='box'>"
+            "<h2>🌿 <span>Guetos</span> Systems<br>Firmware Update</h2>"
+            "<form id='form'>"
+            "<input type='file' id='file' accept='.bin' required>"
+            "<button type='submit'>Flash Firmware</button>"
+            "</form>"
+            "<div class='progress' id='prog'><div class='progress-bar' id='bar'></div></div>"
+            "<div id='status'></div>"
+            "</div>"
+            "<script>"
+            "document.getElementById('form').onsubmit=function(e){"
+            "e.preventDefault();"
+            "const f=document.getElementById('file').files[0];"
+            "if(!f)return;"
+            "const fd=new FormData();fd.append('firmware',f);"
+            "const prog=document.getElementById('prog');"
+            "const bar=document.getElementById('bar');"
+            "const status=document.getElementById('status');"
+            "prog.style.display='block';status.textContent='Uploading...';"
+            "const xhr=new XMLHttpRequest();"
+            "xhr.upload.onprogress=function(e){if(e.lengthComputable){const p=Math.round(e.loaded/e.total*100);bar.style.width=p+'%';status.textContent='Uploading '+p+'%';}};"
+            "xhr.onload=function(){if(xhr.status===200){status.textContent='Done! Rebooting...';bar.style.width='100%';}else{status.textContent='Error: '+xhr.responseText;prog.style.display='none';}};"
+            "xhr.onerror=function(){status.textContent='Upload failed.';};"
+            "xhr.open('POST','/update');xhr.send(fd);"
+            "};"
+            "</script></body></html>"
+        );
+    });
+
+    server.on("/update", HTTP_POST,
+        [](AsyncWebServerRequest* req) {
+            bool ok = !Update.hasError();
+            AsyncWebServerResponse* resp = req->beginResponse(200, "text/plain", ok ? "OK" : "FAIL");
+            resp->addHeader("Connection", "close");
+            req->send(resp);
+            if (ok) {
+                delay(300);
+                ESP.restart();
+            }
+        },
+        [](AsyncWebServerRequest* req, String filename, size_t index, uint8_t* data, size_t len, bool final) {
+            if (!index) {
+                Serial.printf("[OTA] Start: %s  (%u bytes free)\n", filename.c_str(), ESP.getFreeSketchSpace());
+                if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
+                    Update.printError(Serial);
+                }
+            }
+            if (Update.write(data, len) != len) {
+                Update.printError(Serial);
+            }
+            if (final) {
+                if (Update.end(true)) {
+                    Serial.printf("[OTA] Success: %u bytes written\n", index + len);
+                } else {
+                    Update.printError(Serial);
+                }
+            }
+        }
+    );
 
     // Serve everything else from LittleFS (index.html as default)
     server.serveStatic("/", LittleFS, "/").setDefaultFile("index.html");
