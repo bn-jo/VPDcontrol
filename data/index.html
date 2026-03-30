@@ -1688,9 +1688,38 @@ const AT_METRIC_UNIT = ['kPa', '%RH', '°C'];
 // relayId → metric index (matches METRIC[] in autotune.cpp)
 const AT_RELAY_METRIC = { 0: 0, 1: 2, 2: 0, 4: 1, 5: 2 };
 
-function showAtModal()  { document.getElementById('atModal').classList.add('visible'); }
+const AT_TUNABLE = [0, 1, 2, 4, 5];  // relay IDs auto-tune can test
+const AT_TUNABLE_NAMES = { 0:'Top Fan', 1:'Bottom Fan', 2:'Humidifier', 4:'Dehumidifier', 5:'Heat' };
+
+function getSelectedATRelays() {
+  return AT_TUNABLE.filter(id => {
+    const cb = document.getElementById('showRelay_' + id);
+    return cb && cb.checked;
+  });
+}
+
+function showAtModal() {
+  const sel = getSelectedATRelays();
+  const count = sel.length;
+  const names = sel.map(id => AT_TUNABLE_NAMES[id]).join(', ');
+  const mins  = count * 7;
+  document.querySelector('#atModal .modal-body').innerHTML =
+    (count === 0
+      ? '<strong>No relays selected.</strong> Enable at least one relay checkbox to run Auto-Tune.'
+      : `Will test <strong>${count} relay${count !== 1 ? 's' : ''}</strong>: ${names}.<br><br>` +
+        `Each relay takes ~<strong>7 min</strong> &nbsp;(total ≈ <strong>${mins} min</strong>).<br><br>` +
+        `<strong>Do not start if plants are in a critical state.</strong>`);
+  document.getElementById('atModal').classList.add('visible');
+}
+
 function cancelAtModal(){ document.getElementById('atModal').classList.remove('visible'); }
-function confirmAutoTune() { cancelAtModal(); send({ type: 'autoTune', action: 'start' }); }
+
+function confirmAutoTune() {
+  const sel = getSelectedATRelays();
+  if (sel.length === 0) { cancelAtModal(); return; }
+  cancelAtModal();
+  send({ type: 'autoTune', action: 'start', relays: sel });
+}
 function cancelAutoTune()  { send({ type: 'autoTune', action: 'cancel' }); }
 
 function updateAutoTune(at) {

@@ -47,8 +47,8 @@ struct ATStatus {
 // single-byte volatile flags — no mutex needed.
 class AutoTuner {
 public:
-    static const uint8_t TEST_IDS[];       // relays to test (TOP_FAN … HEAT_MAT)
-    static const uint8_t NUM_TEST_RELAYS;  // = 5
+    static const uint8_t TEST_IDS[];       // all tunable relays (TOP_FAN … HEAT_MAT)
+    static const uint8_t NUM_TEST_RELAYS;  // = 5 (max)
 
     void begin();
 
@@ -58,21 +58,26 @@ public:
     // Core 0 — call every 100 ms (same cadence as relays.update())
     void tick();
 
-    // Core 1 — from WebSocket handler; single-byte flag, safe across cores
-    void requestStart();
+    // Core 1 — from WebSocket handler; single-byte flags, safe across cores
+    // relayMask: bitmask of relay IDs to test (bit N = relay N); 0 = test all
+    void requestStart(uint8_t relayMask = 0xFF);
     void requestCancel();
 
     const ATStatus& status() const { return _status; }
 
 private:
     // Cross-core flags (written by Core 1, read by Core 0)
-    volatile bool _reqStart  = false;
-    volatile bool _reqCancel = false;
+    volatile bool    _reqStart  = false;
+    volatile bool    _reqCancel = false;
+    volatile uint8_t _reqMask   = 0xFF;  // set before _reqStart
 
     // State — only accessed from Core 0
     ATPhase       _phase        = AT_IDLE;
-    int           _step         = 0;
+    int           _step         = 0;        // index into _activeIds[]
     unsigned long _phaseStartMs = 0;
+
+    uint8_t _activeIds  [5];   // relay IDs selected for this run
+    uint8_t _activeCount = 0;  // how many relays in this run
 
     float _curT = 0.0f, _curH = 0.0f, _curV = 0.0f;
 

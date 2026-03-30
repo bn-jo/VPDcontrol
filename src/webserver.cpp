@@ -253,7 +253,13 @@ static void onWsEvent(AsyncWebSocket*       server,
     } else if (strcmp(msgType, "autoTune") == 0) {
         const char* action = doc["action"] | "";
         if (strcmp(action, "start") == 0) {
-            autoTuner.requestStart();
+            uint8_t mask = 0;
+            for (JsonVariantConst v : doc["relays"].as<JsonArrayConst>()) {
+                uint8_t rid = v.as<uint8_t>();
+                if (rid < 8) mask |= (1u << rid);
+            }
+            if (mask == 0) mask = 0xFF;  // fallback: test all
+            autoTuner.requestStart(mask);
         } else if (strcmp(action, "cancel") == 0) {
             autoTuner.requestCancel();
         }

@@ -4,15 +4,13 @@
 
 AutoTuner autoTuner;
 
-// Relays tested, in order: TOP_FAN, BOTTOM_FAN, HUMIDIFIER, DEHUMIDIFIER, HEAT_MAT
+// All relays auto-tune can test
 const uint8_t AutoTuner::TEST_IDS[]      = { TOP_FAN, BOTTOM_FAN, HUMIDIFIER, DEHUMIDIFIER, HEAT_MAT };
 const uint8_t AutoTuner::NUM_TEST_RELAYS = 5;
 
-// Which environmental variable each relay primarily moves:
-//   0 = VPD   (kPa)  — TOP_FAN, HUMIDIFIER
-//   1 = hum   (%RH)  — DEHUMIDIFIER
-//   2 = temp  (°C)   — BOTTOM_FAN, HEAT_MAT
-static const uint8_t METRIC[AutoTuner::NUM_TEST_RELAYS] = { 0, 2, 0, 1, 2 };
+// Maps relay ID (0-7) → metric: 0=VPD(kPa), 1=hum(%RH), 2=temp(°C)
+// Only indices 0,1,2,4,5 are used by auto-tune
+static const uint8_t RELAY_METRIC[8] = { 0, 2, 0, 0, 1, 2, 0, 0 };
 
 // autoBuffer clamp range per metric type
 static const float BUF_MAX[] = { 0.30f, 10.0f, 2.0f };  // [VPD, hum, temp]
@@ -28,7 +26,10 @@ void AutoTuner::begin() {
     _status.relayId   = -1;
 }
 
-void AutoTuner::requestStart()  { _reqStart  = true; }
+void AutoTuner::requestStart(uint8_t relayMask) {
+    _reqMask  = relayMask;   // set mask BEFORE flag — Core 0 reads in this order
+    _reqStart = true;
+}
 void AutoTuner::requestCancel() { _reqCancel = true; }
 
 void AutoTuner::feed(float t, float h, float vpd) {
@@ -56,13 +57,24 @@ void AutoTuner::tick() {
     if (_reqStart) {
         _reqStart = false;
         if (_phase == AT_IDLE || _phase == AT_DONE || _phase == AT_ABORTED) {
+            // Build active relay list from mask
+            uint8_t mask = _reqMask;
+            _activeCount = 0;
+            for (int i = 0; i < (int)NUM_TEST_RELAYS; i++) {
+                if (mask & (1u << TEST_IDS[i])) {
+                    _activeIds[_activeCount++] = TEST_IDS[i];
+                }
+            }
+            if (_activeCount == 0) return;  // nothing selected — ignore
+
             _step               = 0;
             _status.resultCount = 0;
             _status.stepDone    = 0;
+            _status.stepTotal   = _activeCount;
             _status.abortSafety = false;
-            // Save all test-relay modes before touching anything
-            for (int i = 0; i < NUM_TEST_RELAYS; i++) {
-                RelayIndex idx  = (RelayIndex)TEST_IDS[i];
+            // Save modes for selected relays
+            for (int i = 0; i < (int)_activeCount; i++) {
+                RelayIndex idx  = (RelayIndex)_activeIds[i];
                 _savedMode[i]   = relays.get(idx).mode;
                 _savedManual[i] = relays.get(idx).manualOn;
             }
@@ -113,8 +125,8 @@ void AutoTuner::tick() {
 // ─── Private helpers ──────────────────────────────────────────────────────────
 
 float AutoTuner::metricNow() const {
-    if (_step >= (int)NUM_TEST_RELAYS) return 0.0f;
-    switch (METRIC[_step]) {
+    if (_step >= (int)_activeCount) return 0.0f;
+    switch (RELAY_METRIC[_activeIds[_step]]) {
         case 0: return _curV;
         case 1: return _curH;
         case 2: return _curT;
@@ -123,17 +135,11 @@ float AutoTuner::metricNow() const {
 }
 
 float AutoTuner::maxBuf(uint8_t rid) const {
-    for (int i = 0; i < (int)NUM_TEST_RELAYS; i++) {
-        if (TEST_IDS[i] == rid) return BUF_MAX[METRIC[i]];
-    }
-    return 0.30f;
+    return (rid < 8) ? BUF_MAX[RELAY_METRIC[rid]] : 0.30f;
 }
 
 float AutoTuner::minBuf(uint8_t rid) const {
-    for (int i = 0; i < (int)NUM_TEST_RELAYS; i++) {
-        if (TEST_IDS[i] == rid) return BUF_MIN[METRIC[i]];
-    }
-    return 0.02f;
+    return (rid < 8) ? BUF_MIN[RELAY_METRIC[rid]] : 0.02f;
 }
 
 bool AutoTuner::safetyOk() const {
@@ -151,7 +157,7 @@ void AutoTuner::enterBaseline() {
     _sum          = 0.0;
     _n            = 0;
 
-    RelayIndex idx = (RelayIndex)TEST_IDS[_step];
+    RelayIndex idx = (RelayIndex)_activeIds[_step];
     relays.setMode  (idx, RELAY_MANUAL);
     relays.setManual(idx, false);
 
@@ -172,7 +178,7 @@ void AutoTuner::enterOn() {
     _sum          = 0.0;
     _n            = 0;
 
-    RelayIndex idx = (RelayIndex)TEST_IDS[_step];
+    RelayIndex idx = (RelayIndex)_activeIds[_step];
     relays.setManual(idx, true);
 
     _status.phase      = AT_ON;
@@ -188,7 +194,7 @@ void AutoTuner::enterCooldown() {
     _phase        = AT_COOLDOWN;
     _phaseStartMs = millis();
 
-    RelayIndex idx = (RelayIndex)TEST_IDS[_step];
+    RelayIndex idx = (RelayIndex)_activeIds[_step];
     relays.setManual(idx, false);
 
     _status.phase      = AT_COOLDOWN;
@@ -206,7 +212,7 @@ void AutoTuner::finishStep() {
     float onVal = (_n > 0) ? (float)(_sum / _n) : metricNow();
     float delta = onVal - _baseVal;
 
-    uint8_t rid = TEST_IDS[_step];
+    uint8_t rid = _activeIds[_step];
     // Buffer = 30% of observed effect, clamped to per-metric range
     float buf = fabsf(delta) * 0.3f;
     buf = constrain(buf, minBuf(rid), maxBuf(rid));
@@ -232,7 +238,7 @@ void AutoTuner::advance() {
     _step++;
     _status.stepDone = (uint8_t)_step;
 
-    if (_step >= (int)NUM_TEST_RELAYS) {
+    if (_step >= (int)_activeCount) {
         restoreAll();
         _phase             = AT_DONE;
         _status.phase      = AT_DONE;
@@ -260,8 +266,8 @@ void AutoTuner::doAbort(bool safety) {
 // Turns every test relay off first, then restores its original mode.
 // Called at the end of a successful run and on any abort.
 void AutoTuner::restoreAll() {
-    for (int i = 0; i < (int)NUM_TEST_RELAYS; i++) {
-        RelayIndex idx = (RelayIndex)TEST_IDS[i];
+    for (int i = 0; i < (int)_activeCount; i++) {
+        RelayIndex idx = (RelayIndex)_activeIds[i];
         relays.setManual(idx, false);            // physically off while in MANUAL
         relays.setMode  (idx, _savedMode[i]);
         if (_savedMode[i] == RELAY_MANUAL) {
