@@ -231,7 +231,7 @@ void LightSchedule::load() {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 ClimateController::ClimateController()
-    : _mode(GROW_VEG),
+    : _mode(GROW_VEG), _dryingFast(false),
       _humidifierOn(false), _topFanOn(false), _bottomFanOn(false),
       _dehumidifierOn(false), _heatMatOn(false),
       _stageStartEpoch(0)
@@ -261,28 +261,16 @@ ClimateController::ClimateController()
         12, 12
     };
 
-    // ── Slow Dry ─────────────────────────────────────────────────────────────
-    // 15-18°C / 55-62% RH / VPD 0.50-0.80 kPa — 10-14 day gentle drying.
-    // Low VPD keeps moisture evaporating slowly so trichomes and terpenes stay
-    // intact. Chlorophyll breaks down smoothly → smooth smoke.
-    // Lights OFF (0 h on / 24 h off) — darkness protects cannabinoids.
-    //                             tMin  tMax  hMin  hMax  vMin  vMax  vTgt
-    _profiles[GROW_DRY_SLOW] = {
-        "Slow Dry",
+    // ── Drying ───────────────────────────────────────────────────────────────
+    // Default = Slow Dry: 15-18°C / 55-62% RH / VPD 0.50-0.80 kPa (~10-14 d)
+    // Fast  Dry override: 20-22°C / 45-55% RH / VPD 0.90-1.20 kPa (~5-8 d)
+    // setDryingFast() mutates this profile at runtime without resetting stageDay.
+    // Lights OFF always (0 h on / 24 h off).
+    //                          tMin  tMax  hMin  hMax  vMin  vMax  vTgt
+    _profiles[GROW_DRYING] = {
+        "Drying",
         { 15.0f, 18.0f, 55.0f, 62.0f, 0.50f, 0.80f, 0.65f },  // unused (always dark)
-        { 15.0f, 18.0f, 55.0f, 62.0f, 0.50f, 0.80f, 0.65f },  // active profile
-        0, 24   // 0 h on → always OFF
-    };
-
-    // ── Fast Dry ─────────────────────────────────────────────────────────────
-    // 20-22°C / 45-55% RH / VPD 0.90-1.20 kPa — 5-8 day accelerated drying.
-    // Higher temp and VPD pull moisture out faster. Stay within bounds to avoid
-    // case-hardening (VPD > 1.2) or terpene loss (T > 24°C).
-    // Lights OFF — same reason as slow dry.
-    _profiles[GROW_DRY_FAST] = {
-        "Fast Dry",
-        { 20.0f, 22.0f, 45.0f, 55.0f, 0.90f, 1.20f, 1.05f },  // unused (always dark)
-        { 20.0f, 22.0f, 45.0f, 55.0f, 0.90f, 1.20f, 1.05f },  // active profile
+        { 15.0f, 18.0f, 55.0f, 62.0f, 0.50f, 0.80f, 0.65f },  // active profile (slow default)
         0, 24   // 0 h on → always OFF
     };
 }
@@ -299,6 +287,16 @@ void ClimateController::setMode(GrowMode m) {
     // Record when this stage started (requires NTP; stored as 0 if not yet synced)
     time_t now = time(nullptr);
     _stageStartEpoch = (now > 1000000000L) ? (int64_t)now : 0;
+    savePrefs();
+}
+
+void ClimateController::setDryingFast(bool fast) {
+    _dryingFast = fast;
+    // Mutate the drying profile in-place — stageDay counter is NOT reset.
+    const DayNightRange slow = { 15.0f, 18.0f, 55.0f, 62.0f, 0.50f, 0.80f, 0.65f };
+    const DayNightRange fast_ = { 20.0f, 22.0f, 45.0f, 55.0f, 0.90f, 1.20f, 1.05f };
+    _profiles[GROW_DRYING].day   = fast ? fast_ : slow;
+    _profiles[GROW_DRYING].night = fast ? fast_ : slow;
     savePrefs();
 }
 
@@ -546,6 +544,7 @@ void ClimateController::savePrefs() {
     Preferences p;
     p.begin("climate", false);
     p.putUChar  ("mode",    (uint8_t)_mode);
+    p.putBool   ("dryFast", _dryingFast);
     p.putBool   ("vtEn",    _vpdTarget.enabled);
     p.putFloat  ("vtKpa",   _vpdTarget.kpa);
     p.putFloat  ("vtBuf",   _vpdTarget.buffer);
@@ -558,9 +557,12 @@ void ClimateController::loadPrefs() {
     p.begin("climate", true);
     uint8_t m = p.getUChar("mode", (uint8_t)GROW_VEG);
     _mode = (m < NUM_GROW_MODES) ? (GrowMode)m : GROW_VEG;
+    _dryingFast          = p.getBool   ("dryFast", false);
     _vpdTarget.enabled   = p.getBool   ("vtEn",    false);
     _vpdTarget.kpa       = p.getFloat  ("vtKpa",   1.0f);
     _vpdTarget.buffer    = p.getFloat  ("vtBuf",   0.1f);
     _stageStartEpoch     = p.getLong64 ("stEpoch", 0LL);
     p.end();
+    // Re-apply drying speed after loading (profile starts as slow default)
+    if (_mode == GROW_DRYING && _dryingFast) setDryingFast(true);
 }

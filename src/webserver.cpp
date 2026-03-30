@@ -50,7 +50,8 @@ static void buildStateJson(String& out) {
     doc["valid"]           = sd.valid;
     doc["remoteConnected"] = rsd.valid;
 
-    doc["growMode"] = (int)climate.getMode();
+    doc["growMode"]   = (int)climate.getMode();
+    doc["dryingFast"] = climate.isDryingFast();
     doc["stageDay"] = climate.stageDay();   // Day 1 = first day of current stage
 
     const VpdTargetCfg& vt = climate.vpdTarget();
@@ -247,6 +248,8 @@ static void onWsEvent(AsyncWebSocket*       server,
         uint8_t hour = (uint8_t)(doc["hour"] | 0xFF);
         uint8_t min  = (uint8_t)(doc["min"]  | 0);
         climate.setDayStart(hour, min);
+    } else if (strcmp(msgType, "setDryingFast") == 0) {
+        climate.setDryingFast(doc["fast"] | false);
     } else if (strcmp(msgType, "autoTune") == 0) {
         const char* action = doc["action"] | "";
         if (strcmp(action, "start") == 0) {

@@ -20,7 +20,7 @@ struct GrowProfile {
     uint8_t       lightOffHours;  // 0  = no off period
 };
 
-enum GrowMode : uint8_t { GROW_SEEDLING = 0, GROW_VEG, GROW_FLOWER, GROW_DRY_SLOW, GROW_DRY_FAST, NUM_GROW_MODES };
+enum GrowMode : uint8_t { GROW_SEEDLING = 0, GROW_VEG, GROW_FLOWER, GROW_DRYING, NUM_GROW_MODES };
 
 // ─── Manual VPD target (overrides grow-profile vpdMin/vpdMax when enabled) ───
 struct VpdTargetCfg {
@@ -81,6 +81,8 @@ public:
     GrowMode              getMode()        const { return _mode; }
     const GrowProfile&    getProfile()     const { return _profiles[_mode]; }
     void                  setMode(GrowMode m);
+    void                  setDryingFast(bool fast);  // switch slow↔fast without resetting day counter
+    bool                  isDryingFast()   const { return _dryingFast;  }
 
     bool                  isLightsOn()     const { return _sched.isOn(); }
     const LightSchedule&  lightSchedule()  const { return _sched; }
@@ -98,6 +100,7 @@ public:
 
 private:
     GrowMode      _mode;
+    bool          _dryingFast;
     GrowProfile   _profiles[NUM_GROW_MODES];
     LightSchedule _sched;
     VpdTargetCfg  _vpdTarget;
