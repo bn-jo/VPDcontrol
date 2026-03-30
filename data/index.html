@@ -790,7 +790,9 @@ function handleState(s) {
   document.getElementById('growMode').value = String(s.growMode);
   try { localStorage.setItem('growStage', String(s.growMode)); } catch(_) {}
 
-  applyDryToggle(s.growMode === 3, !!s.dryingFast);
+  const dryFast = !!s.dryingFast;
+  try { localStorage.setItem('dryingFast', dryFast ? '1' : '0'); } catch(_) {}
+  applyDryToggle(s.growMode === 3, dryFast);
 }
 
 // ─── Metrics ──────────────────────────────────────────────────────────────────
@@ -1245,6 +1247,7 @@ function applyDryToggle(isDrying, fast) {
 
 function sendDryMode(fast) {
   send({ type: 'setDryingFast', fast });
+  try { localStorage.setItem('dryingFast', fast ? '1' : '0'); } catch(_) {}
   applyDryToggle(true, fast);
 }
 
@@ -1859,7 +1862,8 @@ function mockSchedForMode(mode) {
     if (saved !== null) {
       _confirmedStage = parseInt(saved, 10);
       document.getElementById('growMode').value = saved;
-      applyDryToggle(_confirmedStage === 3, false);
+      const savedFast = localStorage.getItem('dryingFast') === '1';
+      applyDryToggle(_confirmedStage === 3, savedFast);
     }
   } catch(_) {}
 })();
