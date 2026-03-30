@@ -790,16 +790,7 @@ function handleState(s) {
   document.getElementById('growMode').value = String(s.growMode);
   try { localStorage.setItem('growStage', String(s.growMode)); } catch(_) {}
 
-  // Drying slow/fast toggle
-  const dryToggle = document.getElementById('dryToggle');
-  if (dryToggle) {
-    dryToggle.style.display = (s.growMode === 3) ? 'block' : 'none';
-    if (s.growMode === 3) {
-      const fast = !!s.dryingFast;
-      document.getElementById('drySlowBtn').classList.toggle('active', !fast);
-      document.getElementById('dryFastBtn').classList.toggle('active',  fast);
-    }
-  }
+  applyDryToggle(s.growMode === 3, !!s.dryingFast);
 }
 
 // ─── Metrics ──────────────────────────────────────────────────────────────────
@@ -1228,6 +1219,7 @@ function confirmStageChange() {
   document.getElementById('stageModal').classList.remove('visible');
   document.getElementById('growMode').value = String(mode);
   try { localStorage.setItem('growStage', String(mode)); } catch(_) {}
+  applyDryToggle(mode === 3, false);
   send({ type: 'setMode', mode });
   // Update lights card preview immediately (no ESP32 echo when disconnected)
   if (!ws || ws.readyState !== WebSocket.OPEN) {
@@ -1241,10 +1233,19 @@ function setGrowMode(mode) {   // kept for direct calls
   send({ type: 'setMode', mode: parseInt(mode, 10) });
 }
 
+function applyDryToggle(isDrying, fast) {
+  const el = document.getElementById('dryToggle');
+  if (!el) return;
+  el.style.display = isDrying ? 'block' : 'none';
+  if (isDrying) {
+    document.getElementById('drySlowBtn').classList.toggle('active', !fast);
+    document.getElementById('dryFastBtn').classList.toggle('active',  fast);
+  }
+}
+
 function sendDryMode(fast) {
   send({ type: 'setDryingFast', fast });
-  document.getElementById('drySlowBtn').classList.toggle('active', !fast);
-  document.getElementById('dryFastBtn').classList.toggle('active',  fast);
+  applyDryToggle(true, fast);
 }
 
 function saveRelayModesToLocal() {
@@ -1858,6 +1859,7 @@ function mockSchedForMode(mode) {
     if (saved !== null) {
       _confirmedStage = parseInt(saved, 10);
       document.getElementById('growMode').value = saved;
+      applyDryToggle(_confirmedStage === 3, false);
     }
   } catch(_) {}
 })();
