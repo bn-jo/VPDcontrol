@@ -295,79 +295,124 @@ void webBegin() {
         req->send(200, "application/json", out);
     });
 
-    // ── OTA update page ──────────────────────────────────────────────────────
+    // ── OTA update page (firmware + UI filesystem) ───────────────────────────
+    static const char OTA_PAGE[] =
+        "<!DOCTYPE html><html><head><meta charset='UTF-8'>"
+        "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+        "<title>Guetos Systems \xe2\x80\x94 OTA Update</title>"
+        "<style>"
+        "body{margin:0;font-family:system-ui;background:#111827;color:#f1f5f9;"
+        "display:flex;align-items:center;justify-content:center;min-height:100vh}"
+        ".box{background:#1e293b;border-radius:16px;padding:2rem;width:340px;"
+        "box-shadow:0 8px 32px rgba(0,0,0,.5)}"
+        "h2{margin:0 0 .4rem;font-size:1.15rem;color:#94a3b8;text-align:center}"
+        "h2 span{color:#4ade80}"
+        ".card{background:#0f172a;border-radius:10px;padding:1.1rem;margin-top:1.2rem}"
+        ".card-title{font-size:.78rem;font-weight:700;color:#94a3b8;text-transform:uppercase;"
+        "letter-spacing:.07em;margin-bottom:.75rem}"
+        "input[type=file]{width:100%;padding:.5rem;background:#1e293b;border:1px solid #334155;"
+        "border-radius:7px;color:#f1f5f9;margin-bottom:.75rem;box-sizing:border-box;font-size:.85rem}"
+        "button{width:100%;padding:.65rem;border:none;border-radius:7px;font-size:.95rem;"
+        "font-weight:600;cursor:pointer;color:#fff}"
+        ".btn-fw{background:#16a34a}.btn-fw:hover{background:#15803d}"
+        ".btn-ui{background:#0369a1}.btn-ui:hover{background:#0284c7}"
+        ".progress{width:100%;background:#1e293b;border-radius:8px;height:7px;margin-top:.7rem;display:none}"
+        ".progress-bar{height:7px;border-radius:8px;width:0%;transition:width .25s}"
+        ".bar-fw{background:#4ade80}.bar-ui{background:#38bdf8}"
+        ".status{margin-top:.6rem;font-size:.82rem;color:#94a3b8;min-height:1.1em;text-align:center}"
+        "</style></head><body>"
+        "<div class='box'>"
+        "<h2>\xf0\x9f\x8c\xbf <span>Guetos</span> Systems</h2>"
+        // ── Firmware card ──
+        "<div class='card'>"
+        "<div class='card-title'>\xf0\x9f\x94\xa7 Firmware (.bin)</div>"
+        "<form id='fwForm'>"
+        "<input type='file' id='fwFile' accept='.bin' required>"
+        "<button type='submit' class='btn-fw'>Flash Firmware</button>"
+        "</form>"
+        "<div class='progress' id='fwProg'><div class='progress-bar bar-fw' id='fwBar'></div></div>"
+        "<div class='status' id='fwStatus'></div>"
+        "</div>"
+        // ── UI (filesystem) card ──
+        "<div class='card'>"
+        "<div class='card-title'>\xf0\x9f\x96\xa5 UI Files (.bin)</div>"
+        "<form id='uiForm'>"
+        "<input type='file' id='uiFile' accept='.bin' required>"
+        "<button type='submit' class='btn-ui'>Flash UI</button>"
+        "</form>"
+        "<div class='progress' id='uiProg'><div class='progress-bar bar-ui' id='uiBar'></div></div>"
+        "<div class='status' id='uiStatus'></div>"
+        "</div>"
+        "</div>"
+        "<script>"
+        "function upload(formId,fileId,url,progId,barId,statusId){"
+        "document.getElementById(formId).onsubmit=function(e){"
+        "e.preventDefault();"
+        "const f=document.getElementById(fileId).files[0];if(!f)return;"
+        "const fd=new FormData();fd.append('file',f);"
+        "const prog=document.getElementById(progId);"
+        "const bar=document.getElementById(barId);"
+        "const st=document.getElementById(statusId);"
+        "prog.style.display='block';st.textContent='Uploading\xe2\x80\xa6';"
+        "const xhr=new XMLHttpRequest();"
+        "xhr.upload.onprogress=function(e){if(e.lengthComputable){"
+        "const p=Math.round(e.loaded/e.total*100);"
+        "bar.style.width=p+'%';st.textContent='Uploading '+p+'%';}};"
+        "xhr.onload=function(){if(xhr.status===200){"
+        "bar.style.width='100%';st.textContent='Done! Rebooting\xe2\x80\xa6';"
+        "}else{st.textContent='Error: '+xhr.responseText;prog.style.display='none';}};"
+        "xhr.onerror=function(){st.textContent='Upload failed.';};"
+        "xhr.open('POST',url);xhr.send(fd);}}"
+        "upload('fwForm','fwFile','/update',   'fwProg','fwBar','fwStatus');"
+        "upload('uiForm','uiFile','/update/ui','uiProg','uiBar','uiStatus');"
+        "</script></body></html>";
+
     server.on("/update", HTTP_GET, [](AsyncWebServerRequest* req) {
-        req->send(200, "text/html",
-            "<!DOCTYPE html><html><head><meta charset='UTF-8'>"
-            "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-            "<title>Guetos Systems — OTA Update</title>"
-            "<style>"
-            "body{margin:0;font-family:system-ui;background:#111827;color:#f1f5f9;display:flex;align-items:center;justify-content:center;min-height:100vh}"
-            ".box{background:#1e293b;border-radius:16px;padding:2rem;width:320px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.5)}"
-            "h2{margin:0 0 1.5rem;font-size:1.2rem;color:#94a3b8}h2 span{color:#4ade80}"
-            "input[type=file]{width:100%;padding:.6rem;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#f1f5f9;margin-bottom:1rem;box-sizing:border-box}"
-            "button{width:100%;padding:.75rem;background:#16a34a;color:#fff;border:none;border-radius:8px;font-size:1rem;font-weight:600;cursor:pointer}"
-            "button:hover{background:#15803d}"
-            "#status{margin-top:1rem;font-size:.85rem;color:#94a3b8;min-height:1.2em}"
-            ".progress{width:100%;background:#0f172a;border-radius:8px;height:8px;margin-top:.75rem;display:none}"
-            ".progress-bar{height:8px;background:#4ade80;border-radius:8px;width:0%;transition:width .3s}"
-            "</style></head><body>"
-            "<div class='box'>"
-            "<h2>🌿 <span>Guetos</span> Systems<br>Firmware Update</h2>"
-            "<form id='form'>"
-            "<input type='file' id='file' accept='.bin' required>"
-            "<button type='submit'>Flash Firmware</button>"
-            "</form>"
-            "<div class='progress' id='prog'><div class='progress-bar' id='bar'></div></div>"
-            "<div id='status'></div>"
-            "</div>"
-            "<script>"
-            "document.getElementById('form').onsubmit=function(e){"
-            "e.preventDefault();"
-            "const f=document.getElementById('file').files[0];"
-            "if(!f)return;"
-            "const fd=new FormData();fd.append('firmware',f);"
-            "const prog=document.getElementById('prog');"
-            "const bar=document.getElementById('bar');"
-            "const status=document.getElementById('status');"
-            "prog.style.display='block';status.textContent='Uploading...';"
-            "const xhr=new XMLHttpRequest();"
-            "xhr.upload.onprogress=function(e){if(e.lengthComputable){const p=Math.round(e.loaded/e.total*100);bar.style.width=p+'%';status.textContent='Uploading '+p+'%';}};"
-            "xhr.onload=function(){if(xhr.status===200){status.textContent='Done! Rebooting...';bar.style.width='100%';}else{status.textContent='Error: '+xhr.responseText;prog.style.display='none';}};"
-            "xhr.onerror=function(){status.textContent='Upload failed.';};"
-            "xhr.open('POST','/update');xhr.send(fd);"
-            "};"
-            "</script></body></html>"
-        );
+        req->send(200, "text/html", OTA_PAGE);
     });
 
+    // ── Firmware OTA (U_FLASH) ────────────────────────────────────────────────
     server.on("/update", HTTP_POST,
         [](AsyncWebServerRequest* req) {
             bool ok = !Update.hasError();
             AsyncWebServerResponse* resp = req->beginResponse(200, "text/plain", ok ? "OK" : "FAIL");
             resp->addHeader("Connection", "close");
             req->send(resp);
-            if (ok) {
-                delay(300);
-                ESP.restart();
-            }
+            if (ok) { delay(300); ESP.restart(); }
         },
         [](AsyncWebServerRequest* req, String filename, size_t index, uint8_t* data, size_t len, bool final) {
             if (!index) {
-                Serial.printf("[OTA] Start: %s  (%u bytes free)\n", filename.c_str(), ESP.getFreeSketchSpace());
-                if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
+                Serial.printf("[OTA-FW] Start: %s\n", filename.c_str());
+                if (!Update.begin(UPDATE_SIZE_UNKNOWN, U_FLASH))
                     Update.printError(Serial);
-                }
             }
-            if (Update.write(data, len) != len) {
-                Update.printError(Serial);
-            }
+            if (Update.write(data, len) != len) Update.printError(Serial);
             if (final) {
-                if (Update.end(true)) {
-                    Serial.printf("[OTA] Success: %u bytes written\n", index + len);
-                } else {
+                if (Update.end(true)) Serial.printf("[OTA-FW] OK: %u bytes\n", index + len);
+                else                  Update.printError(Serial);
+            }
+        }
+    );
+
+    // ── UI filesystem OTA (U_SPIFFS = LittleFS image) ────────────────────────
+    server.on("/update/ui", HTTP_POST,
+        [](AsyncWebServerRequest* req) {
+            bool ok = !Update.hasError();
+            AsyncWebServerResponse* resp = req->beginResponse(200, "text/plain", ok ? "OK" : "FAIL");
+            resp->addHeader("Connection", "close");
+            req->send(resp);
+            if (ok) { delay(300); ESP.restart(); }
+        },
+        [](AsyncWebServerRequest* req, String filename, size_t index, uint8_t* data, size_t len, bool final) {
+            if (!index) {
+                Serial.printf("[OTA-UI] Start: %s\n", filename.c_str());
+                if (!Update.begin(UPDATE_SIZE_UNKNOWN, U_SPIFFS))
                     Update.printError(Serial);
-                }
+            }
+            if (Update.write(data, len) != len) Update.printError(Serial);
+            if (final) {
+                if (Update.end(true)) Serial.printf("[OTA-UI] OK: %u bytes\n", index + len);
+                else                  Update.printError(Serial);
             }
         }
     );
