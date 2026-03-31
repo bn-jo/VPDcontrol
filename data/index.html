@@ -453,6 +453,18 @@ canvas { width: 100% !important; height: 100% !important; }
   font-size: .78rem; font-weight: 600; cursor: pointer;
 }
 .btn-at-cancel:hover { background: var(--red); color: #fff; }
+.at-btn-group { display: flex; gap: .4rem; align-items: center; }
+.btn-at-action {
+  background: var(--bg); border: 1px solid var(--border); color: var(--muted);
+  padding: .26rem .65rem; border-radius: 5px;
+  font-size: .78rem; font-weight: 600; cursor: pointer;
+}
+.btn-at-action:hover { border-color: var(--muted); color: var(--text); }
+.btn-at-del { border-color: var(--red) !important; color: var(--red) !important; }
+.btn-at-del:hover { background: var(--red) !important; color: #fff !important; }
+.timer-status { font-size:.8rem; font-weight:600; margin-bottom:.4rem; padding:.18rem .5rem; border-radius:4px; }
+.timer-status.phase-on  { color: var(--green); background: rgba(74,222,128,.08); }
+.timer-status.phase-off { color: var(--muted); background: rgba(148,163,184,.08); }
 
 /* ─── Responsive ──────────────────────────────────────────────────────────── */
 /* ─── Relay visibility toggles ───────────────────────────────────────────────── */
@@ -606,6 +618,23 @@ canvas { width: 100% !important; height: 100% !important; }
         <div class="mood-msg"  id="mood-msg">"connecting..."</div>
       </div>
     </div>
+    <div id="intake-row" style="display:none;margin-top:.6rem;padding:.45rem .75rem;
+         background:var(--surface);border:1px solid var(--border);border-radius:8px;
+         align-items:center;gap:.6rem;font-size:.8rem">
+      <span style="color:var(--blue);font-weight:600;font-size:.7rem;
+                   text-transform:uppercase;letter-spacing:.06em">Intake Air</span>
+      <span style="color:var(--muted);font-size:.7rem">outside room</span>
+      <span style="margin-left:auto;display:flex;gap:1.2rem">
+        <span>
+          <span style="color:var(--muted);font-size:.7rem">Temp&nbsp;</span>
+          <span id="val-intake-temp" style="font-weight:600">--</span>
+        </span>
+        <span>
+          <span style="color:var(--muted);font-size:.7rem">RH&nbsp;</span>
+          <span id="val-intake-hum" style="font-weight:600">--</span>
+        </span>
+      </span>
+    </div>
     <div class="relay-mini-bar" id="relayMiniBar"></div>
   </section>
 
@@ -680,7 +709,11 @@ canvas { width: 100% !important; height: 100% !important; }
           <span class="at-title">Auto-Tune</span>
           <span class="at-phase-label" id="atPhaseLabel"> — </span>
         </div>
-        <button class="btn-at-cancel" id="atCancelBtn" onclick="cancelAutoTune()" style="display:none">Cancel</button>
+        <div class="at-btn-group">
+          <button class="btn-at-cancel"            id="atCancelBtn" onclick="cancelAutoTune()" style="display:none">Cancel</button>
+          <button class="btn-at-action"             id="atHideBtn"   onclick="hideAtPanel()"   style="display:none">Hide</button>
+          <button class="btn-at-action btn-at-del"  id="atResetBtn"  onclick="resetAutoTune()" style="display:none">Delete</button>
+        </div>
       </div>
       <div class="at-row">
         <span class="at-relay-name" id="atRelayName">—</span>
@@ -781,6 +814,7 @@ function handleState(s) {
   updateAlerts(s.alerts || []);
   updateVpdTargetUI(s.vpdTarget);
   updateAutoTune(s.autoTune);
+  updateIntakeSensor(s.intake);
   updatePlantMood(s);
   if (s.rssi != null) {
     const el = document.getElementById('rssiText');
@@ -956,6 +990,18 @@ function updatePhaseBadge(ls) {
 
 // ─── Alert banner ─────────────────────────────────────────────────────────────
 let _alertDismissed = false;
+function updateIntakeSensor(intake) {
+  const row = document.getElementById('intake-row');
+  if (!row) return;
+  if (intake && intake.valid) {
+    row.style.display = 'flex';
+    document.getElementById('val-intake-temp').textContent = intake.temp.toFixed(1) + '°C';
+    document.getElementById('val-intake-hum').textContent  = intake.hum.toFixed(0) + '%';
+  } else {
+    row.style.display = 'none';
+  }
+}
+
 function updateAlerts(alerts) {
   const banner = document.getElementById('alertBanner');
   const msgEl  = document.getElementById('alertMsg');
@@ -1001,10 +1047,12 @@ const LIGHTS_ID   = 3;
 const WATERING_ID = 6;
 const EXTRA_RELAY_ID = 7;
 
-function renderRelayCard(card, r) {
-  const focused = document.activeElement;
-  const tag = focused && focused.tagName;
-  if ((tag === 'INPUT' || tag === 'TEXTAREA') && focused.closest('#rcard-' + r.id)) return;
+function renderRelayCard(card, r, force) {
+  if (!force) {
+    const focused = document.activeElement;
+    const tag = focused && focused.tagName;
+    if ((tag === 'INPUT' || tag === 'TEXTAREA') && focused.closest('#rcard-' + r.id)) return;
+  }
 
   const modeTabs = ['Auto','Manual','Timer','Sched'].map((label, i) =>
     `<button class="tab${r.mode===i?' active':''}" onclick="setRelayMode(${r.id},${i})">${label}</button>`
@@ -1134,7 +1182,14 @@ function renderRelayCard(card, r) {
     // ── Cycle Timer ───────────────────────────────────────────────────────────
     const onMin  = Math.round((r.timer?.on  || 3600) / 60);
     const offMin = Math.round((r.timer?.off || 1800) / 60);
+    const remSec   = r.timerRemSec   || 0;
+    const phaseOn  = r.timerPhaseOn  === true;
+    const statusLine = remSec > 0
+      ? `<div class="timer-status ${phaseOn ? 'phase-on' : 'phase-off'}">` +
+        `${phaseOn ? '● ON' : '○ OFF'} &nbsp;— ${phaseOn ? 'OFF' : 'ON'} in ${fmtDuration(remSec)}</div>`
+      : '';
     body = `<div class="timer-body">
+      ${statusLine}
       <div class="timer-row">
         <label>ON for</label>
         <input type="number" id="ton_${r.id}" value="${onMin}" min="1" max="1440"><span>min</span>
@@ -1297,6 +1352,7 @@ function sendVpdTarget() {
     : 'Overrides profile range for all AUTO relays';
   send({ type: 'setVpdTarget', enabled: en, kpa: _vpdTargetKpa, buffer: buf });
 }
+
 
 function setRelayMode(id, mode) {
   if (_cache[id]) {
@@ -1775,9 +1831,20 @@ function confirmAutoTune() {
   const sel = getSelectedATRelays();
   if (sel.length === 0) { cancelAtModal(); return; }
   cancelAtModal();
+  try { localStorage.removeItem('atPanelHidden'); } catch(_) {}
   send({ type: 'autoTune', action: 'start', relays: sel });
 }
 function cancelAutoTune()  { send({ type: 'autoTune', action: 'cancel' }); }
+
+function hideAtPanel() {
+  try { localStorage.setItem('atPanelHidden', '1'); } catch(_) {}
+  document.getElementById('atPanel').classList.remove('visible');
+}
+
+function resetAutoTune() {
+  send({ type: 'autoTune', action: 'reset' });
+  try { localStorage.removeItem('atPanelHidden'); } catch(_) {}
+}
 
 function updateAutoTune(at) {
   if (!at) return;
@@ -1790,6 +1857,8 @@ function updateAutoTune(at) {
   const overallBar = document.getElementById('atOverallBar');
   const overallPct = document.getElementById('atOverallPct');
   const cancelBtn  = document.getElementById('atCancelBtn');
+  const hideBtn    = document.getElementById('atHideBtn');
+  const resetBtn   = document.getElementById('atResetBtn');
   const resultsDiv = document.getElementById('atResults');
   const resultRows = document.getElementById('atResultRows');
 
@@ -1797,9 +1866,19 @@ function updateAutoTune(at) {
   const isActive = phase >= 1 && phase <= 3;
   const isDone   = phase === 4;
   const isAborted= phase === 5;
+  const isFinished = isDone || isAborted;
 
   // Hide panel when idle
   if (phase === 0) { panel.classList.remove('visible'); return; }
+
+  // When done/aborted: respect user's hide preference
+  if (isFinished) {
+    try {
+      if (localStorage.getItem('atPanelHidden') === '1') {
+        panel.classList.remove('visible'); return;
+      }
+    } catch(_) {}
+  }
   panel.classList.add('visible');
 
   // Phase label
@@ -1865,7 +1944,9 @@ function updateAutoTune(at) {
   overallBar.className = 'at-bar' + (isDone ? ' on' : '');
   overallPct.textContent = opct + '%';
 
-  cancelBtn.style.display = isActive ? '' : 'none';
+  cancelBtn.style.display = isActive     ? '' : 'none';
+  if (hideBtn)  hideBtn.style.display  = isFinished ? '' : 'none';
+  if (resetBtn) resetBtn.style.display = isFinished ? '' : 'none';
 
   // Results table
   if ((isDone || isAborted) && at.results && at.results.length > 0) {

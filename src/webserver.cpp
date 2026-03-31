@@ -7,6 +7,7 @@
 #include "datalogger.h"
 #include "autotune.h"
 #include "remotesensor.h"
+#include "intakesensor.h"
 
 #include <ESPAsyncWebServer.h>
 #include <ArduinoJson.h>
@@ -59,6 +60,13 @@ static void buildStateJson(String& out) {
     vtObj["enabled"]        = vt.enabled;
     vtObj["kpa"]            = vt.kpa;
     vtObj["buffer"]         = vt.buffer;
+
+    // Intake air sensor (DHT11 outside grow tent)
+    const IntakeData& isd = intakeSensor.data();
+    JsonObject intake      = doc["intake"].to<JsonObject>();
+    intake["temp"]         = isd.temperature;
+    intake["hum"]          = isd.humidity;
+    intake["valid"]        = isd.valid;
 
     // Active profile targets — correct day/night set
     const bool         lightsOn = climate.isLightsOn();
@@ -117,6 +125,19 @@ static void buildStateJson(String& out) {
         rel["soilThresh"]= r.soilThreshold;
         rel["waterDur"]  = r.waterDurationSec;
         rel["fanIntake"] = r.fanIntake;
+        // Timer countdown: remaining seconds in current phase + which phase we are in
+        if (r.mode == RELAY_TIMER && r.timerPhaseStart > 0) {
+            unsigned long elapsed    = millis() - r.timerPhaseStart;
+            unsigned long phaseDurMs = r.timerInOnPhase
+                ? (unsigned long)r.timer.onSec  * 1000UL
+                : (unsigned long)r.timer.offSec * 1000UL;
+            rel["timerRemSec"]  = (elapsed < phaseDurMs)
+                ? (uint32_t)((phaseDurMs - elapsed) / 1000UL) : (uint32_t)0;
+            rel["timerPhaseOn"] = r.timerInOnPhase;
+        } else {
+            rel["timerRemSec"]  = 0;
+            rel["timerPhaseOn"] = false;
+        }
         // Seconds remaining before auto-revert to AUTO (0 if not in manual or no timeout)
         uint32_t manualRemain = 0;
         if (r.mode == RELAY_MANUAL && r.manualTimeoutSec > 0 && r.manualStartMs > 0) {
@@ -262,6 +283,8 @@ static void onWsEvent(AsyncWebSocket*       server,
             autoTuner.requestStart(mask);
         } else if (strcmp(action, "cancel") == 0) {
             autoTuner.requestCancel();
+        } else if (strcmp(action, "reset") == 0) {
+            autoTuner.requestReset();
         }
     }
 

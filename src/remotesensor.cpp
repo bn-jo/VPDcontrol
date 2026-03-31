@@ -18,7 +18,9 @@ void RemoteSensor::update() {
 
     if (code == HTTP_CODE_OK) {
         JsonDocument doc;
-        if (deserializeJson(doc, http.getString()) == DeserializationError::Ok) {
+        // Use getStream() instead of getString() — reads directly from the socket
+        // without allocating a heap String, preventing long-term heap fragmentation.
+        if (deserializeJson(doc, http.getStream()) == DeserializationError::Ok) {
             float t = doc["temp"] | -999.0f;
             float h = doc["hum"]  | -999.0f;
             if (t > -100.0f && h > 0.0f && h <= 100.0f) {

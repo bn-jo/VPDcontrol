@@ -31,6 +31,7 @@ void AutoTuner::requestStart(uint8_t relayMask) {
     _reqStart = true;
 }
 void AutoTuner::requestCancel() { _reqCancel = true; }
+void AutoTuner::requestReset()  { _reqReset  = true; }
 
 void AutoTuner::feed(float t, float h, float vpd) {
     _curT = t;
@@ -51,6 +52,25 @@ void AutoTuner::tick() {
         if (_phase != AT_IDLE && _phase != AT_DONE && _phase != AT_ABORTED) {
             doAbort(false);
         }
+        return;
+    }
+
+    if (_reqReset) {
+        _reqReset  = false;
+        _reqStart  = false;
+        _reqCancel = false;
+        if (_phase != AT_IDLE && _phase != AT_DONE && _phase != AT_ABORTED) {
+            restoreAll();   // put relay modes back before clearing state
+        }
+        relays.resetAllBuffers();
+        _phase  = AT_IDLE;
+        _step   = 0;
+        _status = {};
+        _status.phase     = AT_IDLE;
+        _status.stepTotal = NUM_TEST_RELAYS;
+        _status.relayId   = -1;
+        _status.relayName = "";
+        Serial.println("[AT] Reset — all relay buffers restored to defaults");
         return;
     }
 

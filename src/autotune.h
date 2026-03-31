@@ -62,6 +62,7 @@ public:
     // relayMask: bitmask of relay IDs to test (bit N = relay N); 0 = test all
     void requestStart(uint8_t relayMask = 0xFF);
     void requestCancel();
+    void requestReset();   // Cancel any active run and restore all relay buffers to factory defaults
 
     const ATStatus& status() const { return _status; }
 
@@ -69,6 +70,7 @@ private:
     // Cross-core flags (written by Core 1, read by Core 0)
     volatile bool    _reqStart  = false;
     volatile bool    _reqCancel = false;
+    volatile bool    _reqReset  = false;
     volatile uint8_t _reqMask   = 0xFF;  // set before _reqStart
 
     // State — only accessed from Core 0

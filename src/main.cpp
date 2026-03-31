@@ -12,6 +12,7 @@
 #include "webserver.h"
 #include "autotune.h"
 #include "remotesensor.h"
+#include "intakesensor.h"
 
 // ─── FreeRTOS task: sensor reading + climate control ─────────────────────────
 // Runs on Core 0 to leave Core 1 free for WiFi + web server
@@ -33,6 +34,7 @@ static void controlTask(void* pvParam) {
             }
             lastSensorMs = now;
         }
+        intakeSensor.update();  // Self-throttles at INTAKE_SENSOR_INTERVAL_MS
         soil.update();   // Self-throttles at SOIL_INTERVAL_MS
         relays.setSoilMoisture(soil.data().moisture, soil.data().valid);
 
@@ -63,6 +65,8 @@ static void controlTask(void* pvParam) {
 static bool wifiConnect() {
     Serial.printf("[WIFI] Connecting to %s", WIFI_SSID);
     WiFi.mode(WIFI_STA);
+    WiFi.setAutoReconnect(true);   // let the driver handle brief dropouts
+    WiFi.persistent(false);        // don't wear out flash with credential writes
 
 #ifdef STATIC_IP
     WiFi.config(
@@ -97,6 +101,7 @@ void setup() {
 
     // Hardware init
     sensors.begin();
+    intakeSensor.begin();
     soil.begin();
     relays.begin();
     climate.begin();
@@ -132,13 +137,45 @@ void setup() {
 // ─── Main loop (Core 1) ───────────────────────────────────────────────────────
 // Handles WebSocket broadcast + keeps async server running
 void loop() {
-    static unsigned long lastWsPushMs = 0;
+    static unsigned long lastWsPushMs  = 0;
+    static unsigned long lastWifiRetry = 0;
+    static unsigned long lastHeapLogMs = 0;
+
+    // ── WiFi reconnect guard ──────────────────────────────────────────────────
+    // setAutoReconnect handles brief dropouts; this catches longer outages where
+    // the driver gives up (e.g. router reboot at night).
+    if (WiFi.status() != WL_CONNECTED) {
+        unsigned long now = millis();
+        if (now - lastWifiRetry >= 30000UL) {
+            Serial.println("[WIFI] Lost — reconnecting...");
+            WiFi.disconnect(false, false);
+            WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+            lastWifiRetry = now;
+        }
+        yield();
+        return;   // skip WS push and remote fetch while offline
+    }
 
     remoteSensor.update();   // Non-blocking; self-throttles to REMOTE_SENSOR_INTERVAL_MS
 
     if (millis() - lastWsPushMs >= WS_PUSH_INTERVAL_MS) {
         webBroadcast();
         lastWsPushMs = millis();
+    }
+
+    // ── Heap watchdog ─────────────────────────────────────────────────────────
+    // Log free heap every 5 min. Restart cleanly if critically low — prevents
+    // silent hangs caused by heap exhaustion after many hours of operation.
+    if (millis() - lastHeapLogMs >= 300000UL) {
+        uint32_t freeHeap = ESP.getFreeHeap();
+        Serial.printf("[HEAP] Free: %u bytes  (min ever: %u)\n",
+                      freeHeap, ESP.getMinFreeHeap());
+        if (freeHeap < 10000) {
+            Serial.println("[HEAP] Critical — restarting");
+            delay(200);
+            ESP.restart();
+        }
+        lastHeapLogMs = millis();
     }
 
     // Give RTOS a chance to process other Core-1 tasks

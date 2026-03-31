@@ -103,8 +103,8 @@ private:
     bool          _dryingFast;
     GrowProfile   _profiles[NUM_GROW_MODES];
     LightSchedule _sched;
-    VpdTargetCfg  _vpdTarget;
-    int64_t       _stageStartEpoch;   // Unix epoch when current stage was last set
+    VpdTargetCfg    _vpdTarget;
+    int64_t         _stageStartEpoch;   // Unix epoch when current stage was last set
 
     // Hysteresis state (persist between control ticks)
     bool _humidifierOn;

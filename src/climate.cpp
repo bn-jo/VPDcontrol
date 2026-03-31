@@ -354,6 +354,7 @@ void ClimateController::computeOutputs(const SensorData& sd) {
     const bool topIntake    = relays.get(TOP_FAN).fanIntake;
     const bool bottomIntake = relays.get(BOTTOM_FAN).fanIntake;
 
+
     // ── Per-relay buffers (configurable in UI, persisted in NVS) ─────────────
     const float humBuf       = relays.get(HUMIDIFIER).autoBuffer;
     const float fanBuf       = relays.get(TOP_FAN).autoBuffer;
@@ -374,9 +375,15 @@ void ClimateController::computeOutputs(const SensorData& sd) {
     const bool tempLow   = t    < (p.tempMin - heatBuf);
     const bool humHigh   = h    > (p.humMax  + dehBuf);             // too humid → dehumidifier
     const bool humLow    = h    < (p.humMin  - humBuf);             // too dry   → humidifier
-    // VPD flags use projected value — devices activate before the spike arrives
-    const bool vpdHigh   = vpdP > (vpdMax + humBuf);                // heading too dry
-    const bool vpdLow    = vpdP < (vpdMin - fanBuf);                // heading too humid
+    // VPD flags use projected value — devices activate before the spike arrives.
+    // When a manual VPD target is set, skip the extra relay buffer so control
+    // tracks the target deadband directly (no double-deadband inflation).
+    const bool vpdHigh   = _vpdTarget.enabled
+                         ? vpdP > vpdMax
+                         : vpdP > (vpdMax + humBuf);                // heading too dry
+    const bool vpdLow    = _vpdTarget.enabled
+                         ? vpdP < vpdMin
+                         : vpdP < (vpdMin - fanBuf);                // heading too humid
     const bool vpdCrisis = vpdP > (vpdMax + 2.0f * humBuf);         // severe dryness
 
     // ── LIGHTS (relay 4) ─────────────────────────────────────────────────────
@@ -388,12 +395,13 @@ void ClimateController::computeOutputs(const SensorData& sd) {
     {
         bool want;
         if (topIntake) {
-            // Intake top fan: brings potentially cooler/drier room air in.
-            // Helps when tent is too dry (vpdHigh) or too hot.
+            // Intake top fan: brings fresh air in — ON when too dry or temp too high.
+            const bool humNeed = vpdHigh;
             if (_topFanOn) {
-                want = (vpdP > vpdMax) || tempHigh;  // OFF once VPD back in range
+                const bool stillLow = (vpdP > vpdMax);
+                want = stillLow || tempHigh;
             } else {
-                want = vpdHigh || tempHigh;
+                want = humNeed || tempHigh;
             }
         } else {
             // Exhaust (default): removes humid/hot air
@@ -423,12 +431,14 @@ void ClimateController::computeOutputs(const SensorData& sd) {
         const bool tempHighBF = t > (p.tempMax + bottomFanBuf);
 
         if (bottomIntake) {
-            // Intake mode: mirrors top-fan triggers so they work as a pair
+            // Intake mode: thermal regulation
+            const bool humNeedBF = vpdCrisis;
             if (lightsOn) {
-                want = tempHighBF || vpdCrisis;
+                want = tempHighBF || humNeedBF;
             } else {
                 if (tempLow) want = false;   // HARD STOP — don't pull cold air in
                 else         want = tempHighBF;
+                // humidity assist skipped when lights off (avoid chilling the tent)
             }
         } else {
             // Exhaust mode (default)
@@ -485,16 +495,23 @@ void ClimateController::computeOutputs(const SensorData& sd) {
 
     // ── HEAT MAT (relay 6) ────────────────────────────────────────────────────
     // Root-zone heating: ON when temp is too low.
+    // Cold+humid assist: also ON when humidity too high AND temp has room to rise.
+    //   Warming air reduces relative humidity passively — same technique as
+    //   running the heater manually for 1-2 min when it is cold and humid.
+    //   maxOnSec (per-relay, configurable in UI) caps the run time automatically.
     // Asymmetric hysteresis:
-    //   Turn ON  when t < tempMin - TEMP_HYST  (outer band)
-    //   Turn OFF when t >= tempMin             (inner band)
+    //   Turn ON  when tempLow OR humColdAssist  (outer band)
+    //   Turn OFF when t >= tempMin AND humidity no longer too high
     // Hard cutoff: never run when temp is high.
     {
         bool want;
+        // humColdAssist: humidity clearly over max, temperature still below tempMax
+        // (meaning warming the air will bring RH down without overheating)
+        const bool humColdAssist = humHigh && t < p.tempMax;
         if (_heatMatOn) {
-            want = (t < p.tempMin);                   // OFF at inner boundary
+            want = (t < p.tempMin) || humColdAssist;
         } else {
-            want = tempLow;                           // ON only at outer boundary
+            want = tempLow || humColdAssist;
         }
         if (tempHigh) want = false;                   // Hard cutoff
         _heatMatOn = want;
@@ -557,11 +574,11 @@ void ClimateController::loadPrefs() {
     p.begin("climate", true);
     uint8_t m = p.getUChar("mode", (uint8_t)GROW_VEG);
     _mode = (m < NUM_GROW_MODES) ? (GrowMode)m : GROW_VEG;
-    _dryingFast          = p.getBool   ("dryFast", false);
-    _vpdTarget.enabled   = p.getBool   ("vtEn",    false);
-    _vpdTarget.kpa       = p.getFloat  ("vtKpa",   1.0f);
-    _vpdTarget.buffer    = p.getFloat  ("vtBuf",   0.1f);
-    _stageStartEpoch     = p.getLong64 ("stEpoch", 0LL);
+    _dryingFast        = p.getBool   ("dryFast", false);
+    _vpdTarget.enabled = p.getBool   ("vtEn",    false);
+    _vpdTarget.kpa     = p.getFloat  ("vtKpa",   1.0f);
+    _vpdTarget.buffer  = p.getFloat  ("vtBuf",   0.1f);
+    _stageStartEpoch   = p.getLong64 ("stEpoch", 0LL);
     p.end();
     // Re-apply drying speed after loading (profile starts as slow default)
     if (_mode == GROW_DRYING && _dryingFast) setDryingFast(true);

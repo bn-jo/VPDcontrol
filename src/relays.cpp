@@ -263,6 +263,13 @@ void RelayManager::setFanIntake(RelayIndex idx, bool intake) {
     savePrefs();
 }
 
+void RelayManager::resetAllBuffers() {
+    for (int i = 0; i < NUM_RELAYS; i++) {
+        _r[i].autoBuffer = DEFAULT_BUFFER[i];
+    }
+    savePrefs();
+}
+
 void RelayManager::setSoilMoisture(float pct, bool valid) {
     _soilPct   = pct;
     _soilValid = valid;

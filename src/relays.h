@@ -93,6 +93,7 @@ public:
     void setSoilWater(RelayIndex idx, uint8_t threshold, uint32_t durationSec);
     void setFanIntake(RelayIndex idx, bool intake);
     void setSoilMoisture(float pct, bool valid);
+    void resetAllBuffers();   // Restore every relay's autoBuffer to factory default
 
     const RelayState& get(RelayIndex idx) const { return _r[idx]; }
 
