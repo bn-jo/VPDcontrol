@@ -20,25 +20,8 @@ static AsyncWebServer server(80);
 static AsyncWebSocket ws("/ws");
 
 // ─── Auth helper ──────────────────────────────────────────────────────────────
-// Returns true if the request is from a private/local IP — no auth needed.
-static bool isLocalRequest(AsyncWebServerRequest* req) {
-    IPAddress ip = req->client()->remoteIP();
-    // Port-forwarded remote connections are NAT'd by the router and arrive
-    // with the gateway's LAN IP — treat those as external (require auth).
-    IPAddress gw(STATIC_GATEWAY);
-    if (ip == gw) return false;
-    // 10.x.x.x
-    if (ip[0] == 10) return true;
-    // 192.168.x.x
-    if (ip[0] == 192 && ip[1] == 168) return true;
-    // 172.16.0.0 – 172.31.255.255
-    if (ip[0] == 172 && ip[1] >= 16 && ip[1] <= 31) return true;
-    return false;
-}
-
-// Call at the top of every HTTP handler. Returns true if the request may proceed.
+// Always require HTTP Basic Auth — credentials defined in config.h.
 static bool checkAuth(AsyncWebServerRequest* req) {
-    if (isLocalRequest(req)) return true;
     if (req->authenticate(WEB_AUTH_USER, WEB_AUTH_PASS)) return true;
     req->requestAuthentication();
     return false;
