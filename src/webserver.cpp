@@ -148,6 +148,7 @@ static void buildStateJson(String& out) {
         rel["buffer"]    = r.autoBuffer;
         rel["minOn"]     = r.minOnSec;
         rel["maxOn"]     = r.maxOnSec;
+        rel["maxOnRest"] = r.maxOnRestSec;
         rel["soilThresh"]= r.soilThreshold;
         rel["waterDur"]  = r.waterDurationSec;
         rel["waterFlow"] = (unsigned int)r.waterFlowML;
@@ -275,9 +276,10 @@ static void onWsEvent(AsyncWebSocket*       server,
             float buf = doc["value"] | 0.05f;
             relays.setBuffer(idx, buf);
         } else if (strcmp(action, "duration") == 0) {
-            uint32_t minOn = doc["minOn"] | (uint32_t)30;
-            uint32_t maxOn = doc["maxOn"] | (uint32_t)0;
-            relays.setDuration(idx, minOn, maxOn);
+            uint32_t minOn      = doc["minOn"]     | (uint32_t)30;
+            uint32_t maxOn      = doc["maxOn"]     | (uint32_t)0;
+            uint32_t maxOnRest  = doc["maxOnRest"] | (uint32_t)0;
+            relays.setDuration(idx, minOn, maxOn, maxOnRest);
         } else if (strcmp(action, "fanIntake") == 0) {
             bool v = doc["value"] | false;
             relays.setFanIntake(idx, v);

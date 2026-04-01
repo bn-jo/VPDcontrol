@@ -49,6 +49,8 @@ RelayManager::RelayManager() {
         _r[i].minOnSec         = MIN_RELAY_ON_MS  / 1000;
         _r[i].minOffSec        = (i == WATERING) ? 1800 : MIN_RELAY_OFF_MS / 1000;  // 30 min rest between watering cycles
         _r[i].maxOnSec         = 0;
+        _r[i].maxOnRestSec     = 0;
+        _r[i].lastMaxOnMs      = 0;
         _r[i].manualTimeoutSec = (i == LIGHTS) ? LIGHTS_MANUAL_TIMEOUT_SEC : 0;
         _r[i].manualStartMs    = 0;
         _r[i].onForSec         = 0;
@@ -143,6 +145,7 @@ void RelayManager::update() {
                     // Standard AUTO: climate controller drives via setAutoState()
                     if (_r[i].physicalOn && _r[i].maxOnSec > 0 &&
                         (millis() - _r[i].lastOnMs) >= (unsigned long)_r[i].maxOnSec * 1000UL) {
+                        _r[i].lastMaxOnMs = millis();  // record when Max ON fired
                         applyPhysical(idx, false);
                     } else {
                         request(idx, _r[i].autoOn);
@@ -197,6 +200,9 @@ bool RelayManager::canChange(RelayIndex idx, bool newOn) const {
     if (newOn && !r.physicalOn) {
         // Want to turn ON — check per-relay minimum OFF time has elapsed
         if (r.lastOffMs > 0 && (now - r.lastOffMs) < (unsigned long)r.minOffSec * 1000UL) return false;
+        // Extra forced rest after Max ON fires
+        if (r.maxOnRestSec > 0 && r.lastMaxOnMs > 0 &&
+            (now - r.lastMaxOnMs) < (unsigned long)r.maxOnRestSec * 1000UL) return false;
     } else if (!newOn && r.physicalOn) {
         // Want to turn OFF — check per-relay minimum ON time has elapsed
         if (r.lastOnMs > 0 && (now - r.lastOnMs) < (unsigned long)r.minOnSec * 1000UL) return false;
@@ -267,9 +273,10 @@ void RelayManager::setBuffer(RelayIndex idx, float buf) {
     savePrefs();
 }
 
-void RelayManager::setDuration(RelayIndex idx, uint32_t minOnSec, uint32_t maxOnSec) {
-    _r[idx].minOnSec = minOnSec;
-    _r[idx].maxOnSec = maxOnSec;
+void RelayManager::setDuration(RelayIndex idx, uint32_t minOnSec, uint32_t maxOnSec, uint32_t maxOnRestSec) {
+    _r[idx].minOnSec     = minOnSec;
+    _r[idx].maxOnSec     = maxOnSec;
+    _r[idx].maxOnRestSec = maxOnRestSec;
     savePrefs();
 }
 
@@ -324,6 +331,7 @@ void RelayManager::savePrefs() {
         snprintf(k, sizeof(k), "r%d_mion", i);   p.putUInt (k, _r[i].minOnSec);
         snprintf(k, sizeof(k), "r%d_miof", i);   p.putUInt (k, _r[i].minOffSec);
         snprintf(k, sizeof(k), "r%d_mxon", i);   p.putUInt (k, _r[i].maxOnSec);
+        snprintf(k, sizeof(k), "r%d_mxrs", i);   p.putUInt (k, _r[i].maxOnRestSec);
         snprintf(k, sizeof(k), "r%d_sthr", i);   p.putUChar(k, _r[i].soilThreshold);
         snprintf(k, sizeof(k), "r%d_wdur", i);   p.putUInt (k, _r[i].waterDurationSec);
         snprintf(k, sizeof(k), "r%d_fi",   i);   p.putBool (k, _r[i].fanIntake);
@@ -356,6 +364,7 @@ void RelayManager::loadPrefs() {
         snprintf(k, sizeof(k), "r%d_mion", i);   _r[i].minOnSec         = p.getUInt (k, MIN_RELAY_ON_MS  / 1000);
         snprintf(k, sizeof(k), "r%d_miof", i);   _r[i].minOffSec        = p.getUInt (k, (i == WATERING) ? 1800 : MIN_RELAY_OFF_MS / 1000);
         snprintf(k, sizeof(k), "r%d_mxon", i);   _r[i].maxOnSec         = p.getUInt (k, 0);
+        snprintf(k, sizeof(k), "r%d_mxrs", i);   _r[i].maxOnRestSec     = p.getUInt (k, 0);
         snprintf(k, sizeof(k), "r%d_sthr", i);   _r[i].soilThreshold    = p.getUChar(k, 0);
         snprintf(k, sizeof(k), "r%d_wdur", i);   _r[i].waterDurationSec = p.getUInt (k, 300);
         snprintf(k, sizeof(k), "r%d_fi",   i);   _r[i].fanIntake        = p.getBool (k, false);

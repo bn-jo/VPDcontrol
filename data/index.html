@@ -1190,9 +1190,10 @@ function renderRelayCard(card, r, force) {
     } else if (r.id === EXTRA_RELAY_ID) {
       body = `<span class="auto-note">Spare output — use Manual, Timer or Sched</span>`;
     } else {
-      const buf   = (r.buffer  ?? 0.05).toFixed(2);
-      const minOn = r.minOn ?? 30;
-      const maxOn = r.maxOn ?? 0;
+      const buf        = (r.buffer     ?? 0.05).toFixed(2);
+      const minOn      = r.minOn      ?? 30;
+      const maxOn      = r.maxOn      ?? 0;
+      const maxOnRest  = r.maxOnRest  ?? 0;
       const isFan = (r.id === 0 || r.id === 1);
       const fanIntake = r.fanIntake ?? false;
       const fanDirRow = isFan ? `
@@ -1213,8 +1214,13 @@ function renderRelayCard(card, r, force) {
             <input type="number" id="mion_${r.id}" value="${minOn}" min="0" max="3600">
             <span class="tuning-sep">|</span>
             <label>Max ON</label>
-            <input type="number" id="mxon_${r.id}" value="${maxOn}" min="0" max="86400">
+            <input type="number" id="mxon_${r.id}" value="${maxOn}" min="0" max="86400" oninput="onMaxOnChange(${r.id})">
             <span>sec (0=off)</span>
+          </div>
+          <div class="tuning-row" id="mxrs_row_${r.id}" style="${maxOn > 0 ? '' : 'display:none'}">
+            <label>Sleep after Max ON</label>
+            <input type="number" id="mxrs_${r.id}" value="${maxOnRest}" min="0" max="86400">
+            <span>sec (0=minOff)</span>
           </div>
           <button class="btn-apply" onclick="applyAutoTuning(${r.id},this)">Apply</button>
         </div>`;
@@ -1688,16 +1694,24 @@ function setFanDirection(id, intake, btn) {
   }
 }
 
-function applyAutoTuning(id, btn) {
-  const bufEl  = document.getElementById('buf_'  + id);
-  const mionEl = document.getElementById('mion_' + id);
+function onMaxOnChange(id) {
   const mxonEl = document.getElementById('mxon_' + id);
+  const row    = document.getElementById('mxrs_row_' + id);
+  if (mxonEl && row) row.style.display = parseInt(mxonEl.value, 10) > 0 ? '' : 'none';
+}
+
+function applyAutoTuning(id, btn) {
+  const bufEl  = document.getElementById('buf_'   + id);
+  const mionEl = document.getElementById('mion_'  + id);
+  const mxonEl = document.getElementById('mxon_'  + id);
+  const mxrsEl = document.getElementById('mxrs_'  + id);
   if (!bufEl || !mionEl || !mxonEl) return;
-  const buf   = Math.max(0, parseFloat(bufEl.value)  || 0.05);
-  const minOn = Math.max(0, parseInt(mionEl.value, 10) || 0);
-  const maxOn = Math.max(0, parseInt(mxonEl.value, 10) || 0);
+  const buf       = Math.max(0, parseFloat(bufEl.value)    || 0.05);
+  const minOn     = Math.max(0, parseInt(mionEl.value, 10) || 0);
+  const maxOn     = Math.max(0, parseInt(mxonEl.value, 10) || 0);
+  const maxOnRest = mxrsEl ? Math.max(0, parseInt(mxrsEl.value, 10) || 0) : 0;
   send({ type: 'relay', id, action: 'buffer',   value: buf });
-  send({ type: 'relay', id, action: 'duration', minOn, maxOn });
+  send({ type: 'relay', id, action: 'duration', minOn, maxOn, maxOnRest });
   flashApply(btn);
 }
 
@@ -2026,73 +2040,90 @@ function updatePlantMood(s) {
   } else {
     const vpd    = s.vpd  || 0;
     const temp   = s.temp || 0;
+    const hum    = s.hum  || 0;
     const soil   = s.soilValid ? s.soil : null;   // null = no sensor
     const lights = s.lightSched && s.lightSched.isOn;
 
-    // ── Score each factor: 0 = fine, 1 = warning, 2 = critical ────────────────
-    const tHot  = temp > 32 ? 2 : temp > 29 ? 1 : 0;
-    const tCold = temp < 17 ? 2 : temp < 19 ? 1 : 0;
-    const vHigh = vpd  > 1.6 ? 2 : vpd  > 1.3 ? 1 : 0;
-    const vLow  = vpd  < 0.3 ? 2 : vpd  < 0.5 ? 1 : 0;
+    // Use the user's configured setpoints — same ones the metric cards use
+    const prof    = s.profile || {};
+    const vpdMin  = prof.vpdMin  || 0.8;   const vpdMax  = prof.vpdMax  || 1.2;
+    const tempMin = prof.tempMin || 20;    const tempMax = prof.tempMax || 26;
+    const humMin  = prof.humMin  || 40;    const humMax  = prof.humMax  || 60;
+    const vMargin = (vpdMax  - vpdMin)  * 0.3;
+    const tMargin = (tempMax - tempMin) * 0.3;
+    const hMargin = (humMax  - humMin)  * 0.3;
+
+    // Score each factor against actual setpoints: 0=fine, 1=warning, 2=critical
+    const tHot  = temp > tempMax + tMargin ? 2 : temp > tempMax ? 1 : 0;
+    const tCold = temp < tempMin - tMargin ? 2 : temp < tempMin ? 1 : 0;
+    const vHigh = vpd  > vpdMax  + vMargin ? 2 : vpd  > vpdMax  ? 1 : 0;
+    const vLow  = vpd  < vpdMin  - vMargin ? 2 : vpd  < vpdMin  ? 1 : 0;
+    const hHigh = hum  > humMax  + hMargin ? 2 : hum  > humMax  ? 1 : 0;
     const sDry  = soil !== null ? (soil < 20 ? 2 : soil < 30 ? 1 : 0) : 0;
 
-    const sev = Math.max(tHot, tCold, vHigh, vLow, sDry);
-    const n   = [tHot, tCold, vHigh, vLow, sDry].filter(v => v > 0).length;
+    // hHigh and vLow are correlated (high humidity → low VPD) — count as one issue
+    const humScore = Math.max(vLow, hHigh);
+    const sev = Math.max(tHot, tCold, vHigh, humScore, sDry);
+    const n   = [tHot, tCold, vHigh, humScore, sDry].filter(v => v > 0).length;
 
     if (sev === 0) {
-      // ── Everything OK ─────────────────────────────────────────────────────────
+      // ── Everything within setpoints ───────────────────────────────────────────
       if (!lights) {
         emoji='💤'; msg='"lights out — resting"'; cardCls='';
-      } else if (vpd >= 0.8 && vpd <= 1.2 && temp >= 22 && temp <= 28 && (soil === null || soil >= 50)) {
+      } else if (soil === null || soil >= 50) {
         emoji='🌿'; msg='"absolutely thriving right now"'; cardCls='green';
       } else {
-        emoji='😌'; msg='"environment looks good"'; cardCls='green';
+        emoji='😌'; msg='"conditions are within range"'; cardCls='green';
       }
 
     } else if (sev === 2 && n >= 2) {
       // ── Multiple critical problems ─────────────────────────────────────────────
-      const p = [];
-      if (tHot  === 2) p.push('heat stress');
-      if (tCold === 2) p.push('too cold');
-      if (vHigh === 2) p.push('dry air');
-      if (vLow  === 2) p.push('too humid');
-      if (sDry  === 2) p.push('dry roots');
+      const parts = [];
+      if (tHot     === 2) parts.push('heat stress');
+      if (tCold    === 2) parts.push('too cold');
+      if (vHigh    === 2) parts.push('dry air');
+      if (humScore === 2) parts.push(hHigh >= vLow ? 'too humid' : 'VPD too low');
+      if (sDry     === 2) parts.push('dry roots');
       emoji='🆘'; cardCls='red';
-      msg = p.length === 2
-        ? `"${p[0]} and ${p[1]} — please help!"`
-        : `"${p.join(', ')} — multiple problems!"`;
+      msg = parts.length === 2
+        ? `"${parts[0]} and ${parts[1]} — please help!"`
+        : `"${parts.join(', ')} — multiple problems!"`;
 
     } else if (sev === 2) {
       // ── One critical problem ───────────────────────────────────────────────────
-      if      (tHot  === 2) { emoji='🔥'; msg='"heat stress — stomata are closing"';        cardCls='red';    }
-      else if (tCold === 2) { emoji='🥶'; msg='"too cold — growth has stalled"';             cardCls='blue';   }
-      else if (vHigh === 2) { emoji='😤'; msg='"air bone dry — losing water too fast"';      cardCls='red';    }
-      else if (vLow  === 2) { emoji='🌫️'; msg='"can\'t breathe — humidity way too high"';  cardCls='blue';   }
-      else if (sDry  === 2) { emoji='🥺'; msg='"roots bone dry — water me now!"';            cardCls='yellow'; }
+      if      (tHot     === 2) { emoji='🔥'; msg='"heat stress — stomata are closing"';              cardCls='red';    }
+      else if (tCold    === 2) { emoji='🥶'; msg='"too cold — growth has stalled"';                  cardCls='blue';   }
+      else if (vHigh    === 2) { emoji='😤'; msg='"air bone dry — losing water too fast"';           cardCls='red';    }
+      else if (hHigh    === 2) { emoji='🍄'; msg='"humidity critical — mold risk, ventilate now!"'; cardCls='red';    }
+      else if (humScore === 2) { emoji='🌫️'; msg='"VPD way too low — transpiration blocked"';      cardCls='yellow'; }
+      else if (sDry     === 2) { emoji='🥺'; msg='"roots bone dry — water me now!"';                 cardCls='yellow'; }
 
     } else if (n >= 2) {
       // ── Multiple warnings — smart combo messages ───────────────────────────────
-      if      (tHot  && vHigh) { emoji='😓'; msg='"warm and dry air — transpiration stress building"'; cardCls='yellow'; }
-      else if (vHigh && sDry)  { emoji='😟'; msg='"dry air and thirsty roots — needs water and humidity"'; cardCls='yellow'; }
-      else if (tCold && vLow)  { emoji='😰'; msg='"cold and humid — mold risk, boost airflow"'; cardCls='blue'; }
-      else if (tHot  && sDry)  { emoji='😓'; msg='"warm and thirsty — water soon and cool down"'; cardCls='yellow'; }
+      if      (tHot  && vHigh)    { emoji='😓'; msg='"warm and dry air — transpiration stress building"';  cardCls='yellow'; }
+      else if (vHigh && sDry)     { emoji='😟'; msg='"dry air and thirsty roots — needs water and humidity"'; cardCls='yellow'; }
+      else if (tCold && humScore) { emoji='😰'; msg='"cold and humid — mold risk, boost airflow"';          cardCls='yellow'; }
+      else if (tHot  && humScore) { emoji='😓'; msg='"warm and humid — lower temp and improve airflow"';    cardCls='yellow'; }
+      else if (tHot  && sDry)     { emoji='😓'; msg='"warm and thirsty — water soon and cool down"';        cardCls='yellow'; }
+      else if (humScore && sDry)  { emoji='😟'; msg='"too humid and thirsty roots — check airflow and watering"'; cardCls='yellow'; }
       else {
-        const p = [];
-        if (tHot)  p.push('a bit warm');
-        if (tCold) p.push('a bit chilly');
-        if (vHigh) p.push('air drying out');
-        if (vLow)  p.push('air stuffy');
-        if (sDry)  p.push('getting thirsty');
-        emoji='😟'; msg=`"${p.join(', ')} — keep an eye on me"`; cardCls='yellow';
+        const parts = [];
+        if (tHot)     parts.push('a bit warm');
+        if (tCold)    parts.push('a bit chilly');
+        if (vHigh)    parts.push('air drying out');
+        if (humScore) parts.push(hHigh >= vLow ? 'too humid' : 'VPD low');
+        if (sDry)     parts.push('getting thirsty');
+        emoji='😟'; msg=`"${parts.join(', ')} — keep an eye on me"`; cardCls='yellow';
       }
 
     } else {
       // ── One warning ───────────────────────────────────────────────────────────
-      if      (tHot  === 1) { emoji='🌡️'; msg='"getting warm — check the fans"';           cardCls='yellow'; }
-      else if (tCold === 1) { emoji='❄️';  msg='"a bit chilly — could use some warmth"';    cardCls='';       }
-      else if (vHigh === 1) { emoji='💨'; msg='"air is drying out — boost humidity a bit"'; cardCls='yellow'; }
-      else if (vLow  === 1) { emoji='💧'; msg='"a little stuffy — more airflow would help"'; cardCls='';      }
-      else if (sDry  === 1) { emoji='😓'; msg='"getting thirsty — water me soon"';           cardCls='yellow'; }
+      if      (tHot     === 1) { emoji='🌡️'; msg='"getting warm — check the fans"';                 cardCls='yellow'; }
+      else if (tCold    === 1) { emoji='❄️';  msg='"a bit chilly — could use some warmth"';          cardCls='';       }
+      else if (vHigh    === 1) { emoji='💨'; msg='"air is drying out — boost humidity a bit"';       cardCls='yellow'; }
+      else if (hHigh    === 1) { emoji='💦'; msg='"humidity too high — improve airflow"';             cardCls='yellow'; }
+      else if (humScore === 1) { emoji='💧'; msg='"VPD a bit low — slightly stuffy"';                cardCls='yellow'; }
+      else if (sDry     === 1) { emoji='😓'; msg='"getting thirsty — water me soon"';                cardCls='yellow'; }
     }
 
     const colorMap = { red:'var(--red)', blue:'var(--blue)', yellow:'var(--yellow)', green:'var(--green)', '':'var(--muted)' };

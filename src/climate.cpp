@@ -502,7 +502,10 @@ void ClimateController::computeOutputs(const SensorData& sd) {
     // Asymmetric hysteresis:
     //   Turn ON  when tempLow OR humColdAssist  (outer band)
     //   Turn OFF when t >= tempMin AND humidity no longer too high
-    // Hard cutoff: never run when temp is high.
+    // Hard cutoffs:
+    //   - Never run when temp is already high
+    //   - Never run when lights are ON (lights themselves generate significant heat)
+    //   - Never run within 30 min of lights turning ON (pre-heat lockout)
     {
         bool want;
         // humColdAssist: humidity clearly over max, temperature still below tempMax
@@ -513,7 +516,11 @@ void ClimateController::computeOutputs(const SensorData& sd) {
         } else {
             want = tempLow || humColdAssist;
         }
-        if (tempHigh) want = false;                   // Hard cutoff
+        if (tempHigh) want = false;   // Hard cutoff: already too warm
+        // Lights interlock: lights generate heat — block heater when lights are on
+        // or about to turn on within 30 minutes to prevent overheating.
+        if (lightsOn) want = false;
+        if (!lightsOn && _sched.remainingSec() < 1800U) want = false;
         _heatMatOn = want;
         relays.setAutoState(HEAT_MAT, want);
     }

@@ -64,9 +64,11 @@ struct RelayState {
                            //   VPD relays (fan/humidifier):  kPa
                            //   Humidity relays (dehumidifier): %RH
                            //   Temperature relays (heat mat):  °C
-    uint32_t minOnSec;     // minimum ON  duration before state may change
-    uint32_t minOffSec;    // minimum OFF duration before state may change
-    uint32_t maxOnSec;     // maximum ON duration in AUTO (0 = unlimited)
+    uint32_t minOnSec;       // minimum ON  duration before state may change
+    uint32_t minOffSec;      // minimum OFF duration before state may change
+    uint32_t maxOnSec;       // maximum ON duration in AUTO (0 = unlimited)
+    uint32_t maxOnRestSec;   // forced rest after Max ON fires (0 = use minOffSec only)
+    unsigned long lastMaxOnMs; // millis() when Max ON last triggered
 
     // Soil-triggered auto watering (WATERING relay only)
     uint8_t  soilThreshold;    // % — open valve when soil drops below this (0 = disabled)
@@ -94,7 +96,7 @@ public:
     void setTimer(RelayIndex idx, uint32_t onSec, uint32_t offSec);
     void setSchedule(RelayIndex idx, const ScheduleCfg& cfg);
     void setBuffer(RelayIndex idx, float buf);
-    void setDuration(RelayIndex idx, uint32_t minOnSec, uint32_t maxOnSec);
+    void setDuration(RelayIndex idx, uint32_t minOnSec, uint32_t maxOnSec, uint32_t maxOnRestSec = 0);
     void setSoilWater(RelayIndex idx, uint8_t threshold, uint32_t durationSec);
     void setWaterFlow(RelayIndex idx, uint32_t mlPerMin);
     void setFanIntake(RelayIndex idx, bool intake);
