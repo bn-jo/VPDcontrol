@@ -19,6 +19,27 @@
 static AsyncWebServer server(80);
 static AsyncWebSocket ws("/ws");
 
+// ─── Auth helper ──────────────────────────────────────────────────────────────
+// Returns true if the request is from a private/local IP — no auth needed.
+static bool isLocalRequest(AsyncWebServerRequest* req) {
+    IPAddress ip = req->client()->remoteIP();
+    // 10.x.x.x
+    if (ip[0] == 10) return true;
+    // 192.168.x.x
+    if (ip[0] == 192 && ip[1] == 168) return true;
+    // 172.16.0.0 – 172.31.255.255
+    if (ip[0] == 172 && ip[1] >= 16 && ip[1] <= 31) return true;
+    return false;
+}
+
+// Call at the top of every HTTP handler. Returns true if the request may proceed.
+static bool checkAuth(AsyncWebServerRequest* req) {
+    if (isLocalRequest(req)) return true;
+    if (req->authenticate(WEB_AUTH_USER, WEB_AUTH_PASS)) return true;
+    req->requestAuthentication();
+    return false;
+}
+
 // ─── State JSON builder ────────────────────────────────────────────────────────
 static void buildStateJson(String& out) {
     JsonDocument doc;
@@ -333,9 +354,13 @@ void webBegin() {
     server.addHandler(&ws);
 
     // API routes (must be registered before static file handler)
-    server.on("/api/logs",  HTTP_GET,  handleLogRequest);
+    server.on("/api/logs",  HTTP_GET,  [](AsyncWebServerRequest* req) {
+        if (!checkAuth(req)) return;
+        handleLogRequest(req);
+    });
 
     server.on("/api/state", HTTP_GET, [](AsyncWebServerRequest* req) {
+        if (!checkAuth(req)) return;
         String out;
         buildStateJson(out);
         req->send(200, "application/json", out);
@@ -432,12 +457,14 @@ void webBegin() {
         "</script></body></html>";
 
     server.on("/update", HTTP_GET, [](AsyncWebServerRequest* req) {
+        if (!checkAuth(req)) return;
         req->send(200, "text/html", OTA_PAGE);
     });
 
     // ── Firmware OTA (U_FLASH) ────────────────────────────────────────────────
     server.on("/update", HTTP_POST,
         [](AsyncWebServerRequest* req) {
+            if (!checkAuth(req)) return;
             bool ok = !Update.hasError();
             AsyncWebServerResponse* resp = req->beginResponse(200, "text/plain", ok ? "OK" : "FAIL");
             resp->addHeader("Connection", "close");
@@ -445,6 +472,7 @@ void webBegin() {
             if (ok) { delay(300); ESP.restart(); }
         },
         [](AsyncWebServerRequest* req, String filename, size_t index, uint8_t* data, size_t len, bool final) {
+            if (index == 0 && !checkAuth(req)) return;
             if (!index) {
                 Serial.printf("[OTA-FW] Start: %s\n", filename.c_str());
                 if (!Update.begin(UPDATE_SIZE_UNKNOWN, U_FLASH))
@@ -461,6 +489,7 @@ void webBegin() {
     // ── UI filesystem OTA (raw binary POST — avoids multipart size ambiguity) ──
     server.on("/update/ui", HTTP_POST,
         [](AsyncWebServerRequest* req) {
+            if (!checkAuth(req)) return;
             bool ok = !Update.hasError();
             AsyncWebServerResponse* resp = req->beginResponse(200, "text/plain", ok ? "OK" : "FAIL");
             resp->addHeader("Connection", "close");
@@ -489,6 +518,7 @@ void webBegin() {
 
     // Serve index.html (embedded gzip) for all non-API paths
     auto serveUI = [](AsyncWebServerRequest* req) {
+        if (!checkAuth(req)) return;
         AsyncWebServerResponse* resp = req->beginResponse(
             200, "text/html", UI_HTML_GZ, UI_HTML_GZ_LEN);
         resp->addHeader("Content-Encoding", "gzip");

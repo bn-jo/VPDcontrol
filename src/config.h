@@ -46,6 +46,12 @@
 #define STATIC_IP          192,168,1,200
 #define STATIC_GATEWAY     192,168,1,1
 #define STATIC_SUBNET      255,255,255,0
+
+// ─── Remote access auth (HTTP Basic Auth for non-local connections) ───────────
+// Requests from 192.168.x.x / 10.x.x.x / 172.16-31.x.x bypass auth.
+// Change these before exposing the device to the internet.
+#define WEB_AUTH_USER      "REDACTED"
+#define WEB_AUTH_PASS      "REDACTED"
 #define STATIC_DNS         8,8,8,8
 
 // ─── Timing ──────────────────────────────────────────────────────────────────
