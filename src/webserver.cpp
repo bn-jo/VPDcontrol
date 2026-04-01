@@ -23,6 +23,10 @@ static AsyncWebSocket ws("/ws");
 // Returns true if the request is from a private/local IP — no auth needed.
 static bool isLocalRequest(AsyncWebServerRequest* req) {
     IPAddress ip = req->client()->remoteIP();
+    // Port-forwarded remote connections are NAT'd by the router and arrive
+    // with the gateway's LAN IP — treat those as external (require auth).
+    IPAddress gw(STATIC_GATEWAY);
+    if (ip == gw) return false;
     // 10.x.x.x
     if (ip[0] == 10) return true;
     // 192.168.x.x
