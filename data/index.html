@@ -173,6 +173,7 @@ section { margin-bottom: 1.25rem; }
 }
 .tab:hover { color: var(--text); }
 .tab.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px #0004; }
+.tab.active.pending { color: var(--yellow); }
 
 /* Active control body */
 .ctrl-body { min-height: 2rem; }
@@ -465,6 +466,8 @@ canvas { width: 100% !important; height: 100% !important; }
 .timer-status { font-size:.8rem; font-weight:600; margin-bottom:.4rem; padding:.18rem .5rem; border-radius:4px; }
 .timer-status.phase-on  { color: var(--green); background: rgba(74,222,128,.08); }
 .timer-status.phase-off { color: var(--muted); background: rgba(148,163,184,.08); }
+.onfor-bar-wrap { background: var(--bg); border-radius: 4px; height: 6px; overflow: hidden; margin-top: .35rem; }
+.onfor-bar { height: 100%; border-radius: 4px; background: var(--green); transition: width 2.1s linear, background .5s; }
 
 /* ─── Responsive ──────────────────────────────────────────────────────────── */
 /* ─── Relay visibility toggles ───────────────────────────────────────────────── */
@@ -618,13 +621,12 @@ canvas { width: 100% !important; height: 100% !important; }
         <div class="mood-msg"  id="mood-msg">"connecting..."</div>
       </div>
     </div>
-    <div id="intake-row" style="display:none;margin-top:.6rem;padding:.45rem .75rem;
+    <div id="intake-row" style="margin-top:.6rem;padding:.45rem .75rem;
          background:var(--surface);border:1px solid var(--border);border-radius:8px;
-         align-items:center;gap:.6rem;font-size:.8rem">
+         display:flex;align-items:center;gap:.6rem;font-size:.8rem;transition:opacity .4s">
       <span style="color:var(--blue);font-weight:600;font-size:.7rem;
-                   text-transform:uppercase;letter-spacing:.06em">Intake Air</span>
-      <span style="color:var(--muted);font-size:.7rem">outside room</span>
-      <span style="margin-left:auto;display:flex;gap:1.2rem">
+                   text-transform:uppercase;letter-spacing:.06em;white-space:nowrap">&#127968; Outside</span>
+      <span style="display:flex;gap:1.2rem;margin-left:auto">
         <span>
           <span style="color:var(--muted);font-size:.7rem">Temp&nbsp;</span>
           <span id="val-intake-temp" style="font-weight:600">--</span>
@@ -633,6 +635,7 @@ canvas { width: 100% !important; height: 100% !important; }
           <span style="color:var(--muted);font-size:.7rem">RH&nbsp;</span>
           <span id="val-intake-hum" style="font-weight:600">--</span>
         </span>
+        <span id="val-intake-status" style="color:var(--muted);font-size:.72rem;align-self:center"></span>
       </span>
     </div>
     <div class="relay-mini-bar" id="relayMiniBar"></div>
@@ -759,7 +762,8 @@ let ws         = null;
 let chart      = null;
 let chartHours = 24;
 let lastState  = null;
-const _cache   = {};   // relay id → last known relay state for instant UI updates
+const _cache       = {};   // relay id → last known relay state for instant UI updates
+const _displayMode = {};   // relay id → pending tab mode (Timer/Sched shown but not yet applied)
 let _confirmedStage = 0;   // grow stage — matches HTML default (Seedling); overridden by localStorage/server
 
 // ─── WebSocket ────────────────────────────────────────────────────────────────
@@ -960,8 +964,10 @@ function fmtDuration(sec) {
   if (!isFinite(sec) || sec <= 0) return '—';
   const h = Math.floor(sec / 3600);
   const m = Math.floor((sec % 3600) / 60);
+  const s = Math.floor(sec % 60);
   if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
+  if (m > 0) return s > 0 ? `${m}m ${s}s` : `${m}m`;
+  return `${s}s`;
 }
 
 // ─── Phase badge (header) ─────────────────────────────────────────────────────
@@ -994,11 +1000,15 @@ function updateIntakeSensor(intake) {
   const row = document.getElementById('intake-row');
   if (!row) return;
   if (intake && intake.valid) {
-    row.style.display = 'flex';
+    row.style.opacity = '1';
     document.getElementById('val-intake-temp').textContent = intake.temp.toFixed(1) + '°C';
     document.getElementById('val-intake-hum').textContent  = intake.hum.toFixed(0) + '%';
+    document.getElementById('val-intake-status').textContent = '';
   } else {
-    row.style.display = 'none';
+    row.style.opacity = '0.4';
+    document.getElementById('val-intake-temp').textContent = '--';
+    document.getElementById('val-intake-hum').textContent  = '--';
+    document.getElementById('val-intake-status').textContent = 'not connected';
   }
 }
 
@@ -1054,13 +1064,37 @@ function renderRelayCard(card, r, force) {
     if ((tag === 'INPUT' || tag === 'TEXTAREA') && focused.closest('#rcard-' + r.id)) return;
   }
 
+  const dispMode = _displayMode[r.id] ?? r.mode;
+  const isPending = dispMode !== r.mode;
+
   const modeTabs = ['Auto','Manual','Timer','Sched'].map((label, i) =>
-    `<button class="tab${r.mode===i?' active':''}" onclick="setRelayMode(${r.id},${i})">${label}</button>`
+    `<button class="tab${dispMode===i?' active':''}${i===dispMode&&isPending?' pending':''}"
+      onclick="setRelayMode(${r.id},${i})">${label}${i===dispMode&&isPending?' ✎':''}</button>`
   ).join('');
 
   let body = '';
+  const _flowML = (r.id === WATERING_ID) ? (r.waterFlow ?? 500) : 0;
 
-  if (r.mode === 0) {
+  // Watering countdown — shown at top of body regardless of mode when relay is running
+  let waterCountdown = '';
+  if (r.id === WATERING_ID && r.state) {
+    const wcRem   = r.onForRemSec   || 0;
+    const wcTotal = r.onForTotalSec || 0;
+    const tcRem   = (r.mode === 2 && r.timerPhaseOn) ? (r.timerRemSec || 0) : 0;
+    const remSecs = wcRem > 0 ? wcRem : tcRem;
+    const totSecs = wcRem > 0 ? wcTotal : (r.mode === 2 ? (r.timer?.on || 0) : 0);
+    const pct = (remSecs > 0 && totSecs > 0) ? Math.max(0, Math.min(100, remSecs / totSecs * 100)).toFixed(1) : null;
+    const pctColor = pct === null ? 'var(--blue)' : pct > 30 ? 'var(--green)' : pct > 10 ? 'var(--yellow)' : 'var(--red)';
+    waterCountdown = `<div style="margin-bottom:.55rem;padding:.4rem .5rem;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.25);border-radius:6px">
+      <div style="display:flex;justify-content:space-between;font-size:.72rem;margin-bottom:${pct!==null?'.2rem':'0'}">
+        <span style="color:var(--blue);font-weight:600">💧 Watering</span>
+        <span style="color:var(--text);font-weight:700">${remSecs > 0 ? fmtDuration(remSecs) + ' left' : 'running…'}</span>
+      </div>
+      ${pct !== null ? `<div class="onfor-bar-wrap"><div class="onfor-bar" style="width:${pct}%;background:${pctColor}"></div></div>` : ''}
+    </div>`;
+  }
+
+  if (dispMode === 0) {
     // ── Auto ──────────────────────────────────────────────────────────────────
     if (r.id === LIGHTS_ID && _lightSched) {
       const ls = _lightSched;
@@ -1103,17 +1137,17 @@ function renderRelayCard(card, r, force) {
         </div>${dayStartRow}`;
       }
     } else if (r.id === WATERING_ID) {
-      const thr     = r.soilThresh  ?? 0;
-      const wdur    = r.waterDur    ?? 300;
-      const soilNow = (lastState && lastState.soil != null)
-                      ? lastState.soil.toFixed(0) + '%' : '--';
+      const thr      = r.soilThresh  ?? 0;
+      const wdur     = r.waterDur    ?? 300;
+      const flowML   = _flowML;
+      const soilNow  = (lastState && lastState.soil != null)
+                       ? lastState.soil.toFixed(0) + '%' : '--';
       const thrLabel = thr === 0 ? '<span style="color:var(--muted)">OFF</span>'
                                  : `<span style="color:var(--blue)">${thr}%</span>`;
-      const durPresets = [60, 120, 300, 600, 900, 1200];
-      const durLabels  = ['1m','2m','5m','10m','15m','20m'];
-      const durBtns = durPresets.map((s, i) =>
-        `<button class="dur-btn${wdur===s?' active':''}" onclick="pickWaterDur(${r.id},${s},this)">${durLabels[i]}</button>`
-      ).join('');
+      const wdurMin = Math.round(wdur / 60 * 10) / 10;  // seconds → minutes (1 decimal)
+      const estML  = flowML > 0 ? Math.round(flowML * wdur / 60) : 0;
+      const estTxt = estML >= 1000 ? `≈ ${(estML/1000).toFixed(2).replace(/\.?0+$/,'')} L`
+                                   : estML > 0 ? `≈ ${estML} ml` : '';
       const wateringNow = r.state ? '<span class="water-status">💧 Watering now</span>' : '';
       body = `<div class="soil-water">
         <div class="soil-water-row">
@@ -1123,9 +1157,29 @@ function renderRelayCard(card, r, force) {
         <input type="range" class="soil-slider" id="wtslider_${r.id}"
                min="0" max="80" value="${thr}"
                oninput="onWaterSlider(${r.id},this.value)">
-        <div class="soil-water-row" style="margin-top:.15rem">
-          <label>Cycle duration</label>
-          <div class="dur-btns" id="wdurbtns_${r.id}">${durBtns}</div>
+        <div class="soil-water-row" style="margin-top:.5rem;align-items:center;gap:.4rem">
+          <label style="flex:1">Cycle duration</label>
+          <input type="number" id="wdur_${r.id}" value="${wdurMin}" min="0.5" max="60" step="0.5"
+                 style="width:58px;background:#111827;border:1px solid var(--border);color:var(--text);
+                        border-radius:4px;padding:.2rem .35rem;font-size:.82rem;text-align:right"
+                 oninput="onWaterDurInput(${r.id},this.value,${flowML})">
+          <span style="font-size:.75rem;color:var(--muted)">min</span>
+        </div>
+        <input type="range" class="soil-slider" id="wdurslider_${r.id}"
+               min="0.5" max="60" step="0.5" value="${wdurMin}"
+               oninput="onWaterDurSlider(${r.id},this.value,${flowML})">
+        <div style="display:flex;justify-content:space-between;font-size:.75rem;margin-top:.1rem">
+          <span style="color:var(--muted)">0.5 min</span>
+          <span id="wdurest_${r.id}" style="color:var(--blue);font-weight:600">${estTxt}</span>
+          <span style="color:var(--muted)">60 min</span>
+        </div>
+        <div class="soil-water-row" style="margin-top:.35rem;align-items:center">
+          <label style="flex:1">Flow rate</label>
+          <input type="number" id="wflow_${r.id}" value="${flowML}" min="1" max="9999"
+                 style="width:64px;background:#111827;border:1px solid var(--border);color:var(--text);
+                        border-radius:4px;padding:.2rem .35rem;font-size:.82rem;text-align:right"
+                 oninput="onWaterFlowInput(${r.id},this.value)">
+          <span style="font-size:.75rem;color:var(--muted);margin-left:.25rem">ml/min</span>
         </div>
         <div class="soil-water-row" style="color:var(--muted)">
           <span>Soil now: ${soilNow}</span>
@@ -1166,61 +1220,208 @@ function renderRelayCard(card, r, force) {
         </div>`;
     }
 
-  } else if (r.mode === 1) {
+  } else if (dispMode === 1) {
     // ── Manual ────────────────────────────────────────────────────────────────
     const onA  = r.state  ? ' active' : '';
     const offA = !r.state ? ' active' : '';
     const revertNote = (r.manualRemain > 0)
       ? `<div style="font-size:.72rem;color:var(--muted);margin-top:.3rem">Auto-revert in ${fmtDuration(r.manualRemain)}</div>`
       : '';
-    body = `<div class="manual-btns">
-      <button class="btn btn-on${onA}"  onclick="setManual(${r.id},true)">ON</button>
-      <button class="btn btn-off${offA}" onclick="setManual(${r.id},false)">OFF</button>
-    </div>${revertNote}`;
+    if (r.id === WATERING_ID) {
+      // ── Watering manual: slider-based timed run ──────────────────────────────
+      const defMin  = 5;
+      const defML   = _flowML > 0 ? Math.round(_flowML * defMin) : 0;
+      const defEst  = defML >= 1000 ? `≈ ${(defML/1000).toFixed(1).replace(/\.0$/,'')} L` : defML > 0 ? `≈ ${defML} ml` : '';
+      body = `<div class="manual-btns">
+        <button class="btn btn-on${onA}"  onclick="setManual(${r.id},true)">ON</button>
+        <button class="btn btn-off${offA}" onclick="setManual(${r.id},false)">OFF</button>
+      </div>${revertNote}
+      <div style="margin-top:.65rem;padding-top:.55rem;border-top:1px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.25rem">
+          <span style="font-size:.72rem;color:var(--muted);flex:1">Timed run</span>
+          <input type="number" id="wman_dur_${r.id}" value="${defMin}" min="0.5" max="60" step="0.5"
+                 style="width:52px;background:#111827;border:1px solid var(--border);color:var(--text);
+                        border-radius:4px;padding:.2rem .35rem;font-size:.82rem;text-align:right"
+                 oninput="onWaterManDur(${r.id},this.value,${_flowML})">
+          <span style="font-size:.75rem;color:var(--muted)">min</span>
+        </div>
+        <input type="range" class="soil-slider" id="wman_slider_${r.id}"
+               min="0.5" max="60" step="0.5" value="${defMin}"
+               oninput="onWaterManSlider(${r.id},this.value,${_flowML})">
+        <div style="display:flex;justify-content:space-between;font-size:.73rem;margin:.15rem 0 .45rem">
+          <span style="color:var(--muted)">0.5 min</span>
+          <span id="wman_est_${r.id}" style="color:var(--blue);font-weight:600">${defEst}</span>
+          <span style="color:var(--muted)">60 min</span>
+        </div>
+        <button class="btn-apply" style="width:100%" onclick="startWaterFor(${r.id})">▶ Start</button>
+      </div>`;
+    } else {
+      // ── Generic manual: ON/OFF + preset on-for buttons ───────────────────────
+      const onForPresets = [[30,'30s'],[60,'1m'],[300,'5m'],[600,'10m'],[1800,'30m']];
+      const onForRem   = r.onForRemSec   || 0;
+      const onForTotal = r.onForTotalSec || 0;
+      const onForPct   = (onForRem > 0 && onForTotal > 0)
+        ? Math.max(0, Math.min(100, (onForRem / onForTotal) * 100)).toFixed(1) : '0';
+      const onForBarColor = onForPct > 30 ? 'var(--green)' : onForPct > 10 ? 'var(--yellow)' : 'var(--red)';
+      const onForStatus = (onForRem > 0)
+        ? `<div style="margin-top:.5rem">
+             <div style="display:flex;justify-content:space-between;font-size:.72rem;margin-bottom:.2rem">
+               <span style="color:var(--green);font-weight:600">&#9679; ON &mdash; turns OFF in</span>
+               <span style="color:var(--text);font-weight:700">${fmtDuration(onForRem)}</span>
+             </div>
+             <div class="onfor-bar-wrap"><div class="onfor-bar" style="width:${onForPct}%;background:${onForBarColor}"></div></div>
+           </div>` : '';
+      const onForBtns = onForPresets.map(([sec, label]) =>
+        `<button class="dur-btn" onclick="setOnFor(${r.id},${sec})">${label}</button>`).join('');
+      body = `<div class="manual-btns">
+        <button class="btn btn-on${onA}"  onclick="setManual(${r.id},true)">ON</button>
+        <button class="btn btn-off${offA}" onclick="setManual(${r.id},false)">OFF</button>
+      </div>${revertNote}
+      <div style="margin-top:.6rem;font-size:.72rem;color:var(--muted);margin-bottom:.25rem">ON for&hellip;</div>
+      <div class="dur-btns">${onForBtns}</div>
+      ${onForStatus}`;
+    }
 
-  } else if (r.mode === 2) {
+  } else if (dispMode === 2) {
     // ── Cycle Timer ───────────────────────────────────────────────────────────
     const onMin  = Math.round((r.timer?.on  || 3600) / 60);
     const offMin = Math.round((r.timer?.off || 1800) / 60);
     const remSec   = r.timerRemSec   || 0;
     const phaseOn  = r.timerPhaseOn  === true;
+    const phaseTotalSec = phaseOn ? (r.timer?.on || 3600) : (r.timer?.off || 1800);
+    const timerPct = remSec > 0 ? Math.max(0, Math.min(100, (remSec / phaseTotalSec) * 100)).toFixed(1) : '0';
+    const timerBarColor = phaseOn
+      ? (timerPct > 30 ? 'var(--green)' : timerPct > 10 ? 'var(--yellow)' : 'var(--red)')
+      : 'var(--blue)';
     const statusLine = remSec > 0
-      ? `<div class="timer-status ${phaseOn ? 'phase-on' : 'phase-off'}">` +
-        `${phaseOn ? '● ON' : '○ OFF'} &nbsp;— ${phaseOn ? 'OFF' : 'ON'} in ${fmtDuration(remSec)}</div>`
+      ? `<div style="margin-bottom:.5rem">
+           <div style="display:flex;justify-content:space-between;font-size:.72rem;margin-bottom:.2rem">
+             <span style="color:${phaseOn ? 'var(--green)' : 'var(--muted)'};font-weight:600">${phaseOn ? '● ON &mdash; OFF in' : '○ OFF &mdash; ON in'}</span>
+             <span style="color:var(--text);font-weight:700">${fmtDuration(remSec)}</span>
+           </div>
+           <div class="onfor-bar-wrap">
+             <div class="onfor-bar" style="width:${timerPct}%;background:${timerBarColor}"></div>
+           </div>
+         </div>`
       : '';
-    body = `<div class="timer-body">
-      ${statusLine}
-      <div class="timer-row">
-        <label>ON for</label>
-        <input type="number" id="ton_${r.id}" value="${onMin}" min="1" max="1440"><span>min</span>
-      </div>
-      <div class="timer-row">
-        <label>OFF for</label>
-        <input type="number" id="toff_${r.id}" value="${offMin}" min="1" max="1440"><span>min</span>
-      </div>
-      <button class="btn-apply" onclick="applyTimer(${r.id},this)">Apply</button>
-    </div>`;
+    const pendingNote = isPending
+      ? `<div style="font-size:.72rem;color:var(--yellow);margin-bottom:.4rem">&#9888; Settings not active yet — click Apply to start</div>`
+      : '';
+    if (r.id === WATERING_ID) {
+      // Watering timer: slider for ON, number for OFF
+      const onSec = r.timer?.on  || 300;
+      const onSliderMin = Math.round(onSec / 60 * 10) / 10;
+      const offMin2 = Math.round((r.timer?.off || 1800) / 60);
+      const timerOnML = _flowML > 0 ? Math.round(_flowML * onSec / 60) : 0;
+      const timerOnEst = timerOnML >= 1000
+        ? `≈ ${(timerOnML/1000).toFixed(2).replace(/\.?0+$/,'')} L`
+        : timerOnML > 0 ? `≈ ${timerOnML} ml` : '';
+      body = `<div class="timer-body">
+        ${pendingNote}${statusLine}
+        <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.2rem">
+          <label style="flex:1;font-size:.78rem;color:var(--muted)">ON for</label>
+          <input type="number" id="ton_${r.id}" value="${onSliderMin}" min="0.5" max="60" step="0.5"
+                 style="width:52px;background:#111827;border:1px solid var(--border);color:var(--text);
+                        border-radius:4px;padding:.2rem .35rem;font-size:.82rem;text-align:right"
+                 oninput="onTimerOnSlider(${r.id},this.value,${_flowML})">
+          <span style="font-size:.75rem;color:var(--muted)">min</span>
+        </div>
+        <input type="range" class="soil-slider" id="ton_slider_${r.id}"
+               min="0.5" max="60" step="0.5" value="${onSliderMin}"
+               oninput="onTimerOnSlider(${r.id},this.value,${_flowML})">
+        <div style="display:flex;justify-content:space-between;font-size:.73rem;margin:.15rem 0 .45rem">
+          <span style="color:var(--muted)">0.5 min</span>
+          <span id="timer-vol-est-${r.id}" style="color:var(--blue);font-weight:600">${timerOnEst}</span>
+          <span style="color:var(--muted)">60 min</span>
+        </div>
+        <div class="timer-row" style="margin-top:.2rem">
+          <label>OFF for</label>
+          <input type="number" id="toff_${r.id}" value="${offMin2}" min="1" max="1440"><span>min</span>
+        </div>
+        <button class="btn-apply" onclick="applyTimer(${r.id},this)">Apply</button>
+      </div>`;
+    } else {
+      body = `<div class="timer-body">
+        ${pendingNote}${statusLine}
+        <div class="timer-row">
+          <label>ON for</label>
+          <input type="number" id="ton_${r.id}" value="${onMin}" min="1" max="1440"><span>min</span>
+        </div>
+        <div class="timer-row">
+          <label>OFF for</label>
+          <input type="number" id="toff_${r.id}" value="${offMin}" min="1" max="1440"><span>min</span>
+        </div>
+        <button class="btn-apply" onclick="applyTimer(${r.id},this)">Apply</button>
+      </div>`;
+    }
 
-  } else if (r.mode === 3) {
+  } else if (dispMode === 3) {
     // ── Daily Schedule ────────────────────────────────────────────────────────
     const sc    = r.sched || { slots: [{ sh:8, sm:0, eh:9, em:0 }], days: 127 };
     const slots = sc.slots && sc.slots.length ? sc.slots : [{ sh:8, sm:0, eh:9, em:0 }];
-    const slotRows = slots.map((sl, si) => `
-      <div class="sched-slot">
-        <input type="number" id="ssh_${r.id}_${si}" value="${sl.sh}" min="0" max="23">
-        <span class="sched-sep">:</span>
-        <input type="number" id="ssm_${r.id}_${si}" value="${String(sl.sm).padStart(2,'0')}" min="0" max="59">
-        <span class="sched-arrow">→</span>
-        <input type="number" id="seh_${r.id}_${si}" value="${sl.eh}" min="0" max="23">
-        <span class="sched-sep">:</span>
-        <input type="number" id="sem_${r.id}_${si}" value="${String(sl.em).padStart(2,'0')}" min="0" max="59">
-        ${slots.length > 1 ? `<button class="sched-remove" onclick="removeSchedSlot(${r.id},${si})">×</button>` : ''}
-      </div>`).join('');
     const dayBtns = ['Mo','Tu','We','Th','Fr','Sa','Su'].map((d, i) =>
       `<button class="day-btn${(sc.days >> i) & 1 ? ' active' : ''}" onclick="toggleSchedDay(${r.id},${i})">${d}</button>`
     ).join('');
+    const schedPendingNote = isPending
+      ? `<div style="font-size:.72rem;color:var(--yellow);margin-bottom:.4rem">&#9888; Not active yet — click Apply to start</div>`
+      : '';
+
+    let slotRows, schedExtra = '';
+    if (r.id === WATERING_ID) {
+      // Watering schedule: start time + duration slider
+      slotRows = slots.map((sl, si) => {
+        const startTotalMin = sl.sh * 60 + sl.sm;
+        const endTotalMin   = sl.eh * 60 + sl.em;
+        const durMin = endTotalMin > startTotalMin ? endTotalMin - startTotalMin : 5;
+        const durML  = _flowML > 0 ? Math.round(_flowML * durMin) : 0;
+        const volEst = durML >= 1000
+          ? `≈ ${(durML/1000).toFixed(2).replace(/\.?0+$/,'')} L`
+          : durML > 0 ? `≈ ${durML} ml` : '';
+        return `<div class="sched-slot" style="flex-direction:column;align-items:stretch;gap:.3rem">
+          <div style="display:flex;align-items:center;gap:.35rem">
+            <span style="font-size:.72rem;color:var(--muted);width:32px">Start</span>
+            <input type="number" id="wsch_sh_${r.id}_${si}" value="${sl.sh}" min="0" max="23"
+                   style="width:38px;background:#111827;border:1px solid var(--border);color:var(--text);
+                          border-radius:4px;padding:.2rem .3rem;font-size:.82rem;text-align:center">
+            <span class="sched-sep">:</span>
+            <input type="number" id="wsch_sm_${r.id}_${si}" value="${String(sl.sm).padStart(2,'0')}" min="0" max="59"
+                   style="width:38px;background:#111827;border:1px solid var(--border);color:var(--text);
+                          border-radius:4px;padding:.2rem .3rem;font-size:.82rem;text-align:center">
+            <span style="font-size:.72rem;color:var(--muted);margin-left:.3rem;flex:1">Duration</span>
+            <input type="number" id="wsch_dur_${r.id}_${si}" value="${durMin}" min="0.5" max="60" step="0.5"
+                   style="width:48px;background:#111827;border:1px solid var(--border);color:var(--text);
+                          border-radius:4px;padding:.2rem .3rem;font-size:.82rem;text-align:right"
+                   oninput="onSchedDurInput(${r.id},${si},this.value,${_flowML})">
+            <span style="font-size:.75rem;color:var(--muted)">min</span>
+            ${slots.length > 1 ? `<button class="sched-remove" onclick="removeSchedSlot(${r.id},${si})">×</button>` : ''}
+          </div>
+          <input type="range" class="soil-slider" id="wsch_slider_${r.id}_${si}"
+                 min="0.5" max="60" step="0.5" value="${durMin}"
+                 oninput="onSchedDurSlider(${r.id},${si},this.value,${_flowML})">
+          <div style="display:flex;justify-content:space-between;font-size:.73rem;margin-top:-.1rem">
+            <span style="color:var(--muted)">0.5 min</span>
+            <span id="wsch_est_${r.id}_${si}" style="color:var(--blue);font-weight:600">${volEst}</span>
+            <span style="color:var(--muted)">60 min</span>
+          </div>
+        </div>`;
+      }).join('');
+    } else {
+      slotRows = slots.map((sl, si) => `
+        <div class="sched-slot">
+          <input type="number" id="ssh_${r.id}_${si}" value="${sl.sh}" min="0" max="23">
+          <span class="sched-sep">:</span>
+          <input type="number" id="ssm_${r.id}_${si}" value="${String(sl.sm).padStart(2,'0')}" min="0" max="59">
+          <span class="sched-arrow">→</span>
+          <input type="number" id="seh_${r.id}_${si}" value="${sl.eh}" min="0" max="23">
+          <span class="sched-sep">:</span>
+          <input type="number" id="sem_${r.id}_${si}" value="${String(sl.em).padStart(2,'0')}" min="0" max="59">
+          ${slots.length > 1 ? `<button class="sched-remove" onclick="removeSchedSlot(${r.id},${si})">×</button>` : ''}
+        </div>`).join('');
+    }
     body = `<div class="sched-body">
+      ${schedPendingNote}
       ${slotRows}
+      ${schedExtra}
       ${slots.length < 4 ? `<button class="sched-add" onclick="addSchedSlot(${r.id})">+ Add time</button>` : ''}
       <div class="day-btns">${dayBtns}</div>
       <button class="btn-apply" onclick="applySchedule(${r.id},this)">Apply</button>
@@ -1233,7 +1434,7 @@ function renderRelayCard(card, r, force) {
       <span class="relay-status${r.state?' on':''}">${r.state?'ON':'OFF'}</span>
     </div>
     <div class="tabs">${modeTabs}</div>
-    <div class="ctrl-body">${body}</div>`;
+    <div class="ctrl-body">${waterCountdown}${body}</div>`;
 
   const lastTouch = parseInt(card.dataset.touch || '0');
   const touched   = (Date.now() - lastTouch) < 5000;
@@ -1355,12 +1556,24 @@ function sendVpdTarget() {
 
 
 function setRelayMode(id, mode) {
+  if (mode === 2 || mode === 3) {
+    // Timer and Sched: show config locally but don't activate until Apply is clicked
+    _displayMode[id] = mode;
+    const card = document.getElementById('rcard-' + id);
+    if (card && _cache[id]) {
+      card.dataset.touch = '0';
+      renderRelayCard(card, _cache[id], true);
+      card.dataset.touch = Date.now();
+    }
+    return;
+  }
+  delete _displayMode[id];
   if (_cache[id]) {
     _cache[id] = { ..._cache[id], mode };
     const card = document.getElementById('rcard-' + id);
     if (card) {
       renderRelayCard(card, _cache[id]);
-      card.dataset.touch = Date.now();  // block stale WS push from reverting the mode
+      card.dataset.touch = Date.now();
     }
     saveRelayModesToLocal();
   }
@@ -1369,16 +1582,31 @@ function setRelayMode(id, mode) {
 
 function setManual(id, state) {
   if (_cache[id]) {
-    _cache[id] = { ..._cache[id], mode: 1, state };
+    _cache[id] = { ..._cache[id], mode: 1, state, onForRemSec: 0 };
     const card = document.getElementById('rcard-' + id);
     if (card) {
-      renderRelayCard(card, _cache[id]);
+      card.dataset.touch = '0';
+      renderRelayCard(card, _cache[id], true);
       card.dataset.touch = Date.now();
     }
     saveRelayModesToLocal();
   }
   send({ type: 'relay', id, action: 'mode',   value: 1 });
   send({ type: 'relay', id, action: 'manual', value: state });
+}
+
+function setOnFor(id, seconds) {
+  if (_cache[id]) {
+    _cache[id] = { ..._cache[id], mode: 1, state: true, onForRemSec: seconds, onForTotalSec: seconds };
+    const card = document.getElementById('rcard-' + id);
+    if (card) {
+      card.dataset.touch = '0';  // reset guard so force render goes through
+      renderRelayCard(card, _cache[id], true);
+      card.dataset.touch = Date.now();
+    }
+  }
+  send({ type: 'relay', id, action: 'mode',  value: 1 });
+  send({ type: 'relay', id, action: 'onFor', value: seconds });
 }
 
 function toggleSchedDay(relayId, dayIdx) {
@@ -1423,16 +1651,28 @@ function flashApply(btn) {
 function applySchedule(id, btn) {
   const card = document.getElementById('rcard-' + id);
   const slotEls = card.querySelectorAll('.sched-slot');
-  const slots = Array.from(slotEls).map((_, si) => ({
-    sh: parseInt(document.getElementById(`ssh_${id}_${si}`).value) || 0,
-    sm: parseInt(document.getElementById(`ssm_${id}_${si}`).value) || 0,
-    eh: parseInt(document.getElementById(`seh_${id}_${si}`).value) || 0,
-    em: parseInt(document.getElementById(`sem_${id}_${si}`).value) || 0,
-  }));
+  let slots;
+  if (id === WATERING_ID) {
+    slots = Array.from(slotEls).map((_, si) => {
+      const sh  = parseInt(document.getElementById(`wsch_sh_${id}_${si}`)?.value  || 0);
+      const sm  = parseInt(document.getElementById(`wsch_sm_${id}_${si}`)?.value  || 0);
+      const dur = parseFloat(document.getElementById(`wsch_dur_${id}_${si}`)?.value || 5);
+      const endMin = (sh * 60 + sm + Math.max(0.5, dur)) % 1440;
+      return { sh, sm, eh: Math.floor(endMin / 60), em: Math.round(endMin % 60) };
+    });
+  } else {
+    slots = Array.from(slotEls).map((_, si) => ({
+      sh: parseInt(document.getElementById(`ssh_${id}_${si}`).value) || 0,
+      sm: parseInt(document.getElementById(`ssm_${id}_${si}`).value) || 0,
+      eh: parseInt(document.getElementById(`seh_${id}_${si}`).value) || 0,
+      em: parseInt(document.getElementById(`sem_${id}_${si}`).value) || 0,
+    }));
+  }
   let days = 0;
   card.querySelectorAll('.day-btn').forEach((b, i) => {
     if (b.classList.contains('active')) days |= (1 << i);
   });
+  delete _displayMode[id];
   if (_cache[id]) { _cache[id] = { ..._cache[id], mode: 3 }; saveRelayModesToLocal(); }
   send({ type: 'relay', id, action: 'mode',     value: 3 });
   send({ type: 'relay', id, action: 'schedule', slots, days });
@@ -1469,20 +1709,95 @@ function onWaterSlider(id, val) {
     : `<span style="color:var(--blue)">${v}%</span>`;
 }
 
-function pickWaterDur(id, sec, btn) {
-  const container = document.getElementById('wdurbtns_' + id);
-  if (container) container.querySelectorAll('.dur-btn').forEach(b => b.classList.remove('active'));
-  if (btn) btn.classList.add('active');
+function _updateWaterEst(id, minVal, flowML) {
+  const sec = parseFloat(minVal) * 60;
+  const flow = parseFloat(flowML) || 0;
+  const ml   = flow > 0 && sec > 0 ? Math.round(flow * sec / 60) : 0;
+  const txt  = ml >= 1000 ? `≈ ${(ml/1000).toFixed(2).replace(/\.?0+$/,'')} L`
+                           : ml > 0 ? `≈ ${ml} ml` : '';
+  const el = document.getElementById('wdurest_' + id);
+  if (el) el.textContent = txt;
+}
+
+function onWaterDurInput(id, val, flowML) {
+  const slider = document.getElementById('wdurslider_' + id);
+  if (slider) slider.value = val;
+  _updateWaterEst(id, val, flowML);
+}
+
+function onWaterDurSlider(id, val, flowML) {
+  const inp = document.getElementById('wdur_' + id);
+  if (inp) inp.value = val;
+  _updateWaterEst(id, val, flowML);
+}
+
+function onWaterFlowInput(id, flowVal) {
+  const durInp = document.getElementById('wdur_' + id);
+  const min = durInp ? parseFloat(durInp.value) : 5;
+  _updateWaterEst(id, min, flowVal);
+}
+
+function _fmtVolEst(flowML, sec) {
+  const ml = Math.round(flowML * sec / 60);
+  return ml >= 1000 ? `≈ ${(ml/1000).toFixed(2).replace(/\.?0+$/,'')} L` : `≈ ${ml} ml`;
+}
+
+function onTimerOnSlider(id, minVal, flowML) {
+  // keep number input and slider in sync
+  const numEl    = document.getElementById('ton_' + id);
+  const sliderEl = document.getElementById('ton_slider_' + id);
+  if (numEl    && numEl    !== document.activeElement) numEl.value    = minVal;
+  if (sliderEl && sliderEl !== document.activeElement) sliderEl.value = minVal;
+  const el = document.getElementById('timer-vol-est-' + id);
+  if (el && flowML) el.textContent = _fmtVolEst(flowML, parseFloat(minVal) * 60);
+}
+
+function onWaterManDur(id, minVal, flowML) {
+  const sl = document.getElementById('wman_slider_' + id);
+  if (sl) sl.value = minVal;
+  const el = document.getElementById('wman_est_' + id);
+  if (el && flowML) el.textContent = _fmtVolEst(flowML, parseFloat(minVal) * 60);
+}
+
+function onWaterManSlider(id, minVal, flowML) {
+  const inp = document.getElementById('wman_dur_' + id);
+  if (inp) inp.value = minVal;
+  const el = document.getElementById('wman_est_' + id);
+  if (el && flowML) el.textContent = _fmtVolEst(flowML, parseFloat(minVal) * 60);
+}
+
+function onSchedDurInput(id, si, val, flowML) {
+  const sl = document.getElementById(`wsch_slider_${id}_${si}`);
+  if (sl) sl.value = val;
+  const el = document.getElementById(`wsch_est_${id}_${si}`);
+  if (el && flowML) el.textContent = _fmtVolEst(flowML, parseFloat(val) * 60);
+}
+
+function onSchedDurSlider(id, si, val, flowML) {
+  const inp = document.getElementById(`wsch_dur_${id}_${si}`);
+  if (inp) inp.value = val;
+  const el = document.getElementById(`wsch_est_${id}_${si}`);
+  if (el && flowML) el.textContent = _fmtVolEst(flowML, parseFloat(val) * 60);
+}
+
+function startWaterFor(id) {
+  const inp = document.getElementById('wman_dur_' + id);
+  const min = inp ? parseFloat(inp.value) || 5 : 5;
+  const sec = Math.max(30, Math.round(min * 60));
+  setOnFor(id, sec);
 }
 
 function applyWaterCfg(id, btn) {
-  const slider = document.getElementById('wtslider_' + id);
-  const active = document.querySelector(`#wdurbtns_${id} .dur-btn.active`);
+  const slider   = document.getElementById('wtslider_' + id);
+  const durInput = document.getElementById('wdur_' + id);
+  const flowInput = document.getElementById('wflow_' + id);
   if (!slider) return;
   const threshold = parseInt(slider.value, 10);
-  const match = (active ? active.textContent : '5m').match(/(\d+)m/);
-  const durSec = match ? parseInt(match[1], 10) * 60 : 300;
+  const durMin  = parseFloat(durInput ? durInput.value : '5') || 5;
+  const durSec  = Math.max(30, Math.round(durMin * 60));
+  const flowML  = flowInput ? Math.max(0, parseInt(flowInput.value, 10) || 0) : 0;
   send({ type: 'relay', id, action: 'soilWater', threshold, duration: durSec });
+  if (flowML > 0) send({ type: 'relay', id, action: 'waterFlow', value: flowML });
   flashApply(btn);
 }
 
@@ -1490,9 +1805,12 @@ function applyTimer(id, btn) {
   const onEl  = document.getElementById('ton_'  + id);
   const offEl = document.getElementById('toff_' + id);
   if (!onEl || !offEl) return;
-  const on  = Math.max(1, parseInt(onEl.value,  10) || 60) * 60;
-  const off = Math.max(1, parseInt(offEl.value, 10) || 30) * 60;
-  if (_cache[id]) { _cache[id] = { ..._cache[id], mode: 2 }; saveRelayModesToLocal(); }
+  const onVal  = parseFloat(onEl.value)  || 5;
+  const offVal = parseFloat(offEl.value) || 30;
+  const on  = Math.max(30, Math.round(onVal  * 60));
+  const off = Math.max(60, Math.round(offVal * 60));
+  delete _displayMode[id];
+  if (_cache[id]) { _cache[id] = { ..._cache[id], mode: 2, timer: { on, off } }; saveRelayModesToLocal(); }
   send({ type: 'relay', id, action: 'mode',  value: 2 });
   send({ type: 'relay', id, action: 'timer', on, off });
   flashApply(btn);

@@ -1,4 +1,5 @@
 #include "webserver.h"
+#include "ui_html.h"
 #include "config.h"
 #include "sensors.h"
 #include "soil.h"
@@ -124,6 +125,7 @@ static void buildStateJson(String& out) {
         rel["maxOn"]     = r.maxOnSec;
         rel["soilThresh"]= r.soilThreshold;
         rel["waterDur"]  = r.waterDurationSec;
+        rel["waterFlow"] = (unsigned int)r.waterFlowML;
         rel["fanIntake"] = r.fanIntake;
         // Timer countdown: remaining seconds in current phase + which phase we are in
         if (r.mode == RELAY_TIMER && r.timerPhaseStart > 0) {
@@ -146,6 +148,15 @@ static void buildStateJson(String& out) {
             manualRemain = (elapsed < timeoutMs) ? (uint32_t)((timeoutMs - elapsed) / 1000UL) : 0;
         }
         rel["manualRemain"] = manualRemain;
+        // One-shot countdown: seconds remaining before auto-OFF (0 if not active)
+        uint32_t onForRemSec = 0;
+        if (r.mode == RELAY_MANUAL && r.onForSec > 0 && r.manualOn && r.onForStartMs > 0) {
+            unsigned long elapsed    = millis() - r.onForStartMs;
+            unsigned long durationMs = (unsigned long)r.onForSec * 1000UL;
+            onForRemSec = (elapsed < durationMs) ? (uint32_t)((durationMs - elapsed) / 1000UL) : 0;
+        }
+        rel["onForRemSec"]   = onForRemSec;
+        rel["onForTotalSec"] = (r.mode == RELAY_MANUAL && r.onForSec > 0) ? r.onForSec : (uint32_t)0;
         JsonObject tmr = rel["timer"].to<JsonObject>();
         tmr["on"]  = r.timer.onSec;
         tmr["off"] = r.timer.offSec;
@@ -245,10 +256,16 @@ static void onWsEvent(AsyncWebSocket*       server,
         } else if (strcmp(action, "fanIntake") == 0) {
             bool v = doc["value"] | false;
             relays.setFanIntake(idx, v);
+        } else if (strcmp(action, "onFor") == 0) {
+            uint32_t seconds = doc["value"] | (uint32_t)0;
+            if (seconds > 0) relays.setOnFor(idx, seconds);
         } else if (strcmp(action, "soilWater") == 0) {
             uint8_t  threshold   = (uint8_t)(doc["threshold"] | 0);
             uint32_t durationSec = doc["duration"]  | (uint32_t)300;
             relays.setSoilWater(idx, threshold, durationSec);
+        } else if (strcmp(action, "waterFlow") == 0) {
+            uint32_t mlPerMin = doc["value"] | (uint32_t)500;
+            relays.setWaterFlow(idx, mlPerMin);
         } else if (strcmp(action, "schedule") == 0) {
             ScheduleCfg cfg;
             cfg.daysMask  = doc["days"] | 0x7F;
@@ -387,13 +404,31 @@ void webBegin() {
         "xhr.upload.onprogress=function(e){if(e.lengthComputable){"
         "const p=Math.round(e.loaded/e.total*100);"
         "bar.style.width=p+'%';st.textContent='Uploading '+p+'%';}};"
-        "xhr.onload=function(){if(xhr.status===200){"
+        "xhr.onload=function(){if(xhr.status===200&&xhr.responseText==='OK'){"
         "bar.style.width='100%';st.textContent='Done! Rebooting\xe2\x80\xa6';"
-        "}else{st.textContent='Error: '+xhr.responseText;prog.style.display='none';}};"
+        "}else{st.textContent='FAILED: '+(xhr.responseText||xhr.status);bar.style.background='#ef4444';}};"
         "xhr.onerror=function(){st.textContent='Upload failed.';};"
         "xhr.open('POST',url);xhr.send(fd);}}"
-        "upload('fwForm','fwFile','/update',   'fwProg','fwBar','fwStatus');"
-        "upload('uiForm','uiFile','/update/ui','uiProg','uiBar','uiStatus');"
+        "upload('fwForm','fwFile','/update','fwProg','fwBar','fwStatus');"
+        // UI uses raw binary POST so onBody handler knows exact size
+        "document.getElementById('uiForm').onsubmit=function(e){"
+        "e.preventDefault();"
+        "const f=document.getElementById('uiFile').files[0];if(!f)return;"
+        "const prog=document.getElementById('uiProg');"
+        "const bar=document.getElementById('uiBar');"
+        "const st=document.getElementById('uiStatus');"
+        "prog.style.display='block';st.textContent='Uploading\xe2\x80\xa6';"
+        "const xhr=new XMLHttpRequest();"
+        "xhr.upload.onprogress=function(e){if(e.lengthComputable){"
+        "const p=Math.round(e.loaded/e.total*100);"
+        "bar.style.width=p+'%';st.textContent='Uploading '+p+'%';}};"
+        "xhr.onload=function(){if(xhr.status===200&&xhr.responseText==='OK'){"
+        "bar.style.width='100%';st.textContent='Done! Rebooting\xe2\x80\xa6';"
+        "}else{st.textContent='FAILED: '+(xhr.responseText||xhr.status);bar.style.background='#ef4444';}};"
+        "xhr.onerror=function(){st.textContent='Upload failed.';};"
+        "xhr.open('POST','/update/ui');"
+        "xhr.setRequestHeader('Content-Type','application/octet-stream');"
+        "xhr.send(f);};"
         "</script></body></html>";
 
     server.on("/update", HTTP_GET, [](AsyncWebServerRequest* req) {
@@ -423,7 +458,7 @@ void webBegin() {
         }
     );
 
-    // ── UI filesystem OTA (U_SPIFFS = LittleFS image) ────────────────────────
+    // ── UI filesystem OTA (raw binary POST — avoids multipart size ambiguity) ──
     server.on("/update/ui", HTTP_POST,
         [](AsyncWebServerRequest* req) {
             bool ok = !Update.hasError();
@@ -432,22 +467,36 @@ void webBegin() {
             req->send(resp);
             if (ok) { delay(300); ESP.restart(); }
         },
-        [](AsyncWebServerRequest* req, String filename, size_t index, uint8_t* data, size_t len, bool final) {
-            if (!index) {
-                Serial.printf("[OTA-UI] Start: %s\n", filename.c_str());
-                if (!Update.begin(UPDATE_SIZE_UNKNOWN, U_SPIFFS))
+        nullptr,  // no multipart upload handler
+        [](AsyncWebServerRequest* req, uint8_t* data, size_t len, size_t index, size_t total) {
+            if (index == 0) {
+                Serial.printf("[OTA-UI] Start: %u bytes\n", (unsigned)total);
+                LittleFS.end();
+                if (!Update.begin(total > 0 ? total : UPDATE_SIZE_UNKNOWN, U_SPIFFS))
                     Update.printError(Serial);
             }
-            if (Update.write(data, len) != len) Update.printError(Serial);
-            if (final) {
-                if (Update.end(true)) Serial.printf("[OTA-UI] OK: %u bytes\n", index + len);
-                else                  Update.printError(Serial);
+            if (!Update.hasError()) {
+                if (Update.write(data, len) != len) Update.printError(Serial);
+            }
+            if (index + len >= total) {
+                if (!Update.hasError()) {
+                    if (Update.end(true)) Serial.printf("[OTA-UI] OK: %u bytes\n", (unsigned)total);
+                    else                  Update.printError(Serial);
+                }
             }
         }
     );
 
-    // Serve everything else from LittleFS (index.html as default)
-    server.serveStatic("/", LittleFS, "/").setDefaultFile("index.html");
+    // Serve index.html (embedded gzip) for all non-API paths
+    auto serveUI = [](AsyncWebServerRequest* req) {
+        AsyncWebServerResponse* resp = req->beginResponse(
+            200, "text/html", UI_HTML_GZ, UI_HTML_GZ_LEN);
+        resp->addHeader("Content-Encoding", "gzip");
+        resp->addHeader("Cache-Control", "no-cache");
+        req->send(resp);
+    };
+    server.on("/",           HTTP_GET, serveUI);
+    server.on("/index.html", HTTP_GET, serveUI);
 
     server.onNotFound([](AsyncWebServerRequest* req) {
         req->send(404, "text/plain", "Not found");

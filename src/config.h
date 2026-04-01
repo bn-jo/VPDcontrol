@@ -18,8 +18,8 @@
 #define RELAY_EXTRA_PIN        13   // Relay 8: Spare / future device
 
 // ─── Intake air sensor (DHT11 — room outside the tent) ───────────────────────
-// Wired to GPIO15 (free general-purpose IO, not used by any peripheral).
-#define INTAKE_SENSOR_PIN          15
+// Wired to GPIO16 (free general-purpose IO; GPIO15 has pull-down that blocks DHT).
+#define INTAKE_SENSOR_PIN          16
 #define INTAKE_SENSOR_INTERVAL_MS  30000UL   // read every 30 s (DHT11 min ~1 s)
 
 // ─── Soil moisture sensor (capacitive, analog) ────────────────────────────────

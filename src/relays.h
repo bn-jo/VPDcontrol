@@ -55,6 +55,10 @@ struct RelayState {
     uint32_t      manualTimeoutSec;
     unsigned long manualStartMs;
 
+    // One-shot timed ON — turns OFF automatically after onForSec seconds (0 = disabled)
+    uint32_t      onForSec;
+    unsigned long onForStartMs;
+
     // Per-relay AUTO mode tuning
     float    autoBuffer;   // deadband for this relay's control variable
                            //   VPD relays (fan/humidifier):  kPa
@@ -67,6 +71,7 @@ struct RelayState {
     // Soil-triggered auto watering (WATERING relay only)
     uint8_t  soilThreshold;    // % — open valve when soil drops below this (0 = disabled)
     uint32_t waterDurationSec; // how long to run each watering cycle (seconds)
+    uint32_t waterFlowML;      // dripper flow rate in ml/min (used for volume estimate, 0 = unknown)
 
     // Fan direction — TOP_FAN and BOTTOM_FAN only
     // false = exhaust (removes air from tent); true = intake (brings air in)
@@ -91,7 +96,9 @@ public:
     void setBuffer(RelayIndex idx, float buf);
     void setDuration(RelayIndex idx, uint32_t minOnSec, uint32_t maxOnSec);
     void setSoilWater(RelayIndex idx, uint8_t threshold, uint32_t durationSec);
+    void setWaterFlow(RelayIndex idx, uint32_t mlPerMin);
     void setFanIntake(RelayIndex idx, bool intake);
+    void setOnFor(RelayIndex idx, uint32_t seconds);  // turn ON for N seconds then OFF
     void setSoilMoisture(float pct, bool valid);
     void resetAllBuffers();   // Restore every relay's autoBuffer to factory default
 

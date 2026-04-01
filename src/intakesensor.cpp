@@ -12,7 +12,8 @@ void IntakeSensor::begin() {
 }
 
 void IntakeSensor::update() {
-    if (millis() - _lastMs < INTAKE_SENSOR_INTERVAL_MS) return;
+    unsigned long interval = (_lastMs == 0) ? 3000UL : INTAKE_SENSOR_INTERVAL_MS; // first read after 3 s
+    if (millis() - _lastMs < interval) return;
     _lastMs = millis();
 
     TempAndHumidity th = dht11.getTempAndHumidity();

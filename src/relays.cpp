@@ -51,8 +51,11 @@ RelayManager::RelayManager() {
         _r[i].maxOnSec         = 0;
         _r[i].manualTimeoutSec = (i == LIGHTS) ? LIGHTS_MANUAL_TIMEOUT_SEC : 0;
         _r[i].manualStartMs    = 0;
+        _r[i].onForSec         = 0;
+        _r[i].onForStartMs     = 0;
         _r[i].soilThreshold    = 0;      // disabled by default
         _r[i].waterDurationSec = 300;    // 5 min default watering cycle
+        _r[i].waterFlowML      = (i == WATERING) ? 500 : 0;  // default 500 ml/min for watering
         _r[i].fanIntake        = false;  // default: exhaust
     }
     // Lights default autoOn = false; ClimateController drives them via schedule
@@ -85,11 +88,22 @@ void RelayManager::setMode(RelayIndex idx, RelayMode mode) {
 }
 
 void RelayManager::setManual(RelayIndex idx, bool on) {
-    _r[idx].manualOn = on;
+    _r[idx].manualOn   = on;
+    _r[idx].onForSec   = 0;   // cancel any one-shot timer
     if (_r[idx].mode == RELAY_MANUAL) {
         applyPhysical(idx, on);   // bypass canChange — manual override is immediate
     }
     savePrefs();
+}
+
+void RelayManager::setOnFor(RelayIndex idx, uint32_t seconds) {
+    _r[idx].manualOn     = true;
+    _r[idx].onForSec     = seconds;
+    _r[idx].onForStartMs = millis();
+    if (_r[idx].mode == RELAY_MANUAL) {
+        applyPhysical(idx, true);
+    }
+    // no savePrefs — one-shot state is transient
 }
 
 void RelayManager::setSchedule(RelayIndex idx, const ScheduleCfg& cfg) {
@@ -141,9 +155,16 @@ void RelayManager::update() {
                     (millis() - _r[i].manualStartMs) >= (unsigned long)_r[i].manualTimeoutSec * 1000UL) {
                     _r[i].mode          = RELAY_AUTO;
                     _r[i].manualStartMs = 0;
+                    _r[i].onForSec      = 0;
                     savePrefs();
                 } else {
-                    applyPhysical(idx, _r[i].manualOn);  // bypass timing guards — manual is immediate
+                    // One-shot: turn OFF after onForSec seconds
+                    if (_r[i].onForSec > 0 && _r[i].manualOn && _r[i].onForStartMs > 0 &&
+                        (millis() - _r[i].onForStartMs) >= (unsigned long)_r[i].onForSec * 1000UL) {
+                        _r[i].manualOn = false;
+                        _r[i].onForSec = 0;
+                    }
+                    applyPhysical(idx, _r[i].manualOn);
                 }
                 break;
             case RELAY_TIMER:
@@ -258,6 +279,11 @@ void RelayManager::setSoilWater(RelayIndex idx, uint8_t threshold, uint32_t dura
     savePrefs();
 }
 
+void RelayManager::setWaterFlow(RelayIndex idx, uint32_t mlPerMin) {
+    _r[idx].waterFlowML = mlPerMin;
+    savePrefs();
+}
+
 void RelayManager::setFanIntake(RelayIndex idx, bool intake) {
     _r[idx].fanIntake = intake;
     savePrefs();
@@ -301,6 +327,7 @@ void RelayManager::savePrefs() {
         snprintf(k, sizeof(k), "r%d_sthr", i);   p.putUChar(k, _r[i].soilThreshold);
         snprintf(k, sizeof(k), "r%d_wdur", i);   p.putUInt (k, _r[i].waterDurationSec);
         snprintf(k, sizeof(k), "r%d_fi",   i);   p.putBool (k, _r[i].fanIntake);
+        snprintf(k, sizeof(k), "r%d_wfl",  i);   p.putUInt (k, _r[i].waterFlowML);
     }
     p.end();
 }
@@ -332,6 +359,7 @@ void RelayManager::loadPrefs() {
         snprintf(k, sizeof(k), "r%d_sthr", i);   _r[i].soilThreshold    = p.getUChar(k, 0);
         snprintf(k, sizeof(k), "r%d_wdur", i);   _r[i].waterDurationSec = p.getUInt (k, 300);
         snprintf(k, sizeof(k), "r%d_fi",   i);   _r[i].fanIntake        = p.getBool (k, false);
+        snprintf(k, sizeof(k), "r%d_wfl",  i);   _r[i].waterFlowML      = p.getUInt (k, (i == WATERING) ? 500 : 0);
     }
     p.end();
 }
