@@ -34,6 +34,9 @@
 #define WIFI_SSID           "REDACTED"
 #define WIFI_PASSWORD       "REDACTED"
 #define WIFI_TIMEOUT_MS     20000UL
+#define WIFI_ROAM_INTERVAL_MS   300000UL  // check for a better AP every 5 min
+#define WIFI_ROAM_RSSI_MIN        -72     // dBm — only scan if signal is weaker than this
+#define WIFI_ROAM_MIN_GAIN_DB       8     // only switch if new AP is ≥8 dBm stronger
 
 // ─── Remote sensor node ───────────────────────────────────────────────────────
 // Second ESP32 sensor at this address. If unreachable, main sensor is used alone.
@@ -92,6 +95,67 @@
 #define AT_BASELINE_MS  120000UL   // 2 min — measure ambient before turning ON
 #define AT_ON_MS        180000UL   // 3 min — relay ON, measure effect
 #define AT_COOLDOWN_MS  120000UL   // 2 min — relay OFF, environment recovers
+
+// ─── Precision Irrigation ─────────────────────────────────────────────────────
+#define IRRIG_LOG_FILE   "/irrig.csv"
+#define IRRIG_LOG_MAX    200          // irrigation events kept in flash
+#define IRRIG_LOG_TRIM   100          // trim target when full
+
+#define MAX_PLANTS  4
+
+struct IrrigationProfile {
+    bool     enabled;           // false = no auto-watering (e.g. Drying stage)
+    uint8_t  soilTriggerPct;    // start cycle when soil drops below this %
+    uint8_t  soilTargetPct;     // stop cycle when soil reaches this % (run-to-target)
+    uint32_t maxWaterSec;       // safety cutoff regardless of soil reading
+    uint32_t minRestDaySec;     // minimum rest between cycles (lights ON)
+    uint32_t minRestNightSec;   // minimum rest between cycles (lights OFF)
+};
+
+struct PlantEntry  { uint16_t potVolumeL; };   // 1 US gal ≈ 3.785 L
+
+struct PlantConfig {
+    uint8_t    count;                  // 1–MAX_PLANTS
+    PlantEntry plants[MAX_PLANTS];
+    uint8_t    substrateType;          // 0=soil  1=coco/perlite  2=perlite
+    bool       precisionEnabled;       // master switch (false = legacy threshold mode)
+};
+
+// Substrate water-holding fraction (fraction of pot volume that actually holds water)
+static const float SUBSTRATE_HOLD_CAP[3] = { 0.40f, 0.30f, 0.20f };
+
+// Substrate-aware defaults — IRRIG_DEFAULTS[substrate][stage]
+//   substrate: 0=Soil  1=Coco/Perlite  2=Perlite
+//   stage:     0=Seedling  1=Veg  2=Flower  3=Drying
+// Night rest = 86400 s (24 h) → effectively no irrigation after lights-off,
+// matching commercial protocol where dry-back happens overnight.
+//   { enabled, triggerPct, targetPct, maxSec, dayRestSec, nightRestSec }
+static const IrrigationProfile IRRIG_DEFAULTS[3][4] = {
+  // ── Soil ──────────────────────────────────────────────────────────────────
+  // Field capacity ~40% VWC → sensor ~45%.  Dry-back to ~28-35% before next cycle.
+  {
+    { true,  35, 48,  60,  5400, 86400 },  // Seedling — gentle, ~2-3 shots/day
+    { true,  30, 45, 120,  3600, 86400 },  // Veg      — moderate dry-back
+    { true,  28, 42, 180,  3600, 86400 },  // Flower   — deeper dry-back (generative)
+    { false,  0,  0,   0,     0,     0 },  // Drying   — off
+  },
+  // ── Coco / Perlite mix ────────────────────────────────────────────────────
+  // Field capacity ~65% VWC → sensor ~63%.  Dry-back to ~45-50% (veg) / ~42-48% (flower).
+  {
+    { true,  48, 62,  60,  3600, 86400 },  // Seedling — small shots, 1/h max
+    { true,  50, 65, 120,  1800, 86400 },  // Veg      — frequent shots (6-8/day)
+    { true,  44, 62, 180,  1800, 86400 },  // Flower   — deeper dry-back for resin
+    { false,  0,  0,   0,     0,     0 },  // Drying   — off
+  },
+  // ── Pure Perlite ──────────────────────────────────────────────────────────
+  // Drains very fast; higher trigger/target, shortest rests.
+  {
+    { true,  55, 70,  60,  2700, 86400 },  // Seedling
+    { true,  52, 68,  90,  1800, 86400 },  // Veg
+    { true,  48, 65, 120,  1800, 86400 },  // Flower
+    { false,  0,  0,   0,     0,     0 },  // Drying   — off
+  },
+};
 
 // ─── NTP ─────────────────────────────────────────────────────────────────────
 #define NTP_SERVER          "pool.ntp.org"

@@ -37,6 +37,7 @@ static void controlTask(void* pvParam) {
         intakeSensor.update();  // Self-throttles at INTAKE_SENSOR_INTERVAL_MS
         soil.update();   // Self-throttles at SOIL_INTERVAL_MS
         relays.setSoilMoisture(soil.data().moisture, soil.data().valid);
+        relays.setLightsOn(climate.isLightsOn());
 
         // ── Climate control ───────────────────────────────────────────────────
         if (now - lastControlMs >= CONTROL_INTERVAL_MS) {
@@ -47,6 +48,13 @@ static void controlTask(void* pvParam) {
         // ── Relay state machine (timers + hysteresis guards) ──────────────────
         relays.update();
         autoTuner.tick();
+
+        // ── Log completed irrigation events ───────────────────────────────────
+        IrrigEvent iev;
+        if (relays.popIrrigEvent(iev)) {
+            logger.logIrrigation(iev.ts, iev.soilBefore, iev.soilAfter,
+                                 iev.durationSec, iev.volumeML);
+        }
 
         // ── Data logging ──────────────────────────────────────────────────────
         if (now - lastLogMs >= LOG_INTERVAL_MS) {
@@ -61,12 +69,35 @@ static void controlTask(void* pvParam) {
     }
 }
 
+// ─── WiFi: scan all APs matching our SSID, return channel of the strongest ────
+// Fills bssid[6] with the AP MAC. Returns 0 if none found.
+static int scanBestBSSID(uint8_t* bssid) {
+    Serial.printf("[WIFI] Scanning for best AP on \"%s\"...\n", WIFI_SSID);
+    int n = WiFi.scanNetworks(/*async*/false, /*hidden*/false, /*passive*/false, /*ms_per_ch*/200);
+    if (n <= 0) { Serial.println("[WIFI] No networks found"); return 0; }
+
+    int bestRssi = -999, bestIdx = -1;
+    for (int i = 0; i < n; i++) {
+        if (WiFi.SSID(i).equals(WIFI_SSID) && WiFi.RSSI(i) > bestRssi) {
+            bestRssi = WiFi.RSSI(i);
+            bestIdx  = i;
+        }
+    }
+    if (bestIdx < 0) { WiFi.scanDelete(); Serial.println("[WIFI] SSID not found"); return 0; }
+
+    memcpy(bssid, WiFi.BSSID(bestIdx), 6);
+    int ch = WiFi.channel(bestIdx);
+    Serial.printf("[WIFI] Best AP: %02X:%02X:%02X:%02X:%02X:%02X  ch=%d  %d dBm\n",
+                  bssid[0],bssid[1],bssid[2],bssid[3],bssid[4],bssid[5], ch, bestRssi);
+    WiFi.scanDelete();
+    return ch;
+}
+
 // ─── WiFi connect (blocking until connected or timeout) ───────────────────────
 static bool wifiConnect() {
-    Serial.printf("[WIFI] Connecting to %s", WIFI_SSID);
     WiFi.mode(WIFI_STA);
-    WiFi.setAutoReconnect(true);   // let the driver handle brief dropouts
-    WiFi.persistent(false);        // don't wear out flash with credential writes
+    WiFi.setAutoReconnect(true);   // handles brief dropouts automatically
+    WiFi.persistent(false);
 
 #ifdef STATIC_IP
     WiFi.config(
@@ -75,11 +106,17 @@ static bool wifiConnect() {
         IPAddress(STATIC_SUBNET),
         IPAddress(STATIC_DNS)
     );
-    Serial.printf(" (static IP %d.%d.%d.%d)", STATIC_IP);
 #endif
 
-    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+    uint8_t bssid[6] = {};
+    int ch = scanBestBSSID(bssid);
+    if (ch > 0) {
+        WiFi.begin(WIFI_SSID, WIFI_PASSWORD, ch, bssid);
+    } else {
+        WiFi.begin(WIFI_SSID, WIFI_PASSWORD);  // fallback: let driver pick
+    }
 
+    Serial.printf("[WIFI] Connecting");
     unsigned long start = millis();
     while (WiFi.status() != WL_CONNECTED) {
         if (millis() - start > WIFI_TIMEOUT_MS) {
@@ -89,7 +126,8 @@ static bool wifiConnect() {
         delay(500);
         Serial.print('.');
     }
-    Serial.printf("\n[WIFI] Connected — IP: %s\n", WiFi.localIP().toString().c_str());
+    Serial.printf("\n[WIFI] Connected — IP: %s  RSSI: %d dBm\n",
+                  WiFi.localIP().toString().c_str(), WiFi.RSSI());
     return true;
 }
 
@@ -105,6 +143,7 @@ void setup() {
     soil.begin();
     relays.begin();
     climate.begin();
+    relays.setIrrigMode((uint8_t)climate.getMode());  // sync initial stage profile
     logger.begin();
     autoTuner.begin();
 
@@ -140,20 +179,64 @@ void loop() {
     static unsigned long lastWsPushMs  = 0;
     static unsigned long lastWifiRetry = 0;
     static unsigned long lastHeapLogMs = 0;
+    static unsigned long lastRoamMs    = 0;
+    static bool          roamScanActive = false;
 
     // ── WiFi reconnect guard ──────────────────────────────────────────────────
     // setAutoReconnect handles brief dropouts; this catches longer outages where
     // the driver gives up (e.g. router reboot at night).
     if (WiFi.status() != WL_CONNECTED) {
+        roamScanActive = false;   // cancel any pending roam scan
         unsigned long now = millis();
         if (now - lastWifiRetry >= 30000UL) {
-            Serial.println("[WIFI] Lost — reconnecting...");
+            Serial.println("[WIFI] Lost — scanning for best AP...");
             WiFi.disconnect(false, false);
-            WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+            uint8_t bssid[6] = {};
+            int ch = scanBestBSSID(bssid);
+            if (ch > 0) WiFi.begin(WIFI_SSID, WIFI_PASSWORD, ch, bssid);
+            else        WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
             lastWifiRetry = now;
         }
         yield();
         return;   // skip WS push and remote fetch while offline
+    }
+
+    // ── Roaming: periodically check for a stronger AP ─────────────────────────
+    {
+        unsigned long now = millis();
+        if (!roamScanActive && now - lastRoamMs >= WIFI_ROAM_INTERVAL_MS) {
+            lastRoamMs = now;
+            if (WiFi.RSSI() < WIFI_ROAM_RSSI_MIN) {
+                Serial.printf("[WIFI] Weak signal (%d dBm) — scanning for better AP\n", WiFi.RSSI());
+                WiFi.scanNetworks(/*async*/true);
+                roamScanActive = true;
+            }
+        }
+        if (roamScanActive) {
+            int n = WiFi.scanComplete();
+            if (n >= 0) {
+                roamScanActive = false;
+                int bestRssi = -999, bestIdx = -1;
+                for (int i = 0; i < n; i++) {
+                    if (WiFi.SSID(i).equals(WIFI_SSID) && WiFi.RSSI(i) > bestRssi) {
+                        bestRssi = WiFi.RSSI(i);
+                        bestIdx  = i;
+                    }
+                }
+                if (bestIdx >= 0 && bestRssi >= WiFi.RSSI() + WIFI_ROAM_MIN_GAIN_DB) {
+                    uint8_t bssid[6];
+                    memcpy(bssid, WiFi.BSSID(bestIdx), 6);
+                    int ch = WiFi.channel(bestIdx);
+                    WiFi.scanDelete();
+                    Serial.printf("[WIFI] Roaming to better AP: %d dBm  ch=%d\n", bestRssi, ch);
+                    WiFi.disconnect(false, false);
+                    WiFi.begin(WIFI_SSID, WIFI_PASSWORD, ch, bssid);
+                } else {
+                    WiFi.scanDelete();
+                    Serial.printf("[WIFI] No better AP found (best=%d dBm)\n", bestRssi);
+                }
+            }
+        }
     }
 
     remoteSensor.update();   // Non-blocking; self-throttles to REMOTE_SENSOR_INTERVAL_MS

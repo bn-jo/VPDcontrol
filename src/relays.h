@@ -1,5 +1,15 @@
 #pragma once
 #include <Arduino.h>
+#include "config.h"
+
+// ─── Irrigation event — emitted when a precision watering cycle completes ─────
+struct IrrigEvent {
+    time_t   ts;
+    float    soilBefore;
+    float    soilAfter;
+    uint32_t durationSec;
+    uint32_t volumeML;
+};
 
 enum RelayMode  : uint8_t { RELAY_AUTO = 0, RELAY_MANUAL, RELAY_TIMER, RELAY_SCHEDULE };
 enum RelayIndex : uint8_t { TOP_FAN = 0, BOTTOM_FAN, HUMIDIFIER, LIGHTS,
@@ -69,11 +79,24 @@ struct RelayState {
     uint32_t maxOnSec;       // maximum ON duration in AUTO (0 = unlimited)
     uint32_t maxOnRestSec;   // forced rest after Max ON fires (0 = use minOffSec only)
     unsigned long lastMaxOnMs; // millis() when Max ON last triggered
+    uint32_t maxOffSec;      // max OFF duration in AUTO — fan forced back ON after this (0 = disabled)
+                             // Use for exhaust fan to maintain negative tent pressure
 
     // Soil-triggered auto watering (WATERING relay only)
-    uint8_t  soilThreshold;    // % — open valve when soil drops below this (0 = disabled)
-    uint32_t waterDurationSec; // how long to run each watering cycle (seconds)
+    uint8_t  soilThreshold;    // % — legacy: open valve when soil drops below this (0 = disabled)
+    uint32_t waterDurationSec; // legacy fixed cycle duration (seconds)
     uint32_t waterFlowML;      // dripper flow rate in ml/min (used for volume estimate, 0 = unknown)
+
+    // Precision irrigation (WATERING relay only) ─────────────────────────────
+    IrrigationProfile irrigProfile;   // active profile for the current grow stage
+    float    soilAtStart;             // soil % when current watering cycle began
+    float    peakSoilPct;             // highest soil % recorded after last watering
+    float    dryBackPct;              // peakSoilPct − current soil (dry-back tracking)
+    time_t   lastWaterTs;             // epoch of last completed cycle
+    uint32_t lastWaterDurSec;         // duration of last cycle (seconds)
+    uint32_t lastWaterML;             // estimated volume of last cycle (ml)
+    uint32_t todayML;                 // cumulative today in ml (resets at midnight)
+    int      todayDOY;                // day-of-year for midnight rollover detection
 
     // Fan direction — TOP_FAN and BOTTOM_FAN only
     // false = exhaust (removes air from tent); true = intake (brings air in)
@@ -97,12 +120,34 @@ public:
     void setSchedule(RelayIndex idx, const ScheduleCfg& cfg);
     void setBuffer(RelayIndex idx, float buf);
     void setDuration(RelayIndex idx, uint32_t minOnSec, uint32_t maxOnSec, uint32_t maxOnRestSec = 0);
+    void setMaxOff(RelayIndex idx, uint32_t maxOffSec);  // 0 = disable; >0 = max seconds OFF (pressure guard)
     void setSoilWater(RelayIndex idx, uint8_t threshold, uint32_t durationSec);
     void setWaterFlow(RelayIndex idx, uint32_t mlPerMin);
     void setFanIntake(RelayIndex idx, bool intake);
     void setOnFor(RelayIndex idx, uint32_t seconds);  // turn ON for N seconds then OFF
     void setSoilMoisture(float pct, bool valid);
     void resetAllBuffers();   // Restore every relay's autoBuffer to factory default
+
+    // ── Precision irrigation ─────────────────────────────────────────────────
+    void setIrrigMode(uint8_t stage);                                        // call on grow-mode change
+    void setIrrigProfile(uint8_t stage, const IrrigationProfile& p);        // UI edits a stage profile
+    void resetIrrigDefaults();                                               // reset all stages to substrate defaults
+    const IrrigationProfile& getIrrigProfile(uint8_t stage) const;          // read by webserver
+    void setLightsOn(bool on);                                               // called each control tick
+    void setPlantConfig(const PlantConfig& cfg);
+    const PlantConfig& getPlantConfig() const { return _plantCfg; }
+    bool popIrrigEvent(IrrigEvent& ev);                                      // drain event → main loop
+
+    // Irrigation runtime stats (WATERING relay)
+    float    getDryBackPct()   const { return _r[WATERING].dryBackPct; }
+    float    getPeakSoilPct()  const { return _r[WATERING].peakSoilPct; }
+    time_t   getLastWaterTs()  const { return _r[WATERING].lastWaterTs; }
+    uint32_t getLastWaterDur() const { return _r[WATERING].lastWaterDurSec; }
+    uint32_t getLastWaterML()  const { return _r[WATERING].lastWaterML; }
+    uint32_t getTodayML()      const { return _r[WATERING].todayML; }
+
+    void saveIrrigPrefs();
+    void loadIrrigPrefs();
 
     const RelayState& get(RelayIndex idx) const { return _r[idx]; }
 
@@ -113,6 +158,14 @@ private:
     RelayState _r[NUM_RELAYS];
     float      _soilPct   = 0.0f;
     bool       _soilValid = false;
+
+    // Precision irrigation state
+    IrrigationProfile _irrigProfiles[4];   // stored profiles, one per grow stage
+    PlantConfig       _plantCfg;
+    bool              _lightsOn    = false;
+    uint8_t           _currentMode = 1;    // default Veg
+    IrrigEvent        _lastIrrigEvent;
+    bool              _irrigEventReady = false;
 
     void     applyPhysical(RelayIndex idx, bool on);
     bool     canChange(RelayIndex idx, bool newOn) const;

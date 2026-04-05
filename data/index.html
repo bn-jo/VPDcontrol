@@ -217,6 +217,13 @@ section { margin-bottom: 1.25rem; }
 }
 .btn-apply:hover  { background: #2563eb; }
 .btn-apply.saved  { background: var(--green) !important; }
+.btn-secondary {
+  align-self: flex-start;
+  background: transparent; border: 1px solid var(--muted); color: var(--muted);
+  padding: .35rem .9rem; border-radius: 6px; cursor: pointer; font-size: .82rem;
+  transition: border-color .2s, color .2s;
+}
+.btn-secondary:hover { border-color: var(--text); color: var(--text); }
 
 
 .auto-note { color: var(--muted); font-size: .78rem; line-height: 1.5; }
@@ -469,6 +476,71 @@ canvas { width: 100% !important; height: 100% !important; }
 .onfor-bar-wrap { background: var(--bg); border-radius: 4px; height: 6px; overflow: hidden; margin-top: .35rem; }
 .onfor-bar { height: 100%; border-radius: 4px; background: var(--green); transition: width 2.1s linear, background .5s; }
 
+/* ─── Page navigation tabs ────────────────────────────────────────────────── */
+.page-tabs {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 1rem;
+  display: flex;
+  gap: 0;
+}
+.page-tab {
+  padding: .6rem 1.1rem;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font-size: .85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s;
+  letter-spacing: .01em;
+}
+.page-tab:hover  { color: var(--text); }
+.page-tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+
+/* ─── Irrigation tab ───────────────────────────────────────────────────────── */
+.irrig-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: .9rem 1rem;
+}
+.irrig-header-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: .9rem 1rem;
+  transition: border-color .25s;
+}
+.irrig-header-card.active { border-color: var(--blue); }
+.irrig-stat-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: .5rem; margin-top: .75rem; }
+.irrig-stat {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: .45rem .5rem;
+  text-align: center;
+}
+.irrig-stat-label { font-size: .62rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: .2rem; }
+.irrig-stat-val   { font-size: .95rem; font-weight: 700; }
+.irrig-tbl th { text-align: left; padding: .3rem .4rem; color: var(--muted); font-weight: 600; font-size: .75rem; }
+.irrig-tbl td { padding: .35rem .4rem; border-top: 1px solid var(--border); }
+.irrig-tbl .irrig-row-dis td { opacity: .45; }
+.irrig-tbl input[type=number] {
+  width: 50px; background: #111827; border: 1px solid var(--border); color: var(--text);
+  border-radius: 4px; padding: .18rem .3rem; font-size: .78rem; text-align: center;
+  -moz-appearance: textfield;
+}
+.irrig-tbl input[type=number]::-webkit-outer-spin-button,
+.irrig-tbl input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
+.irrig-pot-row { display: flex; flex-direction: column; gap: .45rem; margin-bottom: .65rem; }
+.pot-input-row { display: flex; align-items: center; gap: .4rem; font-size: .8rem; }
+.pot-input-row span.pot-lbl { color: var(--muted); flex: 1; }
+.pot-input-row span.pot-unit { color: var(--muted); min-width: 1.8rem; }
+.pot-input-row input { width: 58px; background: #111827; border: 1px solid var(--border); color: var(--text);
+  border-radius: 4px; padding: .2rem .3rem; font-size: .82rem; text-align: center; }
+
 /* ─── Responsive ──────────────────────────────────────────────────────────── */
 /* ─── Relay visibility toggles ───────────────────────────────────────────────── */
 .relay-vis-row {
@@ -554,6 +626,7 @@ canvas { width: 100% !important; height: 100% !important; }
       <option value="3">🍂 Drying</option>
     </select>
     <span id="stageDayBadge" style="font-size:.68rem;color:var(--muted);padding-right:.2rem"></span>
+    <button onclick="rebootESP()" style="font-size:.62rem;padding:.15rem .5rem;background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:5px;cursor:pointer;align-self:flex-end" title="Restart ESP32">↺ Restart</button>
     <div id="dryToggle" style="display:none;align-self:flex-end">
       <div class="dry-toggle">
         <button id="drySlowBtn" class="active" onclick="sendDryMode(false)">🍂 Slow</button>
@@ -564,6 +637,10 @@ canvas { width: 100% !important; height: 100% !important; }
 </header>
 
 <!-- Alert banner — shown only when active alerts exist -->
+<nav class="page-tabs">
+  <button class="page-tab active" id="ptab-dash"  onclick="showPageTab('dashboard')">Dashboard</button>
+  <button class="page-tab"        id="ptab-irrig" onclick="showPageTab('irrigation')">💧 Irrigation</button>
+</nav>
 <div class="alert-banner" id="alertBanner">
   <span class="alert-icon">⚠️</span>
   <div class="alert-body">
@@ -574,6 +651,7 @@ canvas { width: 100% !important; height: 100% !important; }
 </div>
 
 <main>
+<div id="tab-dashboard">
 
   <!-- ─── Sensor metrics ───────────────────────────────────────────────────── -->
   <section>
@@ -604,6 +682,8 @@ canvas { width: 100% !important; height: 100% !important; }
         <div class="metric-label">Soil Moisture</div>
         <div class="metric-value" id="val-soil">--</div>
         <span class="metric-badge" id="badge-soil">--</span>
+        <span id="badge-soil-auto" style="display:none;font-size:.62rem;color:var(--blue);
+              font-weight:600;letter-spacing:.03em;margin-top:.1rem">💧 AUTO</span>
       </div>
       <div class="metric metric-sm" id="card-lights">
         <div class="metric-label">Lights</div>
@@ -747,6 +827,197 @@ canvas { width: 100% !important; height: 100% !important; }
     </div>
   </section>
 
+</div><!-- end #tab-dashboard -->
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     IRRIGATION TAB
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div id="tab-irrigation" style="display:none">
+
+  <!-- Status & master enable ─────────────────────────────────────────────── -->
+  <section>
+    <div class="irrig-header-card" id="irrigCard">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-weight:700;font-size:1rem">Precision Irrigation</div>
+          <div id="irrigStatusLine" style="font-size:.78rem;color:var(--muted);margin-top:.15rem">Loading…</div>
+        </div>
+        <label class="toggle-wrap">
+          <input type="checkbox" id="irrigEnabled" onchange="setPrecisionEnabled(this.checked)">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="irrig-stat-grid">
+        <div class="irrig-stat"><div class="irrig-stat-label">Soil</div>     <div class="irrig-stat-val" id="is-soil">--%</div></div>
+        <div class="irrig-stat"><div class="irrig-stat-label">Dry-back</div> <div class="irrig-stat-val" id="is-dryback">--%</div></div>
+        <div class="irrig-stat"><div class="irrig-stat-label">Last water</div><div class="irrig-stat-val" id="is-last">--</div></div>
+        <div class="irrig-stat"><div class="irrig-stat-label">Today</div>    <div class="irrig-stat-val" id="is-today">--</div></div>
+      </div>
+      <!-- Flow rate (global) -->
+      <div style="margin-top:.7rem;display:flex;align-items:center;gap:.5rem;border-top:1px solid var(--border);padding-top:.65rem">
+        <span style="font-size:.8rem;color:var(--muted);flex:1">Dripper flow rate</span>
+        <input type="number" id="irrigFlowML" value="500" min="1" max="9999" step="1"
+               oninput="updateIrrigWaterEst()"
+               style="width:58px;background:#111827;border:1px solid var(--border);color:var(--text);
+                      border-radius:4px;padding:.2rem .3rem;font-size:.82rem;text-align:center">
+        <span style="font-size:.78rem;color:var(--muted)">ml/min</span>
+        <button class="btn-apply" style="padding:.3rem .75rem;font-size:.8rem"
+                onclick="saveFlowRate(this)">Set</button>
+      </div>
+      <!-- Water Now quick action -->
+      <div style="margin-top:.55rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+        <button class="btn-apply" style="background:var(--blue);border:none;padding:.4rem .9rem"
+                onclick="waterNowFromIrrig()">💧 Water Now</button>
+        <input type="number" id="irrigWaterMin" value="3" min="0.5" max="60" step="0.5"
+               oninput="updateIrrigWaterEst()"
+               style="width:50px;background:#111827;border:1px solid var(--border);color:var(--text);
+                      border-radius:4px;padding:.2rem .35rem;font-size:.82rem;text-align:center">
+        <span style="font-size:.78rem;color:var(--muted)">min</span>
+        <span id="irrigWaterEst" style="font-size:.78rem;color:var(--blue);margin-left:auto"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Plant Setup ──────────────────────────────────────────────────────────── -->
+  <section>
+    <div class="section-title">Plant Setup</div>
+    <div class="irrig-card">
+      <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.6rem">
+        <span style="color:var(--muted);font-size:.8rem;flex:1">Plants</span>
+        <div style="display:flex;gap:.25rem" id="plantCountBtns">
+          <button class="dur-btn" onclick="setPlantCount(1)">1</button>
+          <button class="dur-btn" onclick="setPlantCount(2)">2</button>
+          <button class="dur-btn" onclick="setPlantCount(3)">3</button>
+          <button class="dur-btn" onclick="setPlantCount(4)">4</button>
+        </div>
+      </div>
+      <div id="potSizesRow" class="irrig-pot-row"></div>
+      <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.65rem">
+        <span style="color:var(--muted);font-size:.8rem;flex:1">Substrate</span>
+        <div style="display:flex;gap:.25rem" id="substrateBtns">
+          <button class="dur-btn" onclick="setIrrigSubstrate(0)">Soil</button>
+          <button class="dur-btn" onclick="setIrrigSubstrate(1)">Coco</button>
+          <button class="dur-btn" onclick="setIrrigSubstrate(2)">Perlite</button>
+        </div>
+      </div>
+      <div id="irrigHints" style="font-size:.75rem;color:var(--muted);display:flex;flex-direction:column;gap:.3rem;margin-bottom:.6rem"></div>
+      <button class="btn-apply" id="plantApplyBtn" onclick="applyPlantConfig(this)">Apply Setup</button>
+    </div>
+  </section>
+
+  <!-- Stage Profiles ───────────────────────────────────────────────────────── -->
+  <section>
+    <div class="section-title">Stage Profiles</div>
+    <div class="irrig-card" style="overflow-x:auto">
+      <table class="irrig-tbl" style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr>
+            <th>Stage</th><th style="text-align:center">Trigger</th><th style="text-align:center">Target</th>
+            <th style="text-align:center">Max</th><th style="text-align:center">Day rest</th><th style="text-align:center">Night rest</th>
+          </tr>
+        </thead>
+        <tbody id="irrigProfileRows"></tbody>
+      </table>
+      <div style="font-size:.72rem;color:var(--muted);margin-top:.5rem">
+        Trigger: start watering when soil drops below · Target: stop when soil reaches · Rest: min gap between cycles
+      </div>
+      <div style="display:flex;gap:.5rem;margin-top:.65rem;flex-wrap:wrap">
+        <button class="btn-apply" onclick="applyAllProfiles(this)">Save Profiles</button>
+        <button class="btn-secondary" onclick="resetIrrigProfilesToDefault(this)">Reset to Defaults</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- History ──────────────────────────────────────────────────────────────── -->
+  <section>
+    <div class="section-title">History</div>
+    <div class="chart-card" style="margin-bottom:.75rem">
+      <div class="chart-header">
+        <span class="chart-title">Soil Moisture + Watering Events</span>
+        <div class="range-group">
+          <button class="range-btn active" id="irrigBtn-24"  onclick="loadIrrigChart(24)">24h</button>
+          <button class="range-btn"        id="irrigBtn-72"  onclick="loadIrrigChart(72)">3d</button>
+          <button class="range-btn"        id="irrigBtn-168" onclick="loadIrrigChart(168)">7d</button>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="irrigSoilChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-card" style="margin-bottom:.75rem">
+      <div class="chart-header"><span class="chart-title">Daily Water Volume</span></div>
+      <div class="chart-wrap" style="height:160px"><canvas id="irrigDayChart"></canvas></div>
+    </div>
+  </section>
+
+  <!-- Sensor Calibration ───────────────────────────────────────────────────── -->
+  <section>
+    <div class="section-title" style="display:flex;align-items:center;justify-content:space-between">
+      <span>Sensor Calibration</span>
+      <button onclick="toggleCalibCard(this)"
+              style="background:none;border:1px solid var(--border);color:var(--muted);
+                     border-radius:6px;padding:.2rem .6rem;font-size:.75rem;cursor:pointer">
+        Show
+      </button>
+    </div>
+    <div id="calibCard" class="irrig-card" style="display:none">
+      <div style="font-size:.8rem;color:var(--muted);margin-bottom:.85rem;line-height:1.55">
+        Calibrate the soil probe directly from the web — no Serial Monitor needed.<br>
+        <strong style="color:var(--text)">Step 1 —</strong> Leave probe in dry air or dry substrate for 30 s, then tap <em>Set 0%</em>.<br>
+        <strong style="color:var(--text)">Step 2 —</strong> Submerge probe fully in a glass of water for 30 s, then tap <em>Set 100%</em>.
+      </div>
+
+      <!-- Live reading row -->
+      <div style="display:flex;align-items:center;justify-content:space-between;
+                  background:var(--bg);border-radius:8px;padding:.55rem .75rem;margin-bottom:.85rem">
+        <div style="font-size:.78rem;color:var(--muted)">Raw ADC (current)</div>
+        <div style="display:flex;align-items:center;gap:.6rem">
+          <span id="soilRawVal" style="font-size:1.1rem;font-weight:700;font-variant-numeric:tabular-nums">—</span>
+          <span id="soilPctLive" style="font-size:.8rem;color:var(--muted)"></span>
+        </div>
+      </div>
+
+      <!-- Calibration buttons -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-bottom:.85rem">
+        <button class="btn-apply"
+                style="background:#6b7280;border:none;padding:.6rem;font-size:.88rem"
+                onclick="calibrateSoil('dry')">
+          Set 0% &nbsp;(dry)
+        </button>
+        <button class="btn-apply"
+                style="background:var(--blue);border:none;padding:.6rem;font-size:.88rem"
+                onclick="calibrateSoil('wet')">
+          Set 100% &nbsp;(wet)
+        </button>
+      </div>
+
+      <!-- Current calibration range -->
+      <div style="display:flex;justify-content:space-between;font-size:.76rem;color:var(--muted)">
+        <span>Dry calibration: <strong id="soilCalDry" style="color:var(--text)">—</strong></span>
+        <span>Wet calibration: <strong id="soilCalWet" style="color:var(--text)">—</strong></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Event log ────────────────────────────────────────────────────────────── -->
+  <section>
+    <div class="section-title">Event Log</div>
+    <div class="irrig-card" style="overflow-x:auto">
+      <table class="irrig-tbl" style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr>
+            <th>When</th><th style="text-align:center">Before</th><th style="text-align:center">After</th>
+            <th style="text-align:center">Duration</th><th style="text-align:center">Volume</th>
+          </tr>
+        </thead>
+        <tbody id="irrigEventRows">
+          <tr><td colspan="5" style="text-align:center;padding:.75rem;color:var(--muted)">No events yet</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</div><!-- end #tab-irrigation -->
 
 </main>
 
@@ -831,6 +1102,8 @@ function handleState(s) {
   const dryFast = !!s.dryingFast;
   try { localStorage.setItem('dryingFast', dryFast ? '1' : '0'); } catch(_) {}
   applyDryToggle(s.growMode === 3, dryFast);
+
+  updateIrrigationTab(s);
 }
 
 // ─── Metrics ──────────────────────────────────────────────────────────────────
@@ -920,12 +1193,14 @@ function updateSoil(s) {
   if (!s.soilValid) return;
   const pct = s.soil;
   let color, badge;
-  if      (pct < 20)              { color = 'red';    badge = 'Too Dry'; }
-  else if (pct < 40)              { color = 'yellow'; badge = 'Dry'; }
-  else if (pct <= 70)             { color = 'green';  badge = 'Optimal'; }
-  else if (pct <= 85)             { color = 'yellow'; badge = 'Moist'; }
-  else                            { color = 'red';    badge = 'Wet'; }
+  if      (pct < 20)  { color = 'red';    badge = 'Too Dry'; }
+  else if (pct < 40)  { color = 'yellow'; badge = 'Dry'; }
+  else if (pct <= 70) { color = 'green';  badge = 'Optimal'; }
+  else if (pct <= 85) { color = 'yellow'; badge = 'Moist'; }
+  else                { color = 'red';    badge = 'Wet'; }
   setMetric('soil', pct.toFixed(0) + '%', color, badge);
+  const autoEl = document.getElementById('badge-soil-auto');
+  if (autoEl) autoEl.style.display = (s.irrigation && s.irrigation.precisionEnabled) ? 'block' : 'none';
 }
 
 // ─── Relay visibility (per-relay checkboxes) ──────────────────────────────────
@@ -1137,6 +1412,24 @@ function renderRelayCard(card, r, force) {
         </div>${dayStartRow}`;
       }
     } else if (r.id === WATERING_ID) {
+      const precisionOn = lastState && lastState.irrigation && lastState.irrigation.precisionEnabled;
+      if (precisionOn) {
+        const irr     = lastState.irrigation;
+        const ap      = irr.activeProfile || {};
+        const soilNow = (lastState.soil != null) ? lastState.soil.toFixed(0) + '%' : '--';
+        body = `<div style="padding:.45rem .55rem;background:rgba(59,130,246,.07);
+                     border:1px solid rgba(59,130,246,.22);border-radius:8px;font-size:.8rem">
+          <div style="color:var(--blue);font-weight:700;margin-bottom:.3rem">💧 Precision Irrigation active</div>
+          <div style="color:var(--muted);line-height:1.6">
+            Soil now: <strong style="color:var(--text)">${soilNow}</strong><br>
+            Waters when &lt;<strong style="color:var(--text)">${ap.trigger ?? '--'}%</strong>
+            · stops at <strong style="color:var(--text)">${ap.target ?? '--'}%</strong>
+          </div>
+          <div style="color:var(--muted);font-size:.72rem;margin-top:.3rem">
+            Configure in the 💧 Irrigation tab
+          </div>
+        </div>`;
+      } else {
       const thr      = r.soilThresh  ?? 0;
       const wdur     = r.waterDur    ?? 300;
       const flowML   = _flowML;
@@ -1187,13 +1480,15 @@ function renderRelayCard(card, r, force) {
         </div>
         <button class="btn-apply" onclick="applyWaterCfg(${r.id},this)">Apply</button>
       </div>`;
+      } // end else (precision off)
     } else if (r.id === EXTRA_RELAY_ID) {
       body = `<span class="auto-note">Spare output — use Manual, Timer or Sched</span>`;
     } else {
       const buf        = (r.buffer     ?? 0.05).toFixed(2);
       const minOn      = r.minOn      ?? 30;
       const maxOn      = r.maxOn      ?? 0;
-      const maxOnRest  = r.maxOnRest  ?? 0;
+      const maxOnRest  = Math.round((r.maxOnRest ?? 0) / 60);
+      const maxOff     = r.maxOff     ?? 0;
       const isFan = (r.id === 0 || r.id === 1);
       const fanIntake = r.fanIntake ?? false;
       const fanDirRow = isFan ? `
@@ -1202,6 +1497,17 @@ function renderRelayCard(card, r, force) {
           <button class="tab${!fanIntake?' active':''}" onclick="setFanDirection(${r.id},false,this)">Exhaust</button>
           <button class="tab${fanIntake?' active':''}"  onclick="setFanDirection(${r.id},true,this)">Intake</button>
         </div>` : '';
+      // Max-off row — shown for exhaust fans only (negative pressure guard)
+      const maxOffRow = (isFan && !fanIntake) ? `
+          <div class="tuning-row" style="padding-top:.35rem;border-top:1px solid var(--border)">
+            <label title="Fan forced back ON after being off this long — keeps tent under negative pressure so smell can't escape">Max OFF</label>
+            <input type="number" id="mxof_${r.id}" value="${maxOff}" min="0" max="3600">
+            <span>sec (0=off)</span>
+          </div>
+          <div style="font-size:.68rem;color:var(--muted);padding:.1rem 0 .3rem 0;line-height:1.4">
+            Tent pressure guard — fan forced back ON after this many seconds off.
+            Recommended: 60 s (negative pressure lost in ~10 s without exhaust).
+          </div>` : '';
       body = `${fanDirRow}<span class="auto-note">Controlled by climate logic</span>
         <div class="auto-tuning">
           <div class="tuning-row">
@@ -1219,9 +1525,10 @@ function renderRelayCard(card, r, force) {
           </div>
           <div class="tuning-row" id="mxrs_row_${r.id}" style="${maxOn > 0 ? '' : 'display:none'}">
             <label>Sleep after Max ON</label>
-            <input type="number" id="mxrs_${r.id}" value="${maxOnRest}" min="0" max="86400">
-            <span>sec (0=minOff)</span>
+            <input type="number" id="mxrs_${r.id}" value="${maxOnRest}" min="0" max="1440">
+            <span>min (0=minOff)</span>
           </div>
+          ${maxOffRow}
           <button class="btn-apply" onclick="applyAutoTuning(${r.id},this)">Apply</button>
         </div>`;
     }
@@ -1526,15 +1833,17 @@ let _vpdTargetKpa = 1.0;
 
 function updateVpdTargetUI(vt) {
   if (!vt) return;
-  _vpdTargetKpa = vt.kpa || 1.0;
   const enEl  = document.getElementById('vpdtEnabled');
   const kpaEl = document.getElementById('vpdtKpa');
   const bufEl = document.getElementById('vpdtBuf');
   const card  = document.getElementById('vpdTargetCard');
   const sub   = document.getElementById('vpdtSub');
-  if (enEl)  enEl.checked    = !!vt.enabled;
+  // Only sync from server when the user is not actively editing these fields
+  if (document.activeElement !== enEl)  { if (enEl) enEl.checked = !!vt.enabled; }
+  if (document.activeElement !== bufEl) { if (bufEl) bufEl.value = (vt.buffer || 0.1).toFixed(2); }
+  // Always accept the server kpa (stepVpdTarget sends immediately; server echoes back)
+  _vpdTargetKpa = vt.kpa || 1.0;
   if (kpaEl) kpaEl.textContent = _vpdTargetKpa.toFixed(2) + ' kPa';
-  if (bufEl) bufEl.value     = (vt.buffer || 0.1).toFixed(2);
   if (card)  card.classList.toggle('active', !!vt.enabled);
   if (sub)   sub.textContent = vt.enabled
     ? `Active — targeting ${_vpdTargetKpa.toFixed(2)} kPa ± ${(vt.buffer||0.1).toFixed(2)}`
@@ -1705,13 +2014,15 @@ function applyAutoTuning(id, btn) {
   const mionEl = document.getElementById('mion_'  + id);
   const mxonEl = document.getElementById('mxon_'  + id);
   const mxrsEl = document.getElementById('mxrs_'  + id);
+  const mxofEl = document.getElementById('mxof_'  + id);
   if (!bufEl || !mionEl || !mxonEl) return;
   const buf       = Math.max(0, parseFloat(bufEl.value)    || 0.05);
   const minOn     = Math.max(0, parseInt(mionEl.value, 10) || 0);
   const maxOn     = Math.max(0, parseInt(mxonEl.value, 10) || 0);
-  const maxOnRest = mxrsEl ? Math.max(0, parseInt(mxrsEl.value, 10) || 0) : 0;
+  const maxOnRest = mxrsEl ? Math.max(0, parseInt(mxrsEl.value, 10) || 0) * 60 : 0;
   send({ type: 'relay', id, action: 'buffer',   value: buf });
   send({ type: 'relay', id, action: 'duration', minOn, maxOn, maxOnRest });
+  if (mxofEl) send({ type: 'relay', id, action: 'maxOff', value: Math.max(0, parseInt(mxofEl.value, 10) || 0) });
   flashApply(btn);
 }
 
@@ -1992,6 +2303,12 @@ function renderChart(data) {
 // Auto-refresh chart every 2 minutes regardless of WebSocket state
 setInterval(() => loadChart(chartHours), 2 * 60 * 1000);
 
+function rebootESP() {
+  if (!confirm('Restart the ESP32?\nThe system will be offline for ~5 seconds.')) return;
+  send({ type: 'restart' });
+  setStatus(false, 'Restarting…');
+}
+
 // ─── Status bar ───────────────────────────────────────────────────────────────
 function setStatus(ok, msg) {
   document.getElementById('dot').className       = 'dot-conn' + (ok ? ' ok' : '');
@@ -2049,81 +2366,105 @@ function updatePlantMood(s) {
     const vpdMin  = prof.vpdMin  || 0.8;   const vpdMax  = prof.vpdMax  || 1.2;
     const tempMin = prof.tempMin || 20;    const tempMax = prof.tempMax || 26;
     const humMin  = prof.humMin  || 40;    const humMax  = prof.humMax  || 60;
-    const vMargin = (vpdMax  - vpdMin)  * 0.3;
-    const tMargin = (tempMax - tempMin) * 0.3;
-    const hMargin = (humMax  - humMin)  * 0.3;
+    // Generous margins — small overshoot is normal, not alarming.
+    // score=1 (notice) triggers only after a meaningful buffer past the setpoint.
+    // score=2 (act) triggers when truly out of range.
+    const vRange   = vpdMax  - vpdMin;
+    const tRange   = tempMax - tempMin;
+    const hRange   = humMax  - humMin;
+    const vWarn    = vRange  * 0.25;   // ~25% of range grace before score=1
+    const vMargin  = vRange  * 0.55;   // ~55% of range before score=2
+    const tWarn    = tRange  * 0.25;
+    const tMargin  = tRange  * 0.55;
+    const hWarnThr = humMax  + hRange  * 0.20;  // 20% grace before humidity notice
+    const hCritThr = Math.max(humMax + hRange * 0.60, 72);  // 72% floor for mold concern
 
-    // Score each factor against actual setpoints: 0=fine, 1=warning, 2=critical
-    const tHot  = temp > tempMax + tMargin ? 2 : temp > tempMax ? 1 : 0;
-    const tCold = temp < tempMin - tMargin ? 2 : temp < tempMin ? 1 : 0;
-    const vHigh = vpd  > vpdMax  + vMargin ? 2 : vpd  > vpdMax  ? 1 : 0;
-    const vLow  = vpd  < vpdMin  - vMargin ? 2 : vpd  < vpdMin  ? 1 : 0;
-    const hHigh = hum  > humMax  + hMargin ? 2 : hum  > humMax  ? 1 : 0;
-    const sDry  = soil !== null ? (soil < 20 ? 2 : soil < 30 ? 1 : 0) : 0;
+    // 0 = fine, 1 = notice (calm), 2 = act (needs attention)
+    const tHot  = temp > tempMax + tMargin ? 2 : temp > tempMax + tWarn ? 1 : 0;
+    const tCold = temp < tempMin - tMargin ? 2 : temp < tempMin - tWarn ? 1 : 0;
+    const vHigh = vpd  > vpdMax  + vMargin ? 2 : vpd  > vpdMax  + vWarn ? 1 : 0;
+    const vLow  = vpd  < vpdMin  - vMargin ? 2 : vpd  < vpdMin  - vWarn ? 1 : 0;
+    const hHigh = hum  > hCritThr ? 2 : hum > hWarnThr ? 1 : 0;
 
-    // hHigh and vLow are correlated (high humidity → low VPD) — count as one issue
+    // Soil — wide healthy zone; only flag when clearly outside normal range
+    let sDry = 0, sWet = 0;
+    if (soil !== null) {
+      const irr = s.irrigation;
+      if (irr && irr.precisionEnabled && irr.activeProfile) {
+        const trig = irr.activeProfile.trigger || 45;
+        const tgt  = irr.activeProfile.target  || 70;
+        if      (soil < trig - 15) sDry = 2;
+        else if (soil < trig -  5) sDry = 1;   // only notice when 5% below trigger
+        else if (soil > tgt  + 22) sWet = 2;
+        else if (soil > tgt  + 12) sWet = 1;
+      } else {
+        sDry = soil < 18 ? 2 : soil < 28 ? 1 : 0;
+      }
+    }
+
+    const isWatering = s.relays && s.relays[WATERING_ID] && s.relays[WATERING_ID].state;
     const humScore = Math.max(vLow, hHigh);
-    const sev = Math.max(tHot, tCold, vHigh, humScore, sDry);
-    const n   = [tHot, tCold, vHigh, humScore, sDry].filter(v => v > 0).length;
+    const nCrit = [tHot, tCold, vHigh, humScore, sDry, sWet].filter(v => v === 2).length;
+    const nAny  = [tHot, tCold, vHigh, humScore, sDry, sWet].filter(v => v > 0).length;
+    const sev   = Math.max(tHot, tCold, vHigh, humScore, sDry, sWet);
 
     if (sev === 0) {
-      // ── Everything within setpoints ───────────────────────────────────────────
+      // ── All good ──────────────────────────────────────────────────────────────
       if (!lights) {
         emoji='💤'; msg='"lights out — resting"'; cardCls='';
+      } else if (isWatering) {
+        emoji='💧'; msg='"drinking — roots getting fed"'; cardCls='green';
       } else if (soil === null || soil >= 50) {
-        emoji='🌿'; msg='"absolutely thriving right now"'; cardCls='green';
+        emoji='🌿'; msg='"all good — thriving"'; cardCls='green';
       } else {
-        emoji='😌'; msg='"conditions are within range"'; cardCls='green';
+        emoji='😌'; msg='"conditions on point"'; cardCls='green';
       }
 
-    } else if (sev === 2 && n >= 2) {
-      // ── Multiple critical problems ─────────────────────────────────────────────
-      const parts = [];
-      if (tHot     === 2) parts.push('heat stress');
-      if (tCold    === 2) parts.push('too cold');
-      if (vHigh    === 2) parts.push('dry air');
-      if (humScore === 2) parts.push(hHigh >= vLow ? 'too humid' : 'VPD too low');
-      if (sDry     === 2) parts.push('dry roots');
-      emoji='🆘'; cardCls='red';
-      msg = parts.length === 2
-        ? `"${parts[0]} and ${parts[1]} — please help!"`
-        : `"${parts.join(', ')} — multiple problems!"`;
-
-    } else if (sev === 2) {
-      // ── One critical problem ───────────────────────────────────────────────────
-      if      (tHot     === 2) { emoji='🔥'; msg='"heat stress — stomata are closing"';              cardCls='red';    }
-      else if (tCold    === 2) { emoji='🥶'; msg='"too cold — growth has stalled"';                  cardCls='blue';   }
-      else if (vHigh    === 2) { emoji='😤'; msg='"air bone dry — losing water too fast"';           cardCls='red';    }
-      else if (hHigh    === 2) { emoji='🍄'; msg='"humidity critical — mold risk, ventilate now!"'; cardCls='red';    }
-      else if (humScore === 2) { emoji='🌫️'; msg='"VPD way too low — transpiration blocked"';      cardCls='yellow'; }
-      else if (sDry     === 2) { emoji='🥺'; msg='"roots bone dry — water me now!"';                 cardCls='yellow'; }
-
-    } else if (n >= 2) {
-      // ── Multiple warnings — smart combo messages ───────────────────────────────
-      if      (tHot  && vHigh)    { emoji='😓'; msg='"warm and dry air — transpiration stress building"';  cardCls='yellow'; }
-      else if (vHigh && sDry)     { emoji='😟'; msg='"dry air and thirsty roots — needs water and humidity"'; cardCls='yellow'; }
-      else if (tCold && humScore) { emoji='😰'; msg='"cold and humid — mold risk, boost airflow"';          cardCls='yellow'; }
-      else if (tHot  && humScore) { emoji='😓'; msg='"warm and humid — lower temp and improve airflow"';    cardCls='yellow'; }
-      else if (tHot  && sDry)     { emoji='😓'; msg='"warm and thirsty — water soon and cool down"';        cardCls='yellow'; }
-      else if (humScore && sDry)  { emoji='😟'; msg='"too humid and thirsty roots — check airflow and watering"'; cardCls='yellow'; }
-      else {
+    } else if (nCrit === 0) {
+      // ── Only minor notices (score=1) — calm, no colour ───────────────────────
+      // Night: plants resting, drift is expected
+      if (!lights) {
+        emoji='💤'; msg='"resting"'; cardCls='';
+      } else if (nAny >= 2) {
         const parts = [];
-        if (tHot)     parts.push('a bit warm');
-        if (tCold)    parts.push('a bit chilly');
-        if (vHigh)    parts.push('air drying out');
-        if (humScore) parts.push(hHigh >= vLow ? 'too humid' : 'VPD low');
-        if (sDry)     parts.push('getting thirsty');
-        emoji='😟'; msg=`"${parts.join(', ')} — keep an eye on me"`; cardCls='yellow';
+        if (tHot)     parts.push('slightly warm');
+        if (tCold)    parts.push('slightly cool');
+        if (vHigh)    parts.push('VPD a bit high');
+        if (humScore) parts.push(hHigh > vLow ? 'humidity a bit high' : 'VPD a bit low');
+        if (sDry)     parts.push('getting dry');
+        if (sWet)     parts.push('slightly wet');
+        emoji='😌'; msg=`"${parts.join(', ')} — watching it"`; cardCls='';
+      } else {
+        if      (tHot     === 1) { emoji='😌'; msg='"slightly warm — ventilation is on it"';         cardCls=''; }
+        else if (tCold    === 1) { emoji='😌'; msg='"slightly cool — growth is fine"';               cardCls=''; }
+        else if (vHigh    === 1) { emoji='😌'; msg='"VPD a touch high — keeping an eye"';            cardCls=''; }
+        else if (hHigh    === 1) { emoji='😌'; msg='"humidity slightly elevated — airflow helps"';   cardCls=''; }
+        else if (humScore === 1) { emoji='😌'; msg='"VPD a touch low — plants are comfortable"';    cardCls=''; }
+        else if (sDry     === 1) { emoji='😌'; msg='"getting a bit dry — watering coming up"';       cardCls=''; }
+        else if (sWet     === 1) { emoji='😌'; msg='"soil slightly moist — letting it dry a bit"';  cardCls=''; }
       }
+
+    } else if (nCrit >= 2) {
+      // ── Multiple things need attention ────────────────────────────────────────
+      const parts = [];
+      if (tHot     === 2) parts.push('too warm');
+      if (tCold    === 2) parts.push('too cold');
+      if (vHigh    === 2) parts.push('VPD too high');
+      if (humScore === 2) parts.push(hHigh >= vLow ? 'humidity too high' : 'VPD too low');
+      if (sDry     === 2) parts.push('soil too dry');
+      if (sWet     === 2) parts.push('soil too wet');
+      emoji='⚠️'; cardCls='red';
+      msg = `"${parts.join(' + ')} — needs attention"`;
 
     } else {
-      // ── One warning ───────────────────────────────────────────────────────────
-      if      (tHot     === 1) { emoji='🌡️'; msg='"getting warm — check the fans"';                 cardCls='yellow'; }
-      else if (tCold    === 1) { emoji='❄️';  msg='"a bit chilly — could use some warmth"';          cardCls='';       }
-      else if (vHigh    === 1) { emoji='💨'; msg='"air is drying out — boost humidity a bit"';       cardCls='yellow'; }
-      else if (hHigh    === 1) { emoji='💦'; msg='"humidity too high — improve airflow"';             cardCls='yellow'; }
-      else if (humScore === 1) { emoji='💧'; msg='"VPD a bit low — slightly stuffy"';                cardCls='yellow'; }
-      else if (sDry     === 1) { emoji='😓'; msg='"getting thirsty — water me soon"';                cardCls='yellow'; }
+      // ── One thing needs attention (score=2) — yellow, direct, calm ───────────
+      if      (tHot     === 2) { emoji='🌡️'; msg='"temperature high — boost ventilation"';          cardCls='yellow'; }
+      else if (tCold    === 2) { emoji='❄️';  msg='"temperature low — check heating"';               cardCls='yellow'; }
+      else if (vHigh    === 2) { emoji='💨';  msg='"VPD too high — lower temp or raise humidity"';   cardCls='yellow'; }
+      else if (hHigh    === 2) { emoji='💧';  msg='"humidity too high — ventilate"';                 cardCls='yellow'; }
+      else if (humScore === 2) { emoji='💧';  msg='"VPD too low — improve airflow"';                 cardCls='yellow'; }
+      else if (sDry     === 2) { emoji='💧';  msg='"soil too dry — needs water"';                    cardCls='yellow'; }
+      else if (sWet     === 2) { emoji='💧';  msg='"soil too wet — hold watering"';                  cardCls='yellow'; }
     }
 
     const colorMap = { red:'var(--red)', blue:'var(--blue)', yellow:'var(--yellow)', green:'var(--green)', '':'var(--muted)' };
@@ -2315,6 +2656,525 @@ function updateAutoTune(at) {
   } else { resultsDiv.style.display = 'none'; }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// IRRIGATION TAB
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── Page tab switching ───────────────────────────────────────────────────────
+function showPageTab(name) {
+  const dash   = document.getElementById('tab-dashboard');
+  const irrig  = document.getElementById('tab-irrigation');
+  const pdash  = document.getElementById('ptab-dash');
+  const pirrig = document.getElementById('ptab-irrig');
+  const isIrrig = (name === 'irrigation');
+  if (dash)   dash.style.display   = isIrrig ? 'none' : '';
+  if (irrig)  irrig.style.display  = isIrrig ? '' : 'none';
+  if (pdash)  pdash.classList.toggle('active', !isIrrig);
+  if (pirrig) pirrig.classList.toggle('active', isIrrig);
+  try { localStorage.setItem('pageTab', name); } catch(_) {}
+  if (isIrrig) loadIrrigHistory();
+}
+
+// ─── Live state update ────────────────────────────────────────────────────────
+function updateIrrigationTab(s) {
+  if (!s || !s.irrigation) return;
+  const irr = s.irrigation;
+
+  const enEl = document.getElementById('irrigEnabled');
+  if (enEl) enEl.checked = !!irr.precisionEnabled;
+  const card = document.getElementById('irrigCard');
+  if (card) card.classList.toggle('active', !!irr.precisionEnabled);
+
+  const stLine = document.getElementById('irrigStatusLine');
+  const stageNames = ['Seedling','Veg','Flower','Drying'];
+  if (stLine) stLine.textContent = irr.precisionEnabled
+    ? 'Active — ' + (stageNames[irr.activeStage] || '') + ' profile'
+    : 'Disabled — use Timer / Schedule on the Relay card';
+
+  if (s.soilValid) {
+    setIStat('is-soil', s.soil.toFixed(0) + '%',
+      s.soil < 30 ? 'var(--red)' : s.soil < 50 ? 'var(--yellow)' : 'var(--green)');
+  }
+  if (irr.stats) {
+    const db = irr.stats.dryBack || 0;
+    setIStat('is-dryback', db.toFixed(0) + '%',
+      db > 20 ? 'var(--green)' : db > 10 ? 'var(--yellow)' : 'var(--muted)');
+    const ts = irr.stats.lastWaterTs || 0;
+    setIStat('is-last', ts > 1000000 ? fmtAgo(ts) : '—', 'var(--text)');
+    const ml = irr.stats.todayML || 0;
+    setIStat('is-today', ml >= 1000 ? (ml/1000).toFixed(1)+'L' : ml+'ml',
+             ml > 0 ? 'var(--blue)' : 'var(--muted)');
+  }
+
+  // Soil calibration display
+  const rawEl  = document.getElementById('soilRawVal');
+  const pctEl  = document.getElementById('soilPctLive');
+  const dryEl  = document.getElementById('soilCalDry');
+  const wetEl  = document.getElementById('soilCalWet');
+  if (rawEl && s.soilRawAdc != null) {
+    rawEl.textContent = s.soilRawAdc > 0 ? s.soilRawAdc : '—';
+    if (pctEl) pctEl.textContent = s.soilValid ? ('→ ' + s.soil.toFixed(0) + '%') : '';
+  }
+  if (dryEl && s.soilAdcDry != null) dryEl.textContent = s.soilAdcDry;
+  if (wetEl && s.soilAdcWet != null) wetEl.textContent = s.soilAdcWet;
+
+  if (irr.plants && !_plantSetupTouched) {
+    _irrigPlantCfg.count     = irr.plants.count || 1;
+    _irrigPlantCfg.pots      = (irr.plants.pots || [15]).map(v => Math.round(v));
+    _irrigPlantCfg.substrate = irr.plants.substrate != null ? irr.plants.substrate : 1;
+    _irrigPlantCfg.enabled   = !!irr.precisionEnabled;
+    renderPlantSetup();
+    _showPlantEditBtn();   // config already on device — show Edit mode
+  }
+  const _wFlow = (s.relays || []).find(r => r.id === WATERING_ID)?.waterFlow ?? 0;
+  if (irr.profiles) renderIrrigProfiles(irr.profiles, irr.activeStage || 0, _wFlow);
+  const flowEl = document.getElementById('irrigFlowML');
+  if (flowEl && _wFlow > 0 && document.activeElement !== flowEl) flowEl.value = _wFlow;
+  updateIrrigWaterEst();
+}
+
+function setIStat(id, val, color) {
+  const el = document.getElementById(id);
+  if (el) { el.textContent = val; el.style.color = color || 'var(--text)'; }
+}
+
+function fmtAgo(ts) {
+  const sec = Math.max(0, Math.floor(Date.now()/1000 - ts));
+  if (sec < 60)    return sec + 's ago';
+  if (sec < 3600)  return Math.floor(sec/60) + 'm ago';
+  if (sec < 86400) return Math.floor(sec/3600) + 'h ' + Math.floor((sec%3600)/60) + 'm ago';
+  return Math.floor(sec/86400) + 'd ago';
+}
+
+function updateIrrigWaterEst() {
+  const minEl  = document.getElementById('irrigWaterMin');
+  const estEl  = document.getElementById('irrigWaterEst');
+  if (!minEl || !estEl) return;
+  const min    = parseFloat(minEl.value) || 3;
+  const flowEl = document.getElementById('irrigFlowML');
+  const flow   = flowEl ? (parseFloat(flowEl.value) || 500)
+                        : (_cache[6] ? (_cache[6].waterFlow || 500) : 500);
+  const ml     = Math.round(flow * min);
+  estEl.textContent = ml >= 1000 ? `≈ ${(ml/1000).toFixed(1)}L` : `≈ ${ml}ml`;
+}
+
+function toggleCalibCard(btn) {
+  const card = document.getElementById('calibCard');
+  if (!card) return;
+  const visible = card.style.display !== 'none';
+  card.style.display = visible ? 'none' : 'block';
+  btn.textContent = visible ? 'Show' : 'Hide';
+}
+
+function calibrateSoil(point) {
+  ws.send(JSON.stringify({ type: 'soilCalib', point }));
+}
+
+function setPrecisionEnabled(en) {
+  _irrigPlantCfg.enabled = en;
+  const card = document.getElementById('irrigCard');
+  if (card) card.classList.toggle('active', en);
+  _sendPlantConfig();
+}
+
+function waterNowFromIrrig() {
+  const minEl = document.getElementById('irrigWaterMin');
+  const min = minEl ? parseFloat(minEl.value) || 3 : 3;
+  setOnFor(6, Math.max(30, Math.round(min * 60)));
+}
+
+// ─── Plant setup ──────────────────────────────────────────────────────────────
+let _irrigPlantCfg = { count: 1, pots: [15, 15, 15, 15], substrate: 1, enabled: false };
+let _plantSetupTouched = false;
+let _potUnitGal = false;
+const L_PER_GAL = 3.785;
+
+function renderPlantSetup() {
+  const { count, pots, substrate } = _irrigPlantCfg;
+  // Count buttons
+  document.querySelectorAll('#plantCountBtns .dur-btn').forEach((b, i) => {
+    b.classList.toggle('active', i + 1 === count);
+  });
+  // Substrate buttons
+  document.querySelectorAll('#substrateBtns .dur-btn').forEach((b, i) => {
+    b.classList.toggle('active', i === substrate);
+  });
+  // Pot size inputs
+  const row = document.getElementById('potSizesRow');
+  if (!row) return;
+  // Only re-render if not currently focused inside this row
+  if (row.contains(document.activeElement)) return;
+  row.innerHTML = '';
+  for (let i = 0; i < count; i++) {
+    const volL = Math.round(pots[i] || 15);
+    const volG = Math.round(volL / L_PER_GAL * 10) / 10;
+    row.innerHTML += `<div class="pot-input-row">
+      <span class="pot-lbl">Plant ${i+1}</span>
+      <input type="number" id="potL_${i}"   value="${volL}" min="1"   max="999" step="1"
+             oninput="onPotLChange(${i},this.value)">
+      <span class="pot-unit">L</span>
+      <input type="number" id="potGal_${i}" value="${volG}" min="0.5" max="264" step="0.5"
+             oninput="onPotGalChange(${i},this.value)">
+      <span class="pot-unit">gal</span>
+    </div>`;
+  }
+  updateIrrigHints();
+}
+
+function setPlantCount(n) {
+  _plantSetupTouched = true;
+  _showPlantApplyBtn();
+  _irrigPlantCfg.count = n;
+  document.querySelectorAll('#plantCountBtns .dur-btn').forEach((b, i) => {
+    b.classList.toggle('active', i + 1 === n);
+  });
+  const row = document.getElementById('potSizesRow');
+  if (!row) return;
+  row.innerHTML = '';
+  for (let i = 0; i < n; i++) {
+    const volL = Math.round(_irrigPlantCfg.pots[i] || 15);
+    const volG = Math.round(volL / L_PER_GAL * 10) / 10;
+    row.innerHTML += `<div class="pot-input-row">
+      <span class="pot-lbl">Plant ${i+1}</span>
+      <input type="number" id="potL_${i}"   value="${volL}" min="1"   max="999" step="1"
+             oninput="onPotLChange(${i},this.value)">
+      <span class="pot-unit">L</span>
+      <input type="number" id="potGal_${i}" value="${volG}" min="0.5" max="264" step="0.5"
+             oninput="onPotGalChange(${i},this.value)">
+      <span class="pot-unit">gal</span>
+    </div>`;
+  }
+  updateIrrigHints();
+}
+
+function onPotLChange(i, val) {
+  _plantSetupTouched = true;
+  const l = Math.max(1, Math.round(parseFloat(val) || 15));  // whole liters only
+  _irrigPlantCfg.pots[i] = l;
+  const galEl = document.getElementById('potGal_' + i);
+  if (galEl) galEl.value = Math.round(l / L_PER_GAL * 10) / 10;
+  _showPlantApplyBtn();
+  updateIrrigHints();
+}
+
+function onPotGalChange(i, val) {
+  _plantSetupTouched = true;
+  const g = parseFloat(val) || 4;
+  const l = Math.max(1, Math.round(g * L_PER_GAL));  // round to whole liters — prevents truncation in uint16_t
+  _irrigPlantCfg.pots[i] = l;
+  const lEl = document.getElementById('potL_' + i);
+  if (lEl) lEl.value = l;
+  _showPlantApplyBtn();
+  updateIrrigHints();
+}
+
+function setIrrigSubstrate(s) {
+  _plantSetupTouched = true;
+  _showPlantApplyBtn();
+  _irrigPlantCfg.substrate = s;
+  document.querySelectorAll('#substrateBtns .dur-btn').forEach((b, i) => {
+    b.classList.toggle('active', i === s);
+  });
+  updateIrrigHints();
+}
+
+function updateIrrigHints() {
+  const hints = document.getElementById('irrigHints');
+  if (!hints) return;
+  const n = _irrigPlantCfg.count;
+  const pots = Array.from({ length: n }, (_, i) => {
+    const el = document.getElementById('potL_' + i);
+    return el ? parseFloat(el.value) || 15 : (_irrigPlantCfg.pots[i] || 15);
+  });
+  const totalL    = pots.reduce((a, b) => a + b, 0);
+  const holdCap   = [0.40, 0.30, 0.20][_irrigPlantCfg.substrate] ?? 0.30;
+  const subNames  = ['Soil', 'Coco/Perlite', 'Perlite'];
+  let html = `<div>Total: <strong style="color:var(--text)">${totalL.toFixed(0)} L</strong> `
+           + `${subNames[_irrigPlantCfg.substrate]} · hold capacity: ${(holdCap*100).toFixed(0)}%</div>`;
+  if (n > 1) {
+    const minVol = Math.min(...pots);
+    const minIdx = pots.indexOf(minVol);
+    const maxVol = Math.max(...pots);
+    html += `<div style="color:var(--yellow)">⚠ Place probe in <strong style="color:var(--text)">Plant ${minIdx+1}</strong> (smallest pot, ${minVol}L) — it dries fastest</div>`;
+    const ratios = pots.map(v => Math.round(v / maxVol * 100) + '%');
+    html += `<div>💧 Drip emitter ratios: ${ratios.map((r,i) => `Plant ${i+1}: ${r}`).join(' · ')}</div>`;
+  }
+  hints.innerHTML = html;
+}
+
+function applyPlantConfig(btn) {
+  _sendPlantConfig();
+  flashApply(btn);
+  _showPlantEditBtn();
+}
+
+function _showPlantApplyBtn() {
+  const btn = document.getElementById('plantApplyBtn');
+  if (btn) { btn.textContent = 'Apply Setup'; btn.onclick = function() { applyPlantConfig(this); }; }
+}
+
+function _showPlantEditBtn() {
+  const btn = document.getElementById('plantApplyBtn');
+  if (btn) { btn.textContent = '✎ Edit Setup'; btn.onclick = function() { _enterPlantEditMode(this); }; }
+}
+
+function _enterPlantEditMode(btn) {
+  _plantSetupTouched = true;
+  btn.textContent = 'Apply Setup';
+  btn.onclick = function() { applyPlantConfig(this); };
+}
+
+function _sendPlantConfig() {
+  _plantSetupTouched = false;
+  const n = _irrigPlantCfg.count;
+  const pots = Array.from({ length: n }, (_, i) => {
+    const el = document.getElementById('potL_' + i);
+    return Math.max(1, Math.round(el ? parseFloat(el.value) || 15 : (_irrigPlantCfg.pots[i] || 15)));
+  });
+  send({ type: 'setPlantConfig', enabled: _irrigPlantCfg.enabled,
+         count: n, pots, substrate: _irrigPlantCfg.substrate });
+}
+
+function saveFlowRate(btn) {
+  const flowEl = document.getElementById('irrigFlowML');
+  if (!flowEl) return;
+  const flowML = Math.max(1, parseInt(flowEl.value, 10) || 500);
+  send({ type: 'relay', id: WATERING_ID, action: 'waterFlow', value: flowML });
+  flashApply(btn);
+}
+
+// ─── Stage profiles table ──────────────────────────────────────────────────────
+const IRRIG_STAGE_NAMES = ['Seedling', 'Veg', 'Flower', 'Drying'];
+let _stageFlowML = 0;
+
+function _fmtMxMl(minutes, flowML) {
+  if (!flowML || !minutes) return '';
+  const ml = Math.round(minutes * flowML);
+  return ml >= 1000 ? '~' + (ml/1000).toFixed(1) + 'L' : '~' + ml + 'ml';
+}
+function _updMxMl(i, val) {
+  const sp = document.getElementById('ip_mx_ml_' + i);
+  if (sp) sp.textContent = _fmtMxMl(parseFloat(val) || 0, _stageFlowML);
+}
+
+function renderIrrigProfiles(profiles, activeStage, flowML) {
+  _stageFlowML = flowML || 0;
+  const tbody = document.getElementById('irrigProfileRows');
+  if (!tbody) return;
+  if (tbody.contains(document.activeElement)) return;
+  tbody.innerHTML = profiles.map((p, i) => {
+    const dot = i === activeStage ? '<span style="color:var(--green)">● </span>' : '';
+    if (!p.enabled) return `<tr class="irrig-row-dis"><td style="font-weight:600">${dot}${IRRIG_STAGE_NAMES[i]}</td>
+      <td colspan="5" style="text-align:center;color:var(--muted)">— disabled (no irrigation)</td></tr>`;
+    const mxMin = Math.round(p.maxSec/60);
+    const mlEst = _fmtMxMl(mxMin, _stageFlowML);
+    return `<tr>
+      <td style="font-weight:600">${dot}${IRRIG_STAGE_NAMES[i]}</td>
+      <td style="text-align:center"><input type="number" id="ip_tr_${i}" value="${p.trigger}" min="10" max="90" title="Start watering below this %">%</td>
+      <td style="text-align:center"><input type="number" id="ip_tg_${i}" value="${p.target}"  min="20" max="100" title="Stop watering when soil reaches this %">%</td>
+      <td style="text-align:center"><input type="number" id="ip_mx_${i}" value="${mxMin}" min="0" max="60" title="Safety max duration (minutes)" oninput="_updMxMl(${i},this.value)">m${mlEst ? ` <span id="ip_mx_ml_${i}" style="font-size:.7rem;color:var(--muted)">${mlEst}</span>` : `<span id="ip_mx_ml_${i}" style="font-size:.7rem;color:var(--muted)"></span>`}</td>
+      <td style="text-align:center"><input type="number" id="ip_dr_${i}" value="${Math.round(p.dayRest/60)}" min="1" max="1440" title="Min rest during lights-on (minutes)">m</td>
+      <td style="text-align:center"><input type="number" id="ip_nr_${i}" value="${Math.round(p.nightRest/60)}" min="1" max="1440" title="Min rest during lights-off (minutes)">m</td>
+    </tr>`;
+  }).join('');
+}
+
+function applyAllProfiles(btn) {
+  for (let i = 0; i < 4; i++) {
+    const tr = document.getElementById('ip_tr_' + i);
+    const tg = document.getElementById('ip_tg_' + i);
+    const mx = document.getElementById('ip_mx_' + i);
+    const dr = document.getElementById('ip_dr_' + i);
+    const nr = document.getElementById('ip_nr_' + i);
+    if (!tr) {
+      // Disabled stage (Drying)
+      send({ type: 'setIrrigProfile', stage: i, enabled: false,
+             trigger: 0, target: 0, maxSec: 0, dayRest: 0, nightRest: 0 });
+      continue;
+    }
+    send({
+      type: 'setIrrigProfile', stage: i, enabled: true,
+      trigger:   Math.max(10, parseInt(tr.value, 10) || 50),
+      target:    Math.max(20, parseInt(tg.value, 10) || 70),
+      maxSec:    Math.max(30, (parseFloat(mx.value) || 3) * 60),
+      dayRest:   Math.max(60, (parseFloat(dr.value) || 30) * 60),
+      nightRest: Math.max(60, (parseFloat(nr.value) || 60) * 60)
+    });
+  }
+  flashApply(btn);
+}
+
+function resetIrrigProfilesToDefault(btn) {
+  if (!confirm('Reset all Stage Profiles to substrate defaults?\nYour saved values will be overwritten.')) return;
+  send({ type: 'resetIrrigDefaults' });
+  flashApply(btn);
+}
+
+// ─── History charts ────────────────────────────────────────────────────────────
+let _irrigChartHours = 24;
+let _irrigSoilChart  = null;
+let _irrigDayChart   = null;
+
+function loadIrrigHistory() { loadIrrigChart(_irrigChartHours); }
+
+function loadIrrigChart(hours) {
+  _irrigChartHours = hours;
+  ['24','72','168'].forEach(h => {
+    const b = document.getElementById('irrigBtn-' + h);
+    if (b) b.className = 'range-btn' + (Number(h) === hours ? ' active' : '');
+  });
+  Promise.all([
+    fetch('/api/logs?hours=' + hours).then(r => r.ok ? r.json() : []).catch(() => []),
+    fetch('/api/irrigation').then(r => r.ok ? r.json() : []).catch(() => [])
+  ]).then(([soilData, events]) => {
+    _renderIrrigCharts(soilData, events, hours);
+    _renderIrrigLog(events);
+  });
+}
+
+function _renderIrrigCharts(soilData, events, hours) {
+  const rows     = Array.isArray(soilData) ? soilData : [];
+  const soilRows = rows.filter(d => d.S != null && d.S >= 0);
+  const labels   = soilRows.map(d => new Date(d.t * 1000));
+  const soilVals = soilRows.map(d => d.S);
+  const evPts    = (events || [])
+    .filter(e => e.b != null)
+    .map(e => ({ x: new Date(e.t * 1000), y: e.b }));
+
+  const tOpts = chartTimeOpts(hours);
+
+  // ── Soil + event markers chart ──────────────────────────────────────────────
+  if (!_irrigSoilChart) {
+    const ctx = document.getElementById('irrigSoilChart')?.getContext('2d');
+    if (!ctx) return;
+    _irrigSoilChart = new Chart(ctx, {
+      data: {
+        labels,
+        datasets: [
+          { type: 'line', label: 'Soil %', data: soilVals,
+            borderColor: '#f59e0b', backgroundColor: '#f59e0b18',
+            yAxisID: 'y', tension: 0.3, pointRadius: 0, borderWidth: 2, fill: true, spanGaps: true },
+          { type: 'scatter', label: 'Watered', data: evPts,
+            backgroundColor: '#3b82f6', pointRadius: 7, pointStyle: 'triangle',
+            pointHoverRadius: 9, yAxisID: 'y' }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false,
+        interaction: { mode: 'nearest', intersect: false },
+        plugins: {
+          legend: { labels: { color: '#9ca3af', boxWidth: 12, font: { size: 11 } } },
+          tooltip: {
+            backgroundColor: '#0f172a', borderColor: '#334155', borderWidth: 1,
+            titleColor: '#f1f5f9', bodyColor: '#94a3b8', padding: 10,
+            callbacks: {
+              label: ctx => {
+                if (ctx.datasetIndex === 1) return ` 💧 Watered at ${ctx.parsed.y.toFixed(0)}%`;
+                return ` Soil: ${ctx.parsed.y != null ? ctx.parsed.y.toFixed(0) : '--'}%`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: { type: 'time', time: { unit: tOpts.unit, stepSize: tOpts.stepSize,
+                 tooltipFormat: tOpts.tooltipFormat, displayFormats: tOpts.displayFormats },
+               ticks: { color: '#4b5563', maxRotation: 0, maxTicksLimit: tOpts.maxTicksLimit, font: { size: 10 } },
+               grid: { color: '#1e293b' } },
+          y: { min: 0, max: 100,
+               ticks: { color: '#f59e0b', font: { size: 10 }, callback: v => v + '%' },
+               grid: { color: '#1e293b' } }
+        }
+      }
+    });
+  } else {
+    _irrigSoilChart.data.labels = labels;
+    _irrigSoilChart.data.datasets[0].data = soilVals;
+    _irrigSoilChart.data.datasets[1].data = evPts;
+    Object.assign(_irrigSoilChart.options.scales.x.time, {
+      unit: tOpts.unit, stepSize: tOpts.stepSize,
+      tooltipFormat: tOpts.tooltipFormat, displayFormats: tOpts.displayFormats
+    });
+    _irrigSoilChart.options.scales.x.ticks.maxTicksLimit = tOpts.maxTicksLimit;
+    _irrigSoilChart.update('none');
+  }
+
+  // ── Daily volume bar chart ──────────────────────────────────────────────────
+  const now = Date.now() / 1000;
+  const days = {};
+  (events || []).forEach(e => {
+    if (!e.t || e.t < now - hours * 3600) return;
+    const key = new Date(e.t * 1000).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' });
+    days[key] = (days[key] || 0) + (e.ml || 0);
+  });
+  const dayLabels = Object.keys(days);
+  const dayVals   = dayLabels.map(k => days[k]);
+
+  if (!_irrigDayChart) {
+    const ctx2 = document.getElementById('irrigDayChart')?.getContext('2d');
+    if (!ctx2) return;
+    _irrigDayChart = new Chart(ctx2, {
+      type: 'bar',
+      data: {
+        labels: dayLabels,
+        datasets: [{ label: 'Water (ml)', data: dayVals,
+                     backgroundColor: '#3b82f680', borderColor: '#3b82f6',
+                     borderWidth: 1, borderRadius: 4 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false,
+        plugins: { legend: { display: false },
+          tooltip: { backgroundColor: '#0f172a', borderColor: '#334155', borderWidth: 1,
+            titleColor: '#f1f5f9', bodyColor: '#94a3b8', padding: 10,
+            callbacks: { label: ctx => {
+              const v = ctx.parsed.y;
+              return ' ' + (v >= 1000 ? (v/1000).toFixed(1)+'L' : v+'ml');
+            }}}},
+        scales: {
+          x: { ticks: { color: '#4b5563', font: { size: 10 } }, grid: { color: '#1e293b' } },
+          y: { beginAtZero: true, grid: { color: '#1e293b' },
+               ticks: { color: '#3b82f6', font: { size: 10 },
+                        callback: v => v >= 1000 ? (v/1000).toFixed(1)+'L' : v+'ml' } }
+        }
+      }
+    });
+  } else {
+    _irrigDayChart.data.labels = dayLabels;
+    _irrigDayChart.data.datasets[0].data = dayVals;
+    _irrigDayChart.update('none');
+  }
+}
+
+// ─── Event log table ──────────────────────────────────────────────────────────
+function _renderIrrigLog(events) {
+  const tbody = document.getElementById('irrigEventRows');
+  if (!tbody) return;
+  const evs = Array.isArray(events) ? [...events].reverse().slice(0, 20) : [];
+  if (!evs.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:.75rem;color:var(--muted)">No irrigation events yet</td></tr>';
+    return;
+  }
+  tbody.innerHTML = evs.map(e => {
+    const when   = e.t > 1000000 ? fmtAgo(e.t) : '--';
+    const before = e.b != null ? e.b.toFixed(0) + '%' : '--';
+    const after  = e.a != null ? e.a.toFixed(0) + '%' : '--';
+    const dur    = fmtDuration(e.d || 0);
+    const vol    = e.ml ? (e.ml >= 1000 ? (e.ml/1000).toFixed(1)+'L' : e.ml+'ml') : '--';
+    return `<tr>
+      <td style="color:var(--muted)">${when}</td>
+      <td style="text-align:center;color:var(--yellow)">${before}</td>
+      <td style="text-align:center;color:var(--green)">${after}</td>
+      <td style="text-align:center">${dur}</td>
+      <td style="text-align:center;color:var(--blue);font-weight:600">${vol}</td>
+    </tr>`;
+  }).join('');
+}
+
+// Auto-refresh irrigation history every 2 minutes when tab is visible
+setInterval(() => {
+  const irrig = document.getElementById('tab-irrigation');
+  if (irrig && irrig.style.display !== 'none') loadIrrigHistory();
+}, 2 * 60 * 1000);
+
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 loadDisabledRelays();
 applyDisabledRelays();
@@ -2381,6 +3241,12 @@ function mockSchedForMode(mode) {
       const savedFast = localStorage.getItem('dryingFast') === '1';
       applyDryToggle(_confirmedStage === 3, savedFast);
     }
+  } catch(_) {}
+
+  // Restore last active page tab
+  try {
+    const tab = localStorage.getItem('pageTab');
+    if (tab === 'irrigation') showPageTab('irrigation');
   } catch(_) {}
 })();
 

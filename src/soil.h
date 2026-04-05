@@ -4,7 +4,7 @@
 // ─── Capacitive soil moisture sensor ─────────────────────────────────────────
 // Reads an analog capacitive probe (e.g. v1.2 / v2.0).
 // Higher ADC count = drier soil.
-// Calibrate SOIL_ADC_DRY and SOIL_ADC_WET in config.h for your specific probe.
+// Calibration is saved in NVS ("soil" namespace) and adjustable from the web UI.
 
 struct SoilData {
     float moisture;   // 0.0 – 100.0 %  (0 = dry, 100 = saturated)
@@ -18,9 +18,20 @@ public:
 
     const SoilData& data() const { return _d; }
 
+    // ── Calibration ───────────────────────────────────────────────────────────
+    int  rawAdc()  const { return _rawAdc; }   // last averaged ADC reading
+    int  adcDry()  const { return _adcDry; }   // calibrated dry endpoint
+    int  adcWet()  const { return _adcWet; }   // calibrated wet endpoint
+    void setCalib(int dry, int wet);            // update + persist to NVS
+
 private:
     SoilData      _d      = {};
     unsigned long _lastMs = 0;
+    int           _rawAdc = 0;
+    int           _adcDry = 2800;
+    int           _adcWet = 800;
+    void loadCalibPrefs();
+    void saveCalibPrefs();
 };
 
 extern SoilSensor soil;

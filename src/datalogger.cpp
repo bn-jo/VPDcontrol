@@ -7,7 +7,7 @@
 
 DataLogger logger;
 
-DataLogger::DataLogger() : _entryCount(0) {}
+DataLogger::DataLogger() : _entryCount(0), _irrigCount(0) {}
 
 void DataLogger::begin() {
     if (!LittleFS.begin(true)) {
@@ -19,7 +19,9 @@ void DataLogger::begin() {
         }
     }
     countEntries();
-    Serial.printf("[LOG] Ready. Existing entries: %d\n", _entryCount);
+    countIrrigEntries();
+    Serial.printf("[LOG] Ready. Env entries: %d  Irrig entries: %d\n",
+                  _entryCount, _irrigCount);
 }
 
 // ─── Append one row ───────────────────────────────────────────────────────────
@@ -119,6 +121,94 @@ void DataLogger::countEntries() {
     f.close();
 }
 
+// ─── Irrigation event log ─────────────────────────────────────────────────────
+void DataLogger::logIrrigation(time_t ts, float before, float after,
+                                uint32_t durSec, uint32_t ml) {
+    if (_irrigCount >= IRRIG_LOG_MAX) trimIrrigation();
+
+    File f = LittleFS.open(IRRIG_LOG_FILE, "a");
+    if (!f) { Serial.println("[LOG] Failed to open irrig log"); return; }
+
+    char row[64];
+    int n = snprintf(row, sizeof(row), "%ld,%.1f,%.1f,%lu,%lu\n",
+                     (long)ts, before, after, (unsigned long)durSec, (unsigned long)ml);
+    f.write((const uint8_t*)row, n);
+    f.close();
+    _irrigCount++;
+    Serial.printf("[LOG] Irrigation event: before=%.0f%% after=%.0f%% dur=%lus vol=%lml\n",
+                  before, after, (unsigned long)durSec, (unsigned long)ml);
+}
+
+int DataLogger::getIrrigationJson(char* buf, size_t bufSize) {
+    if (bufSize < 4) return 0;
+
+    File f = LittleFS.open(IRRIG_LOG_FILE, "r");
+    if (!f) {
+        buf[0] = '['; buf[1] = ']'; buf[2] = '\0';
+        return 2;
+    }
+
+    size_t w = 0;
+    bool first = true;
+    buf[w++] = '[';
+
+    char line[80];
+    int lp = 0;
+
+    auto flush = [&]() {
+        if (lp == 0) return;
+        line[lp] = '\0'; lp = 0;
+        long ts; float bef, aft; unsigned long dur, vol;
+        if (sscanf(line, "%ld,%f,%f,%lu,%lu", &ts, &bef, &aft, &dur, &vol) < 4) return;
+        if (w > bufSize - 80) return;
+        char entry[80];
+        int n = snprintf(entry, sizeof(entry),
+                         "%s{\"t\":%ld,\"b\":%.1f,\"a\":%.1f,\"d\":%lu,\"ml\":%lu}",
+                         first ? "" : ",", ts, bef, aft, dur, vol);
+        if (w + n < bufSize - 4) { memcpy(buf + w, entry, n); w += n; first = false; }
+    };
+
+    while (f.available()) {
+        char c = (char)f.read();
+        if (c == '\n') flush();
+        else if (lp < (int)sizeof(line) - 2) line[lp++] = c;
+    }
+    flush();
+    f.close();
+
+    buf[w++] = ']';
+    buf[w]   = '\0';
+    return (int)w;
+}
+
+void DataLogger::countIrrigEntries() {
+    File f = LittleFS.open(IRRIG_LOG_FILE, "r");
+    if (!f) { _irrigCount = 0; return; }
+    _irrigCount = 0;
+    while (f.available()) { if (f.read() == '\n') _irrigCount++; }
+    f.close();
+}
+
+void DataLogger::trimIrrigation() {
+    int skip = _irrigCount - IRRIG_LOG_TRIM;
+    if (skip <= 0) return;
+    File src = LittleFS.open(IRRIG_LOG_FILE, "r");
+    File dst = LittleFS.open("/irrig_tmp.csv", "w");
+    if (!src || !dst) { if (src) src.close(); if (dst) dst.close(); return; }
+    int skipped = 0;
+    while (src.available()) {
+        char c = (char)src.read();
+        if (skipped < skip) { if (c == '\n') skipped++; }
+        else { dst.write((uint8_t)c); }
+    }
+    src.close(); dst.close();
+    LittleFS.remove(IRRIG_LOG_FILE);
+    LittleFS.rename("/irrig_tmp.csv", IRRIG_LOG_FILE);
+    _irrigCount = IRRIG_LOG_TRIM;
+    Serial.printf("[LOG] Irrig log trimmed to %d\n", _irrigCount);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 void DataLogger::trimOldest() {
     // Keep the newest LOG_TRIM_TARGET entries by copying them to a temp file
     int skip = _entryCount - LOG_TRIM_TARGET;

@@ -15,10 +15,17 @@ public:
     // Returns number of characters written. buf is always null-terminated.
     int  getJsonLast(int hours, char* buf, size_t bufSize);
 
+    // ── Irrigation event log (/irrig.csv) ─────────────────────────────────────
+    void logIrrigation(time_t ts, float before, float after, uint32_t durSec, uint32_t ml);
+    int  getIrrigationJson(char* buf, size_t bufSize);
+
 private:
     int _entryCount;
+    int _irrigCount;
     void countEntries();
     void trimOldest();
+    void countIrrigEntries();
+    void trimIrrigation();
 };
 
 extern DataLogger logger;

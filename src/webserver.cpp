@@ -35,8 +35,11 @@ static void buildStateJson(String& out) {
 
     // Soil moisture
     const SoilData& sd_soil = soil.data();
-    doc["soil"]      = sd_soil.moisture;
-    doc["soilValid"] = sd_soil.valid;
+    doc["soil"]       = sd_soil.moisture;
+    doc["soilValid"]  = sd_soil.valid;
+    doc["soilRawAdc"] = soil.rawAdc();
+    doc["soilAdcDry"] = soil.adcDry();
+    doc["soilAdcWet"] = soil.adcWet();
 
     const SensorData&       sd  = sensors.data();
     const RemoteSensorData& rsd = remoteSensor.data();
@@ -132,6 +135,7 @@ static void buildStateJson(String& out) {
         rel["minOn"]     = r.minOnSec;
         rel["maxOn"]     = r.maxOnSec;
         rel["maxOnRest"] = r.maxOnRestSec;
+        rel["maxOff"]    = r.maxOffSec;
         rel["soilThresh"]= r.soilThreshold;
         rel["waterDur"]  = r.waterDurationSec;
         rel["waterFlow"] = (unsigned int)r.waterFlowML;
@@ -179,6 +183,60 @@ static void buildStateJson(String& out) {
             sl["eh"] = r.schedule.slots[s].endHour;
             sl["em"] = r.schedule.slots[s].endMin;
         }
+    }
+
+    // ── Precision Irrigation state ────────────────────────────────────────────
+    {
+        JsonObject irr = doc["irrigation"].to<JsonObject>();
+        const PlantConfig& pc = relays.getPlantConfig();
+        irr["precisionEnabled"] = pc.precisionEnabled;
+        irr["activeStage"]      = (int)climate.getMode();
+
+        // Active (current stage) profile
+        const RelayState& wr = relays.get(WATERING);
+        JsonObject ap        = irr["activeProfile"].to<JsonObject>();
+        ap["enabled"]        = wr.irrigProfile.enabled;
+        ap["trigger"]        = wr.irrigProfile.soilTriggerPct;
+        ap["target"]         = wr.irrigProfile.soilTargetPct;
+        ap["maxSec"]         = wr.irrigProfile.maxWaterSec;
+        ap["dayRest"]        = wr.irrigProfile.minRestDaySec;
+        ap["nightRest"]      = wr.irrigProfile.minRestNightSec;
+
+        // All 4 stored profiles (user edits these)
+        JsonArray profiles = irr["profiles"].to<JsonArray>();
+        for (int s = 0; s < 4; s++) {
+            const IrrigationProfile& p = relays.getIrrigProfile(s);
+            JsonObject po = profiles.add<JsonObject>();
+            po["stage"]     = s;
+            po["enabled"]   = p.enabled;
+            po["trigger"]   = p.soilTriggerPct;
+            po["target"]    = p.soilTargetPct;
+            po["maxSec"]    = p.maxWaterSec;
+            po["dayRest"]   = p.minRestDaySec;
+            po["nightRest"] = p.minRestNightSec;
+        }
+
+        // Plant config
+        JsonObject plants = irr["plants"].to<JsonObject>();
+        plants["count"]     = pc.count;
+        plants["substrate"] = pc.substrateType;
+        float totalVol = 0.0f;
+        JsonArray pots = plants["pots"].to<JsonArray>();
+        for (int i = 0; i < pc.count && i < MAX_PLANTS; i++) {
+            pots.add(pc.plants[i].potVolumeL);
+            totalVol += pc.plants[i].potVolumeL;
+        }
+        plants["totalVolL"] = totalVol;
+        plants["holdCap"]   = SUBSTRATE_HOLD_CAP[pc.substrateType];
+
+        // Runtime stats
+        JsonObject stats    = irr["stats"].to<JsonObject>();
+        stats["peakSoil"]   = relays.getPeakSoilPct();
+        stats["dryBack"]    = relays.getDryBackPct();
+        stats["lastWaterTs"]  = (long)relays.getLastWaterTs();
+        stats["lastWaterDur"] = relays.getLastWaterDur();
+        stats["lastWaterML"]  = relays.getLastWaterML();
+        stats["todayML"]      = relays.getTodayML();
     }
 
     // Auto-Tune status
@@ -263,6 +321,9 @@ static void onWsEvent(AsyncWebSocket*       server,
             uint32_t maxOn      = doc["maxOn"]     | (uint32_t)0;
             uint32_t maxOnRest  = doc["maxOnRest"] | (uint32_t)0;
             relays.setDuration(idx, minOn, maxOn, maxOnRest);
+        } else if (strcmp(action, "maxOff") == 0) {
+            uint32_t sec = doc["value"] | (uint32_t)0;
+            relays.setMaxOff(idx, sec);
         } else if (strcmp(action, "fanIntake") == 0) {
             bool v = doc["value"] | false;
             relays.setFanIntake(idx, v);
@@ -298,6 +359,43 @@ static void onWsEvent(AsyncWebSocket*       server,
         climate.setDayStart(hour, min);
     } else if (strcmp(msgType, "setDryingFast") == 0) {
         climate.setDryingFast(doc["fast"] | false);
+    } else if (strcmp(msgType, "setIrrigProfile") == 0) {
+        uint8_t stage = (uint8_t)(doc["stage"] | 0);
+        if (stage < 4) {
+            IrrigationProfile p;
+            p.enabled           = doc["enabled"]   | true;
+            p.soilTriggerPct    = (uint8_t)(doc["trigger"]   | 50);
+            p.soilTargetPct     = (uint8_t)(doc["target"]    | 70);
+            p.maxWaterSec       = doc["maxSec"]    | (uint32_t)180;
+            p.minRestDaySec     = doc["dayRest"]   | (uint32_t)1800;
+            p.minRestNightSec   = doc["nightRest"] | (uint32_t)3600;
+            relays.setIrrigProfile(stage, p);
+        }
+    } else if (strcmp(msgType, "resetIrrigDefaults") == 0) {
+        relays.resetIrrigDefaults();
+    } else if (strcmp(msgType, "restart") == 0) {
+        delay(200);
+        ESP.restart();
+    } else if (strcmp(msgType, "soilCalib") == 0) {
+        const char* point = doc["point"] | "";
+        int raw = soil.rawAdc();
+        if (raw < 100) {
+            // No valid reading yet — ignore
+        } else if (strcmp(point, "dry") == 0) {
+            soil.setCalib(raw, soil.adcWet());
+        } else if (strcmp(point, "wet") == 0) {
+            soil.setCalib(soil.adcDry(), raw);
+        }
+    } else if (strcmp(msgType, "setPlantConfig") == 0) {
+        PlantConfig pc;
+        pc.precisionEnabled = doc["enabled"]   | false;
+        pc.count            = (uint8_t)(doc["count"] | 1);
+        pc.substrateType    = (uint8_t)(doc["substrate"] | 1);
+        if (pc.count < 1 || pc.count > MAX_PLANTS) pc.count = 1;
+        for (uint8_t i = 0; i < pc.count && i < MAX_PLANTS; i++) {
+            pc.plants[i].potVolumeL = doc["pots"][i] | (uint16_t)15;
+        }
+        relays.setPlantConfig(pc);
     } else if (strcmp(msgType, "autoTune") == 0) {
         const char* action = doc["action"] | "";
         if (strcmp(action, "start") == 0) {
@@ -504,6 +602,16 @@ void webBegin() {
             }
         }
     );
+
+    // ── Irrigation event history ──────────────────────────────────────────────
+    server.on("/api/irrigation", HTTP_GET, [](AsyncWebServerRequest* req) {
+        if (!checkAuth(req)) return;
+        static char irrigBuf[8192];
+        logger.getIrrigationJson(irrigBuf, sizeof(irrigBuf));
+        AsyncWebServerResponse* resp = req->beginResponse(200, "application/json", irrigBuf);
+        resp->addHeader("Cache-Control", "no-cache");
+        req->send(resp);
+    });
 
     // Serve index.html (embedded gzip) for all non-API paths
     auto serveUI = [](AsyncWebServerRequest* req) {

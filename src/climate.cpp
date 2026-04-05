@@ -284,6 +284,8 @@ void ClimateController::setMode(GrowMode m) {
     // Option A: keep the clock, update phase lengths only
     _sched.onModeChange(m, _profiles);
     _mode = m;
+    // Sync irrigation profile to new stage
+    relays.setIrrigMode((uint8_t)m);
     // Record when this stage started (requires NTP; stored as 0 if not yet synced)
     time_t now = time(nullptr);
     _stageStartEpoch = (now > 1000000000L) ? (int64_t)now : 0;
@@ -309,8 +311,15 @@ uint32_t ClimateController::stageDay() const {
 }
 
 void ClimateController::update(const SensorData& sd) {
-    // Ignore zeroed-out boot state (no reading yet)
-    if (sd.temperature == 0.0f && sd.humidity == 0.0f) return;
+    // Skip if no reading yet (boot state)
+    if (sd.temperature == 0.0f && sd.humidity == 0.0f && sd.vpd == 0.0f) return;
+    // On stale sensor data: allow fans/heat for safety, block humidifier (don't humidify blindly)
+    if (!sd.valid) {
+        relays.setAutoState(HUMIDIFIER, false);
+        _humidifierOn = false;
+        _sched.tick();
+        return;
+    }
 
     _sched.tick();
     computeOutputs(sd);
@@ -318,23 +327,29 @@ void ClimateController::update(const SensorData& sd) {
 
 // ─── Core control logic ───────────────────────────────────────────────────────
 //
-// SYSTEM OVERVIEW:
-//   • Grow light = primary heat source inside the tent
-//   • Top fan    = main exhaust; creates negative pressure (vents to outside)
-//   • Bottom fan = extracts hot air from tent INTO THE ROOM (energy recycling)
-//                  NOT an intake, NOT vented to outside
-//   • Humidifier = adds moisture
-//   • Lights     = driven by photo-period schedule
+// DESIGN PHILOSOPHY (based on commercial grow-room practice):
 //
-// BOTTOM FAN DESIGN INTENT:
-//   When lights are ON and tent is warm, bottom fan pushes that light-heated
-//   air into the room — this is the desired use of grow-light energy.
-//   It does NOT cool the tent by bringing in cold air; it redistributes heat.
+//   Priority order: Temperature safety → VPD → Humidity absolute limits
+//
+//   TOP FAN (exhaust) is the PRIMARY VPD control element:
+//     • Too humid (VPD low)  → fan ON  → removes humid air → VPD rises
+//     • Too dry   (VPD high) → fan OFF → humid air stays in → VPD falls
+//     • Temperature emergency always overrides VPD logic
+//     • Negative-pressure guard (smell control) is handled separately in
+//       RelayManager via maxOffSec — forces a brief exhaust burst every 60 s
+//       regardless of this logic. No need to run the fan constantly.
+//
+//   HUMIDIFIER cooperates WITH the fan, not against it:
+//     • When VPD is high (dry), fan stops AND humidifier runs — both work together
+//     • When VPD is fine, neither runs → no wasteful conflict
+//     • Old "Rule 2" (both fans kill humidifier) is removed — it was backwards
+//
+//   BOTTOM FAN is secondary, responds mainly to temperature.
 //
 void ClimateController::computeOutputs(const SensorData& sd) {
     const bool lightsOn = _sched.isOn();
 
-    // Active target profile depends on light state
+    // Active profile: day targets when lights ON, night targets when lights OFF
     const DayNightRange& p = lightsOn
                            ? _profiles[_mode].day
                            : _profiles[_mode].night;
@@ -343,26 +358,27 @@ void ClimateController::computeOutputs(const SensorData& sd) {
     const float h   = sd.humidity;
     const float vpd = sd.vpd;
 
-    // ── Predictive VPD: project trend VPD_LOOKAHEAD_MIN minutes ahead ─────────
-    // Suppresses small sensor noise via VPD_TREND_MIN floor.
-    // Temperature and humidity flags still use current measured values.
+    // ── Predictive VPD ────────────────────────────────────────────────────────
     float trend = sd.vpdTrend;
     if (fabsf(trend) < VPD_TREND_MIN) trend = 0.0f;
-    const float vpdP = vpd + trend * VPD_LOOKAHEAD_MIN;  // projected VPD
+    const float vpdP = vpd + trend * VPD_LOOKAHEAD_MIN;
 
     // ── Fan direction flags ───────────────────────────────────────────────────
     const bool topIntake    = relays.get(TOP_FAN).fanIntake;
     const bool bottomIntake = relays.get(BOTTOM_FAN).fanIntake;
 
+    // ── Per-relay autoBuffers (configurable in UI, set by auto-tune) ──────────
+    const float humBuf  = relays.get(HUMIDIFIER).autoBuffer;
+    const float fanBuf  = relays.get(TOP_FAN).autoBuffer;
+    const float botBuf  = relays.get(BOTTOM_FAN).autoBuffer;
+    const float dehBuf  = relays.get(DEHUMIDIFIER).autoBuffer;
+    const float heatBuf = relays.get(HEAT_MAT).autoBuffer;
 
-    // ── Per-relay buffers (configurable in UI, persisted in NVS) ─────────────
-    const float humBuf       = relays.get(HUMIDIFIER).autoBuffer;
-    const float fanBuf       = relays.get(TOP_FAN).autoBuffer;
-    const float bottomFanBuf = relays.get(BOTTOM_FAN).autoBuffer;
-    const float dehBuf       = relays.get(DEHUMIDIFIER).autoBuffer;
-    const float heatBuf      = relays.get(HEAT_MAT).autoBuffer;
-
-    // ── VPD thresholds — profile range, or overridden by manual VPD target ───
+    // ── VPD operating range ───────────────────────────────────────────────────
+    // VPD target override replaces profile vpdMin/vpdMax with a single target ± buffer.
+    // Both fan and humidifier use the same range → they coordinate automatically.
+    // Changing the target immediately shifts where the fan turns on/off and where
+    // the humidifier fires — no other code paths need to know about VPD target.
     float vpdMin = p.vpdMin;
     float vpdMax = p.vpdMax;
     if (_vpdTarget.enabled) {
@@ -371,182 +387,167 @@ void ClimateController::computeOutputs(const SensorData& sd) {
     }
 
     // ── Threshold flags ───────────────────────────────────────────────────────
-    const bool tempHigh  = t    > (p.tempMax + TEMP_HYST);
-    const bool tempLow   = t    < (p.tempMin - heatBuf);
-    const bool humHigh   = h    > (p.humMax  + dehBuf);             // too humid → dehumidifier
-    const bool humLow    = h    < (p.humMin  - humBuf);             // too dry   → humidifier
-    // VPD flags use projected value — devices activate before the spike arrives.
-    // When a manual VPD target is set, skip the extra relay buffer so control
-    // tracks the target deadband directly (no double-deadband inflation).
-    const bool vpdHigh   = _vpdTarget.enabled
-                         ? vpdP > vpdMax
-                         : vpdP > (vpdMax + humBuf);                // heading too dry
-    const bool vpdLow    = _vpdTarget.enabled
-                         ? vpdP < vpdMin
-                         : vpdP < (vpdMin - fanBuf);                // heading too humid
-    const bool vpdCrisis = vpdP > (vpdMax + 2.0f * humBuf);         // severe dryness
+    // Temperature
+    const bool tempHigh = t > (p.tempMax + TEMP_HYST);
+    const bool tempLow  = t < (p.tempMin - heatBuf);
 
-    // ── LIGHTS (relay 4) ─────────────────────────────────────────────────────
+    // Humidity — hard profile limits (mold / plant stress)
+    const bool humHigh  = h > (p.humMax + dehBuf);
+    const bool humLow   = h < (p.humMin - humBuf);
+
+    // VPD — two thresholds per direction:
+    //   fanShouldStop / fanShouldRun: raw vpdMax/vpdMin — fan reacts to profile edge
+    //   vpdDry / vpdWet: add relay buffers — humidifier/fan only fire past outer band
+    // "Dry" = VPD too high → air needs MORE moisture (humidifier ON, exhaust OFF)
+    // "Wet" = VPD too low  → air needs LESS moisture (exhaust ON, humidifier OFF)
+    const bool fanShouldStop = vpdP > vpdMax;              // air is dry → stop exhausting
+    const bool fanShouldRun  = vpdP < vpdMin;              // air is humid → exhaust to remove
+    const bool vpdDry        = vpdP > (vpdMax + humBuf);   // outer band → humidifier ON
+    const bool vpdWet        = vpdP < (vpdMin - fanBuf);   // outer band → exhaust fan ON
+
+    // ── LIGHTS ───────────────────────────────────────────────────────────────
     relays.setAutoState(LIGHTS, lightsOn);
 
-    // ── TOP FAN ───────────────────────────────────────────────────────────────
-    // Exhaust: removes humid/hot air → ON when VPD too low (too humid) or temp too high
-    // Intake:  brings fresh air in   → ON when VPD too high (too dry)  or temp too high
+    // ── TOP FAN ──────────────────────────────────────────────────────────────
+    // Priority: temperature > VPD > baseline off
+    //
+    // Exhaust mode (default):
+    //   tempHigh         → always on  (temperature emergency overrides everything)
+    //   tempLow          → always off (stop venting heat out)
+    //   VPD too high     → off unless humidity is dangerously high
+    //                      (stop exhausting so humid air stays; humidifier runs)
+    //   VPD too low / ok → asymmetric hysteresis (harder to stop than start)
+    //
+    // Negative-pressure guard (smell): maxOffSec=60s in RelayManager forces
+    // brief exhaust bursts even when this logic says OFF. Handled automatically.
     {
         bool want;
         if (topIntake) {
-            // Intake top fan: brings fresh air in — ON when too dry or temp too high.
-            const bool humNeed = vpdHigh;
+            // Intake: ON when air needs refreshing (too dry or too hot)
             if (_topFanOn) {
-                const bool stillLow = (vpdP > vpdMax);
-                want = stillLow || tempHigh;
+                want = (vpdP > vpdMax) || tempHigh;
             } else {
-                want = humNeed || tempHigh;
+                want = vpdDry || tempHigh;
             }
         } else {
-            // Exhaust (default): removes humid/hot air
-            if (_topFanOn) {
-                want = (vpd < vpdMin) || tempHigh;   // OFF at inner boundary
+            // Exhaust
+            if (tempHigh) {
+                want = true;                        // temp emergency — always exhaust
+            } else if (tempLow) {
+                want = false;                       // too cold — keep heat in
+            } else if (fanShouldStop && !humHigh) {
+                // Air is already dry (VPD above max) and no mold risk:
+                // stop exhausting so the humidifier can build moisture.
+                // humHigh exception: mold risk overrides VPD (humidity must come down).
+                want = false;
+            } else if (_topFanOn) {
+                // Was ON: keep running until VPD clearly recovers or humidity ok
+                want = fanShouldRun || humHigh;
             } else {
-                want = vpdLow || tempHigh;           // ON only at outer boundary
+                // Was OFF: only restart when clearly too humid (outer band)
+                want = vpdWet || humHigh;
             }
         }
         _topFanOn = want;
         relays.setAutoState(TOP_FAN, want);
     }
 
-    // ── BOTTOM FAN ────────────────────────────────────────────────────────────
-    // Exhaust (default — light-heat extractor → into room):
-    //   LIGHTS ON : ON for VPD crisis, temp high, or assist drying
-    //   LIGHTS OFF: hard stop when cold; otherwise ON for temp/humidity issues
-    //
-    // Intake (inline duct booster → brings room air in):
-    //   Paired with exhaust top fan for balanced air exchange.
-    //   Primary role: thermal regulation (bring in cooler air when tent is hot).
-    //   Hard stop when cold (same reason: don't pull cold air in).
-    //   bottomFanBuf (set by auto-tune) is the temperature hysteresis for this fan.
+    // ── BOTTOM FAN ───────────────────────────────────────────────────────────
+    // Secondary fan — responds primarily to temperature, not VPD.
+    // Exhaust (default): assists when tent is hot or when humidity is dangerously
+    //   high AND top fan is already running (cascade assist).
+    // Intake: brings cooler room air in; hard stop when cold.
     {
         bool want = false;
-        // Per-relay temp threshold uses bottomFanBuf as hysteresis (auto-tune calibrated)
-        const bool tempHighBF = t > (p.tempMax + bottomFanBuf);
+        const bool tempHighBF = t > (p.tempMax + botBuf);
 
         if (bottomIntake) {
-            // Intake mode: thermal regulation
-            const bool humNeedBF = vpdCrisis;
-            if (lightsOn) {
-                want = tempHighBF || humNeedBF;
-            } else {
-                if (tempLow) want = false;   // HARD STOP — don't pull cold air in
-                else         want = tempHighBF;
-                // humidity assist skipped when lights off (avoid chilling the tent)
-            }
+            if (tempLow)  want = false;          // hard stop — don't chill tent
+            else          want = tempHighBF;      // thermal regulation only
         } else {
-            // Exhaust mode (default)
-            if (lightsOn) {
-                if (vpdCrisis)              want = true;
-                else if (tempHighBF)        want = true;
-                else if (humHigh && _topFanOn) want = true;
-            } else {
-                if (tempLow)                want = false;  // HARD STOP
-                else if (tempHighBF)        want = true;
-                else if (humHigh && _topFanOn) want = true;
-            }
+            // Exhaust
+            if (tempLow)                    want = false;   // hard stop
+            else if (tempHighBF)            want = true;    // temp crisis
+            else if (humHigh && _topFanOn)  want = true;    // cascade: assist top fan
+            // Not triggered by VPD alone — VPD is the top fan's responsibility
         }
-
         _bottomFanOn = want;
         relays.setAutoState(BOTTOM_FAN, want);
     }
 
     // ── HUMIDIFIER ───────────────────────────────────────────────────────────
     // Dual trigger: VPD too high (too dry) OR humidity directly below minimum.
+    //
+    // Coordination with top fan: when VPD is too high, the top fan ALSO turns
+    // off (see above). Fan off + humidifier on = maximum moisture retention.
+    // No conflict suppression needed — the fan logic already does the right thing.
+    //
     // Asymmetric hysteresis:
-    //   Turn ON  when (vpdHigh OR humLow)  — outer band
-    //   Turn OFF when vpd <= vpdMax AND h >= humMin  — back in range
-    // Hard cutoff: never run when humidity is already too high.
+    //   Turn ON  when vpdDry OR humLow          (outer band, past relay buffer)
+    //   Turn OFF when vpdP ≤ vpdMax AND h ≥ humMin  (recovered to inner edge)
+    // Hard cutoff: never run when humidity is already above max (mold guard).
     {
         bool want;
         if (_humidifierOn) {
             want = (vpdP > vpdMax || h < p.humMin) && !humHigh;
         } else {
-            want = (vpdHigh || humLow) && !humHigh;
+            want = (vpdDry || humLow) && !humHigh;
         }
-        if (humHigh) want = false;
         _humidifierOn = want;
         relays.setAutoState(HUMIDIFIER, want);
     }
 
-    // ── DEHUMIDIFIER (relay 5) ────────────────────────────────────────────────
-    // Opposite of humidifier: ON when humidity clearly too high.
-    // Asymmetric hysteresis:
-    //   Turn ON  when h > humMax + HUMIDITY_HYST  (outer band)
-    //   Turn OFF when h <= humMax                 (inner band)
-    // Hard interlock: never run at the same time as the humidifier.
+    // ── DEHUMIDIFIER ─────────────────────────────────────────────────────────
+    // ON when humidity clearly too high. Asymmetric hysteresis:
+    //   Turn ON  when h > humMax + dehBuf  (outer band)
+    //   Turn OFF when h ≤ humMax           (inner band)
+    // Hard interlock: never run simultaneously with humidifier.
     {
         bool want;
         if (_dehumidifierOn) {
-            want = (h > p.humMax);                    // OFF at inner boundary
+            want = h > p.humMax;
         } else {
-            want = humHigh;                           // ON only at outer boundary
+            want = humHigh;
         }
-        if (_humidifierOn) want = false;              // Interlock
+        if (_humidifierOn) want = false;
         _dehumidifierOn = want;
         relays.setAutoState(DEHUMIDIFIER, want);
     }
 
-    // ── HEAT MAT (relay 6) ────────────────────────────────────────────────────
-    // Root-zone heating: ON when temp is too low.
-    // Cold+humid assist: also ON when humidity too high AND temp has room to rise.
-    //   Warming air reduces relative humidity passively — same technique as
-    //   running the heater manually for 1-2 min when it is cold and humid.
-    //   maxOnSec (per-relay, configurable in UI) caps the run time automatically.
-    // Asymmetric hysteresis:
-    //   Turn ON  when tempLow OR humColdAssist  (outer band)
-    //   Turn OFF when t >= tempMin AND humidity no longer too high
-    // Hard cutoffs:
-    //   - Never run when temp is already high
-    //   - Never run when lights are ON (lights themselves generate significant heat)
-    //   - Never run within 30 min of lights turning ON (pre-heat lockout)
+    // ── HEAT MAT ─────────────────────────────────────────────────────────────
+    // Root-zone warming: ON when temp too low.
+    // Cold+humid assist: also runs when humidity is very high AND temp has room
+    // to rise — warming air reduces RH passively without running the dehumidifier.
+    // Skip humColdAssist if dehumidifier already running (avoid fighting each other).
+    // Hard interlocks:
+    //   • tempHigh → off (never overheat)
+    //   • lightsOn → off (lights already provide heat)
+    //   • lights turning on within 30 min → off (pre-heat lockout)
     {
         bool want;
-        // humColdAssist: humidity clearly over max, temperature still below tempMax
-        // (meaning warming the air will bring RH down without overheating)
-        const bool humColdAssist = humHigh && t < p.tempMax;
+        const bool humColdAssist = humHigh && t < p.tempMax && !_dehumidifierOn;
         if (_heatMatOn) {
             want = (t < p.tempMin) || humColdAssist;
         } else {
             want = tempLow || humColdAssist;
         }
-        if (tempHigh) want = false;   // Hard cutoff: already too warm
-        // Lights interlock: lights generate heat — block heater when lights are on
-        // or about to turn on within 30 minutes to prevent overheating.
+        if (tempHigh) want = false;
         if (lightsOn) want = false;
         if (!lightsOn && _sched.remainingSec() < 1800U) want = false;
         _heatMatOn = want;
         relays.setAutoState(HEAT_MAT, want);
     }
 
-    // ── WATERING (relay 7) ────────────────────────────────────────────────────
-    // No moisture sensor — AUTO keeps relay OFF; user should use TIMER mode.
+    // ── WATERING / EXTRA ─────────────────────────────────────────────────────
+    // Precision irrigation is handled in RelayManager::update() (soil-driven).
+    // Climate controller keeps these OFF in AUTO mode.
     relays.setAutoState(WATERING, false);
-
-    // ── EXTRA (relay 8) ───────────────────────────────────────────────────────
-    // Spare output — AUTO keeps it OFF; user controls via MANUAL or TIMER.
     relays.setAutoState(EXTRA, false);
 
-    // ── CONFLICT RESOLUTION ───────────────────────────────────────────────────
-    // Rule 1: VPD crisis → suppress humidifier, enable dehumidifier if humidity high
-    if (vpdCrisis && _humidifierOn) {
-        relays.setAutoState(HUMIDIFIER, false);
-        _humidifierOn = false;
-    }
-    // Rule 2: Both fans running for non-thermal reasons + humidifier = wasteful
-    if (_topFanOn && _bottomFanOn && _humidifierOn && !tempHigh && !vpdCrisis) {
-        relays.setAutoState(HUMIDIFIER, false);
-        _humidifierOn = false;
-    }
-    // Rule 3: Hard interlock — humidifier and dehumidifier never both ON
+    // ── FINAL INTERLOCK ───────────────────────────────────────────────────────
+    // Humidifier and dehumidifier must never run simultaneously.
+    // Dehumidifier wins (high humidity = mold risk, more urgent).
     if (_humidifierOn && _dehumidifierOn) {
-        // Dehumidifier wins (humidity high takes priority for plant safety)
         relays.setAutoState(HUMIDIFIER, false);
         _humidifierOn = false;
     }
