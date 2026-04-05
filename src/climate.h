@@ -112,6 +112,7 @@ private:
     bool _bottomFanOn;
     bool _dehumidifierOn;
     bool _heatMatOn;
+    bool _acOn;
 
     void computeOutputs(const SensorData& sd);
 };

@@ -16,11 +16,11 @@ RelayManager relays;
 static const uint8_t    PINS[NUM_RELAYS]  = { RELAY_TOP_FAN_PIN, RELAY_BOTTOM_FAN_PIN,
                                                RELAY_HUMIDIFIER_PIN, RELAY_LIGHTS_PIN,
                                                RELAY_DEHUMIDIFIER_PIN, RELAY_HEAT_MAT_PIN,
-                                               RELAY_WATERING_PIN, RELAY_EXTRA_PIN };
+                                               RELAY_WATERING_PIN, RELAY_AC_PIN };
 static const char* const NAMES[NUM_RELAYS] = { "Top Fan", "Bottom Fan",
                                                 "Humidifier", "Lights",
                                                 "Dehumidifier", "Heat",
-                                                "Watering", "Extra" };
+                                                "Watering", "A/C" };
 
 // Default autoBuffer per relay — matches the control variable for each relay:
 //   VPD relays:      VPD_HYST      (kPa)
@@ -35,7 +35,7 @@ static const float DEFAULT_BUFFER[NUM_RELAYS] = {
     HUMIDITY_HYST,  // DEHUMIDIFIER — humidity high
     TEMP_HYST,      // HEAT_MAT     — temp low
     0.0f,           // WATERING     — timer-driven
-    0.0f,           // EXTRA        — spare
+    TEMP_HYST,      // AC           — temp cooling
 };
 
 // ─── Construction ─────────────────────────────────────────────────────────────

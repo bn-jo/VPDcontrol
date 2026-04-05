@@ -15,7 +15,7 @@
 #define RELAY_DEHUMIDIFIER_PIN 25   // Relay 5: Dehumidifier
 #define RELAY_HEAT_MAT_PIN     33   // Relay 6: Heat mat (root zone heating)
 #define RELAY_WATERING_PIN     32   // Relay 7: Watering / irrigation
-#define RELAY_EXTRA_PIN        13   // Relay 8: Spare / future device
+#define RELAY_AC_PIN           13   // Relay 8: A/C unit (active cooling)
 
 // ─── Intake air sensor (DHT11 — room outside the tent) ───────────────────────
 // Wired to GPIO16 (free general-purpose IO; GPIO15 has pull-down that blocks DHT).

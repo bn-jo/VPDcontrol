@@ -233,7 +233,7 @@ void LightSchedule::load() {
 ClimateController::ClimateController()
     : _mode(GROW_VEG), _dryingFast(false),
       _humidifierOn(false), _topFanOn(false), _bottomFanOn(false),
-      _dehumidifierOn(false), _heatMatOn(false),
+      _dehumidifierOn(false), _heatMatOn(false), _acOn(false),
       _stageStartEpoch(0)
 {
     // ── Seedling ─────────────────────────────────────────────────────────────
@@ -538,11 +538,26 @@ void ClimateController::computeOutputs(const SensorData& sd) {
         relays.setAutoState(HEAT_MAT, want);
     }
 
-    // ── WATERING / EXTRA ─────────────────────────────────────────────────────
+    // ── WATERING ─────────────────────────────────────────────────────────────
     // Precision irrigation is handled in RelayManager::update() (soil-driven).
-    // Climate controller keeps these OFF in AUTO mode.
     relays.setAutoState(WATERING, false);
-    relays.setAutoState(EXTRA, false);
+
+    // ── A/C ───────────────────────────────────────────────────────────────────
+    // Active cooling: ON when temperature clearly exceeds the profile maximum.
+    // Asymmetric hysteresis: turn ON at tempMax+acBuf, turn OFF when temp ≤ tempMax.
+    // Hard interlock: never runs simultaneously with heat mat.
+    {
+        const float acBuf = relays.get(AC).autoBuffer;
+        bool want;
+        if (_acOn) {
+            want = t > p.tempMax;             // stay ON until temp drops to max
+        } else {
+            want = t > (p.tempMax + acBuf);   // turn ON only past outer band
+        }
+        if (_heatMatOn) want = false;
+        _acOn = want;
+        relays.setAutoState(AC, want);
+    }
 
     // ── FINAL INTERLOCK ───────────────────────────────────────────────────────
     // Humidifier and dehumidifier must never run simultaneously.

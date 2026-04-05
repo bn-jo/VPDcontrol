@@ -13,7 +13,7 @@ struct IrrigEvent {
 
 enum RelayMode  : uint8_t { RELAY_AUTO = 0, RELAY_MANUAL, RELAY_TIMER, RELAY_SCHEDULE };
 enum RelayIndex : uint8_t { TOP_FAN = 0, BOTTOM_FAN, HUMIDIFIER, LIGHTS,
-                            DEHUMIDIFIER, HEAT_MAT, WATERING, EXTRA, NUM_RELAYS };
+                            DEHUMIDIFIER, HEAT_MAT, WATERING, AC, NUM_RELAYS };
 
 struct TimerCfg {
     uint32_t onSec  = 3600;   // default 1 h ON

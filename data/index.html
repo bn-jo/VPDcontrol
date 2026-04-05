@@ -821,7 +821,7 @@ body.chart-fs-lock { overflow: hidden; }
       <label class="extra-toggle"><input type="checkbox" id="showRelay_4" checked onchange="setRelayVisible(4,this.checked)"><span>Dehumidifier</span></label>
       <label class="extra-toggle"><input type="checkbox" id="showRelay_5" checked onchange="setRelayVisible(5,this.checked)"><span>Heat</span></label>
       <label class="extra-toggle"><input type="checkbox" id="showRelay_6" checked onchange="setRelayVisible(6,this.checked)"><span>Watering</span></label>
-      <label class="extra-toggle"><input type="checkbox" id="showRelay_7" checked onchange="setRelayVisible(7,this.checked)"><span>Extra</span></label>
+      <label class="extra-toggle"><input type="checkbox" id="showRelay_7" checked onchange="setRelayVisible(7,this.checked)"><span>A/C</span></label>
     </div>
 
     <!-- Auto-Tune progress panel — visible while tuning or after completion -->
@@ -1367,11 +1367,10 @@ function updateRelays(relayArr, lightSched) {
 }
 
 // Relay index 3 = Lights (schedule-driven AUTO body)
-// Relay index 6 = Watering (no sensor — timer only)
-// Relay index 7 = Extra (spare — timer/manual only)
+// Relay index 6 = Watering (soil-driven)
+// Relay index 7 = A/C (temperature-driven AUTO)
 const LIGHTS_ID   = 3;
 const WATERING_ID = 6;
-const EXTRA_RELAY_ID = 7;
 
 function renderRelayCard(card, r, force) {
   if (!force) {
@@ -1522,8 +1521,6 @@ function renderRelayCard(card, r, force) {
         <button class="btn-apply" onclick="applyWaterCfg(${r.id},this)">Apply</button>
       </div>`;
       } // end else (precision off)
-    } else if (r.id === EXTRA_RELAY_ID) {
-      body = `<span class="auto-note">Spare output — use Manual, Timer or Sched</span>`;
     } else {
       const buf        = (r.buffer     ?? 0.05).toFixed(2);
       const minOn      = r.minOn      ?? 30;
@@ -3338,7 +3335,7 @@ function mockSchedForMode(mode) {
   } catch(_) {}
 
   const names = ['Top Fan','Bottom Fan','Humidifier','Lights',
-                 'Dehumidifier','Heat','Watering','Extra'];
+                 'Dehumidifier','Heat','Watering','A/C'];
   const DEFAULT_BUFFERS = [0.05, 0.05, 0.05, 0, 3.0, 0.5, 0, 0];
   const mockRelays = names.map((name, i) => ({
     id: i, name, mode: 0, state: false, manual: false,
