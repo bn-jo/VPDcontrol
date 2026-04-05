@@ -334,9 +334,11 @@ section { margin-bottom: 1.25rem; }
   align-items: center;
   justify-content: space-between;
   margin-bottom: .75rem;
+  flex-wrap: wrap;
+  gap: .4rem;
 }
 .chart-title { font-weight: 600; font-size: .95rem; }
-.range-group { display: flex; gap: .3rem; }
+.range-group { display: flex; gap: .3rem; align-items: center; flex-wrap: wrap; }
 .range-btn {
   background: var(--bg);
   border: 1px solid var(--border);
@@ -349,8 +351,40 @@ section { margin-bottom: 1.25rem; }
 }
 .range-btn:hover { border-color: var(--blue); color: var(--text); }
 .range-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
-.chart-wrap { position: relative; height: 260px; }
+.chart-ctrl-btn {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: .28rem .55rem;
+  border-radius: 5px;
+  font-size: .78rem;
+  cursor: pointer;
+  line-height: 1;
+  transition: all .15s;
+}
+.chart-ctrl-btn:hover { border-color: var(--blue); color: var(--text); }
+.chart-ctrl-btn.warn { border-color: #f59e0b55; color: #f59e0b; }
+.chart-wrap { position: relative; height: 300px; }
+.chart-wrap canvas { cursor: crosshair; }
 canvas { width: 100% !important; height: 100% !important; }
+
+/* ─── Chart fullscreen ────────────────────────────────────────────────────── */
+#histChartCard.chart-card-fs {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  border-radius: 0;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 1.25rem;
+}
+#histChartCard.chart-card-fs .chart-wrap {
+  flex: 1;
+  height: auto !important;
+  min-height: 0;
+}
+body.chart-fs-lock { overflow: hidden; }
 
 /* ─── Status bar ──────────────────────────────────────────────────────────── */
 .status-bar {
@@ -723,13 +757,18 @@ canvas { width: 100% !important; height: 100% !important; }
 
   <!-- ─── History chart ───────────────────────────────────────────────────── -->
   <section>
-    <div class="chart-card">
+    <div class="chart-card" id="histChartCard">
       <div class="chart-header">
         <span class="chart-title">History</span>
         <div class="range-group">
+          <button class="range-btn" onclick="loadChart(1)"   id="rbtn-1">1h</button>
           <button class="range-btn" onclick="loadChart(6)"   id="rbtn-6">6h</button>
           <button class="range-btn active" onclick="loadChart(24)"  id="rbtn-24">24h</button>
           <button class="range-btn" onclick="loadChart(168)" id="rbtn-168">7d</button>
+          <button class="chart-ctrl-btn warn" id="chartResetZoom"
+                  onclick="resetChartZoom()" style="display:none" title="Reset zoom">↺ Reset</button>
+          <button class="chart-ctrl-btn" id="chartFsBtn"
+                  onclick="toggleChartFullscreen()" title="Fullscreen">⤢</button>
         </div>
       </div>
       <div class="chart-wrap">
@@ -1021,9 +1060,11 @@ canvas { width: 100% !important; height: 100% !important; }
 
 </main>
 
-<!-- Chart.js + date adapter (requires internet) -->
+<!-- Chart.js + date adapter + zoom plugin (requires internet) -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
 
 <script>
 'use strict';
@@ -2160,18 +2201,20 @@ function onDayStartToggle(id) {
 }
 
 // ─── Chart ────────────────────────────────────────────────────────────────────
-const RANGE_BTNS = { 6: 'rbtn-6', 24: 'rbtn-24', 168: 'rbtn-168' };
+const RANGE_BTNS = { 1: 'rbtn-1', 6: 'rbtn-6', 24: 'rbtn-24', 168: 'rbtn-168' };
 let _chartLoading = false;
+let _chartZoomed  = false;
 
 function chartTimeOpts(hours) {
-  if (hours <= 6)   return { unit: 'minute', stepSize: 30,  tooltipFormat: 'HH:mm',       displayFormats: { minute: 'HH:mm' },       maxTicksLimit: 7  };
-  if (hours <= 48)  return { unit: 'hour',   stepSize: 2,   tooltipFormat: 'MMM d HH:mm', displayFormats: { hour:   'HH:mm' },       maxTicksLimit: 8  };
-  return              { unit: 'day',    stepSize: 1,   tooltipFormat: 'MMM d HH:mm', displayFormats: { day:    'MMM d' },        maxTicksLimit: 7  };
+  if (hours <= 1)   return { unit: 'minute', stepSize: 10,  tooltipFormat: 'HH:mm',       displayFormats: { minute: 'HH:mm' },  maxTicksLimit: 7 };
+  if (hours <= 6)   return { unit: 'minute', stepSize: 30,  tooltipFormat: 'HH:mm',       displayFormats: { minute: 'HH:mm' },  maxTicksLimit: 7 };
+  if (hours <= 48)  return { unit: 'hour',   stepSize: 2,   tooltipFormat: 'MMM d HH:mm', displayFormats: { hour:   'HH:mm' },  maxTicksLimit: 8 };
+  return              { unit: 'day',    stepSize: 1,   tooltipFormat: 'MMM d HH:mm', displayFormats: { day:    'MMM d' }, maxTicksLimit: 7 };
 }
 
 function setChartLoading(on) {
   _chartLoading = on;
-  const wrap = document.querySelector('.chart-wrap');
+  const wrap = document.getElementById('histChartCard')?.querySelector('.chart-wrap');
   if (wrap) wrap.style.opacity = on ? '0.45' : '1';
 }
 
@@ -2188,6 +2231,63 @@ function loadChart(hours) {
     .catch(e  => { setChartLoading(false); console.warn('[Chart] Load failed:', e); });
 }
 
+function resetChartZoom() {
+  if (chart) chart.resetZoom();
+  _chartZoomed = false;
+  const btn = document.getElementById('chartResetZoom');
+  if (btn) btn.style.display = 'none';
+}
+
+function _onChartZoom() {
+  _chartZoomed = true;
+  const btn = document.getElementById('chartResetZoom');
+  if (btn) btn.style.display = 'inline';
+}
+
+let _chartFsActive = false;
+function toggleChartFullscreen() {
+  const card = document.getElementById('histChartCard');
+  const btn  = document.getElementById('chartFsBtn');
+  if (!card) return;
+  _chartFsActive = !_chartFsActive;
+  card.classList.toggle('chart-card-fs', _chartFsActive);
+  document.body.classList.toggle('chart-fs-lock', _chartFsActive);
+  btn.textContent = _chartFsActive ? '✕' : '⤢';
+  btn.title = _chartFsActive ? 'Exit fullscreen' : 'Fullscreen';
+  // Resize after CSS transition (50ms is enough)
+  setTimeout(() => { if (chart) chart.resize(); }, 60);
+  if (_chartFsActive) {
+    document.addEventListener('keydown', _chartEscHandler);
+  } else {
+    document.removeEventListener('keydown', _chartEscHandler);
+  }
+}
+function _chartEscHandler(e) {
+  if (e.key === 'Escape' && _chartFsActive) toggleChartFullscreen();
+}
+
+// ── Crosshair: vertical line drawn at the active tooltip position ─────────────
+const _crosshairPlugin = {
+  id: 'crosshair',
+  afterDraw(ch) {
+    const active = ch.tooltip._active;
+    if (!active || !active.length) return;
+    const ctx  = ch.ctx;
+    const x    = active[0].element.x;
+    const yTop = ch.chartArea.top;
+    const yBot = ch.chartArea.bottom;
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(x, yTop);
+    ctx.lineTo(x, yBot);
+    ctx.lineWidth   = 1;
+    ctx.strokeStyle = 'rgba(148,163,184,0.25)';
+    ctx.setLineDash([4, 4]);
+    ctx.stroke();
+    ctx.restore();
+  }
+};
+
 function renderChart(data) {
   const rows   = Array.isArray(data) ? data : [];
   const labels = rows.map(d => new Date(d.t * 1000));
@@ -2199,13 +2299,12 @@ function renderChart(data) {
 
   const tOpts = chartTimeOpts(chartHours);
 
-  // ── Update existing chart in-place (no flicker) ───────────────────────────
+  // ── Update existing chart in-place (no flicker, preserves zoom) ──────────
   if (chart) {
-    chart.data.labels         = labels;
+    chart.data.labels           = labels;
     chart.data.datasets[0].data = T;
     chart.data.datasets[1].data = H;
     chart.data.datasets[2].data = V;
-    // Add or remove soil dataset
     if (hasSoil && chart.data.datasets.length < 4) {
       chart.data.datasets.push(_soilDataset(S));
     } else if (hasSoil) {
@@ -2213,30 +2312,38 @@ function renderChart(data) {
     } else if (chart.data.datasets.length >= 4) {
       chart.data.datasets.splice(3, 1);
     }
-    // Update time axis
     Object.assign(chart.options.scales.x.time, {
       unit: tOpts.unit, stepSize: tOpts.stepSize,
       tooltipFormat: tOpts.tooltipFormat, displayFormats: tOpts.displayFormats
     });
     chart.options.scales.x.ticks.maxTicksLimit = tOpts.maxTicksLimit;
-    chart.update('none');   // instant — no animation
+    // Reset zoom when range changes so new data fills the window
+    if (_chartZoomed) { chart.resetZoom(); _chartZoomed = false;
+      const rb = document.getElementById('chartResetZoom'); if (rb) rb.style.display = 'none'; }
+    chart.update('none');
     return;
   }
 
   // ── First-time chart creation ─────────────────────────────────────────────
   function _soilDataset(s) {
-    return { label: 'Soil (%)', data: s, borderColor: '#f59e0b',
-             backgroundColor: '#f59e0b10', yAxisID: 'yH', tension: 0.3,
-             pointRadius: 0, borderWidth: 1.5, borderDash: [5, 3], spanGaps: false };
+    return {
+      label: 'Soil %', data: s, borderColor: '#f59e0b',
+      backgroundColor: '#f59e0b12', yAxisID: 'yH', tension: 0.3,
+      pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: '#f59e0b',
+      borderWidth: 1.5, borderDash: [5, 3], spanGaps: false
+    };
   }
 
   const datasets = [
-    { label: 'Temp (°C)',    data: T, borderColor: '#f87171', backgroundColor: '#f8717118',
-      yAxisID: 'yT', tension: 0.35, pointRadius: 0, borderWidth: 2, fill: true },
-    { label: 'Humidity (%)', data: H, borderColor: '#60a5fa', backgroundColor: '#60a5fa12',
-      yAxisID: 'yH', tension: 0.35, pointRadius: 0, borderWidth: 2, fill: false },
-    { label: 'VPD (kPa)',    data: V, borderColor: '#4ade80', backgroundColor: '#4ade8018',
-      yAxisID: 'yV', tension: 0.35, pointRadius: 0, borderWidth: 2, fill: true },
+    { label: 'Temp °C',  data: T, borderColor: '#f87171', backgroundColor: '#f8717115',
+      yAxisID: 'yT', tension: 0.35, pointRadius: 0, pointHoverRadius: 4,
+      pointHoverBackgroundColor: '#f87171', borderWidth: 2, fill: true },
+    { label: 'Hum %',   data: H, borderColor: '#60a5fa', backgroundColor: '#60a5fa10',
+      yAxisID: 'yH', tension: 0.35, pointRadius: 0, pointHoverRadius: 4,
+      pointHoverBackgroundColor: '#60a5fa', borderWidth: 2, fill: false },
+    { label: 'VPD kPa', data: V, borderColor: '#4ade80', backgroundColor: '#4ade8015',
+      yAxisID: 'yV', tension: 0.35, pointRadius: 0, pointHoverRadius: 4,
+      pointHoverBackgroundColor: '#4ade80', borderWidth: 2, fill: true },
   ];
   if (hasSoil) datasets.push(_soilDataset(S));
 
@@ -2244,6 +2351,7 @@ function renderChart(data) {
   chart = new Chart(ctx, {
     type: 'line',
     data: { labels, datasets },
+    plugins: [_crosshairPlugin],
     options: {
       responsive: true,
       maintainAspectRatio: false,
@@ -2251,18 +2359,47 @@ function renderChart(data) {
       interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: {
-          labels: { color: '#9ca3af', boxWidth: 12, boxHeight: 2, padding: 16, font: { size: 11 } }
+          labels: { color: '#9ca3af', boxWidth: 14, boxHeight: 2, padding: 16,
+                    font: { size: 11 }, usePointStyle: false },
+          onClick(e, legendItem, legend) {
+            // default toggle + reset zoom so hidden series don't confuse the view
+            Chart.defaults.plugins.legend.onClick.call(this, e, legendItem, legend);
+          }
         },
         tooltip: {
           backgroundColor: '#0f172a', borderColor: '#334155', borderWidth: 1,
-          titleColor: '#f1f5f9', bodyColor: '#94a3b8', padding: 10,
+          titleColor: '#e2e8f0', bodyColor: '#94a3b8',
+          padding: { x: 12, y: 10 },
           callbacks: {
-            label: ctx => {
-              const v = ctx.parsed.y;
+            title: items => {
+              if (!items.length) return '';
+              const d = new Date(items[0].parsed.x);
+              const hh = String(d.getHours()).padStart(2,'0');
+              const mm = String(d.getMinutes()).padStart(2,'0');
+              const day = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];
+              return `${day} ${hh}:${mm}`;
+            },
+            label: item => {
+              const v = item.parsed.y;
               if (v == null) return null;
-              const units = ['°C','%','kPa','%'];
-              return ` ${ctx.dataset.label.split(' ')[0]}: ${v.toFixed(2)} ${units[ctx.datasetIndex] || ''}`;
+              const suffixes = { 'Temp °C': '°C', 'Hum %': '%', 'VPD kPa': ' kPa', 'Soil %': '%' };
+              const suf = suffixes[item.dataset.label] || '';
+              const val = suf === ' kPa' ? v.toFixed(3) : v.toFixed(1);
+              return `  ${item.dataset.label.padEnd(8)} ${val}${suf}`;
             }
+          }
+        },
+        zoom: {
+          zoom: {
+            wheel: { enabled: true, speed: 0.08 },
+            pinch: { enabled: true },
+            mode: 'x',
+            onZoomComplete: _onChartZoom
+          },
+          pan: {
+            enabled: true,
+            mode: 'x',
+            onPanComplete: _onChartZoom
           }
         }
       },
@@ -2271,13 +2408,14 @@ function renderChart(data) {
           type: 'time',
           time: { unit: tOpts.unit, stepSize: tOpts.stepSize,
                   tooltipFormat: tOpts.tooltipFormat, displayFormats: tOpts.displayFormats },
-          ticks: { color: '#4b5563', maxRotation: 0, maxTicksLimit: tOpts.maxTicksLimit, font: { size: 10 } },
-          grid: { color: '#1e293b' }
+          ticks: { color: '#6b7280', maxRotation: 0, maxTicksLimit: tOpts.maxTicksLimit,
+                   font: { size: 10 } },
+          grid: { color: '#1f2937' }
         },
         yT: {
           position: 'left',
           ticks: { color: '#f87171', font: { size: 10 }, callback: v => v + '°' },
-          grid: { color: '#1e293b' },
+          grid: { color: '#1f2937' },
           title: { display: true, text: 'Temp °C', color: '#f87171', font: { size: 10 } }
         },
         yH: {
@@ -2285,13 +2423,14 @@ function renderChart(data) {
           min: 0, max: 100,
           ticks: { color: '#60a5fa', font: { size: 10 }, callback: v => v + '%' },
           grid: { display: false },
-          title: { display: true, text: 'Hum %', color: '#60a5fa', font: { size: 10 } }
+          title: { display: true, text: 'Hum / Soil %', color: '#60a5fa', font: { size: 10 } }
         },
         yV: {
           position: 'right',
           min: 0,
           offset: true,
-          ticks: { color: '#4ade80', font: { size: 10 }, callback: v => v.toFixed(1) },
+          ticks: { color: '#4ade80', font: { size: 10 },
+                   callback: v => v.toFixed(1) },
           grid: { display: false },
           title: { display: true, text: 'VPD kPa', color: '#4ade80', font: { size: 10 } }
         }
