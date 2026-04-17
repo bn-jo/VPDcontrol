@@ -1,6 +1,9 @@
 #include <Arduino.h>
 #include <WiFi.h>
+#include <ArduinoOTA.h>
+#include <HTTPClient.h>
 #include <esp_sntp.h>       // NTP
+#include <esp_system.h>     // esp_reset_reason()
 #include <time.h>
 
 #include "config.h"
@@ -11,8 +14,15 @@
 #include "datalogger.h"
 #include "webserver.h"
 #include "autotune.h"
-#include "remotesensor.h"
+#include "wifisensors.h"
 #include "intakesensor.h"
+#include "syslog.h"
+
+// ─── Remote log push — shared between controlTask (writer) and loop() (sender)
+// Single-slot queue: controlTask fills _pendingIrrig and sets the flag;
+// loop() reads it, clears the flag, then fires the HTTP POST on Core 1.
+static volatile bool _irrigPushPending = false;
+static IrrigEvent    _pendingIrrig;
 
 // ─── FreeRTOS task: sensor reading + climate control ─────────────────────────
 // Runs on Core 0 to leave Core 1 free for WiFi + web server
@@ -40,8 +50,17 @@ static void controlTask(void* pvParam) {
         relays.setLightsOn(climate.isLightsOn());
 
         // ── Climate control ───────────────────────────────────────────────────
+        // Blend remote WiFi sensor averages with local DHT22 for climate decisions.
+        // wifiSensors.getAverage() only includes sensors with sensorActive=true.
         if (now - lastControlMs >= CONTROL_INTERVAL_MS) {
-            climate.update(sensors.data());
+            SensorData blended = sensors.data();
+            float remT, remH;
+            if (wifiSensors.getAverage(remT, remH) && blended.valid) {
+                blended.temperature = (blended.temperature + remT) / 2.0f;
+                blended.humidity    = (blended.humidity    + remH) / 2.0f;
+                blended.vpd         = SensorManager::calcVPD(blended.temperature, blended.humidity);
+            }
+            climate.update(blended);
             lastControlMs = now;
         }
 
@@ -53,7 +72,10 @@ static void controlTask(void* pvParam) {
         IrrigEvent iev;
         if (relays.popIrrigEvent(iev)) {
             logger.logIrrigation(iev.ts, iev.soilBefore, iev.soilAfter,
-                                 iev.durationSec, iev.volumeML);
+                                 iev.durationSec, iev.volumeML, iev.src);
+            // Queue for remote push (consumed by loop() on Core 1)
+            _pendingIrrig     = iev;
+            _irrigPushPending = true;
         }
 
         // ── Data logging ──────────────────────────────────────────────────────
@@ -137,6 +159,27 @@ void setup() {
     delay(500);
     Serial.println("\n=== VPD Control System ===");
 
+    // ── Remote log + crash diagnostics ───────────────────────────────────────
+    syslogBegin();   // load previous crash info from NVS
+
+    {
+        esp_reset_reason_t rr = esp_reset_reason();
+        const char* rrStr = "UNKNOWN";
+        switch (rr) {
+            case ESP_RST_POWERON:   rrStr = "POWER-ON";          break;
+            case ESP_RST_SW:        rrStr = "SOFTWARE-RESTART";  break;
+            case ESP_RST_PANIC:     rrStr = "PANIC-CRASH";       break;
+            case ESP_RST_INT_WDT:   rrStr = "INT-WATCHDOG";      break;
+            case ESP_RST_TASK_WDT:  rrStr = "TASK-WATCHDOG";     break;
+            case ESP_RST_WDT:       rrStr = "WDT-OTHER";         break;
+            case ESP_RST_BROWNOUT:  rrStr = "BROWNOUT";          break;
+            default: break;
+        }
+        rlog("[BOOT] Reset reason: %s", rrStr);
+        // Stamp this boot's reason into NVS so it survives the NEXT reboot
+        syslogSaveCrashInfo(rrStr);
+    }
+
     // Hardware init
     sensors.begin();
     intakeSensor.begin();
@@ -146,24 +189,35 @@ void setup() {
     relays.setIrrigMode((uint8_t)climate.getMode());  // sync initial stage profile
     logger.begin();
     autoTuner.begin();
+    wifiSensors.begin();  // load NVS now — WiFi not required for NVS read
 
     // WiFi
     if (wifiConnect()) {
+        rlog("[WIFI] Connected — IP: %s", WiFi.localIP().toString().c_str());
         // NTP time sync (non-blocking after initial handshake)
         configTime(NTP_GMT_OFFSET_SEC, NTP_DST_OFFSET_SEC, NTP_SERVER);
-        Serial.println("[NTP] Sync requested");
+        rlog("[NTP] Sync requested");
 
         // Start web server only when WiFi is up
         webBegin();
+
+        // OTA firmware update
+        ArduinoOTA.setHostname("vpd-control");
+        ArduinoOTA.setPassword("REDACTED");
+        ArduinoOTA.onStart([]()  { rlog("[OTA] Start"); });
+        ArduinoOTA.onEnd([]()    { rlog("[OTA] Done — rebooting"); });
+        ArduinoOTA.onError([](ota_error_t e) { rlog("[OTA] Error %u", e); });
+        ArduinoOTA.begin();
+        rlog("[OTA] Ready on port 3232");
     } else {
-        Serial.println("[WARN] Running without WiFi — web UI unavailable");
+        rlog("[WARN] Running without WiFi — web UI unavailable");
     }
 
     // Start control task on Core 0
     xTaskCreatePinnedToCore(
         controlTask,
         "ControlTask",
-        8192,       // Stack size (bytes)
+        16384,      // Stack size (bytes) — was 8192; enlarged after NVS calls were moved to update()
         nullptr,
         3,          // Priority (higher = more urgent)
         nullptr,
@@ -176,11 +230,12 @@ void setup() {
 // ─── Main loop (Core 1) ───────────────────────────────────────────────────────
 // Handles WebSocket broadcast + keeps async server running
 void loop() {
-    static unsigned long lastWsPushMs  = 0;
-    static unsigned long lastWifiRetry = 0;
-    static unsigned long lastHeapLogMs = 0;
-    static unsigned long lastRoamMs    = 0;
+    static unsigned long lastWsPushMs   = 0;
+    static unsigned long lastWifiRetry  = 0;
+    static unsigned long lastHeapLogMs  = 0;
+    static unsigned long lastRoamMs     = 0;
     static bool          roamScanActive = false;
+    static bool          dailyRestartDone = false;  // one restart per 02:00 window
 
     // ── WiFi reconnect guard ──────────────────────────────────────────────────
     // setAutoReconnect handles brief dropouts; this catches longer outages where
@@ -189,7 +244,7 @@ void loop() {
         roamScanActive = false;   // cancel any pending roam scan
         unsigned long now = millis();
         if (now - lastWifiRetry >= 30000UL) {
-            Serial.println("[WIFI] Lost — scanning for best AP...");
+            rlog("[WIFI] Lost — reconnecting...");
             WiFi.disconnect(false, false);
             uint8_t bssid[6] = {};
             int ch = scanBestBSSID(bssid);
@@ -207,7 +262,7 @@ void loop() {
         if (!roamScanActive && now - lastRoamMs >= WIFI_ROAM_INTERVAL_MS) {
             lastRoamMs = now;
             if (WiFi.RSSI() < WIFI_ROAM_RSSI_MIN) {
-                Serial.printf("[WIFI] Weak signal (%d dBm) — scanning for better AP\n", WiFi.RSSI());
+                rlog("[WIFI] Weak signal (%d dBm) — scanning for better AP", WiFi.RSSI());
                 WiFi.scanNetworks(/*async*/true);
                 roamScanActive = true;
             }
@@ -228,22 +283,89 @@ void loop() {
                     memcpy(bssid, WiFi.BSSID(bestIdx), 6);
                     int ch = WiFi.channel(bestIdx);
                     WiFi.scanDelete();
-                    Serial.printf("[WIFI] Roaming to better AP: %d dBm  ch=%d\n", bestRssi, ch);
+                    rlog("[WIFI] Roaming to better AP: %d dBm  ch=%d", bestRssi, ch);
                     WiFi.disconnect(false, false);
                     WiFi.begin(WIFI_SSID, WIFI_PASSWORD, ch, bssid);
                 } else {
                     WiFi.scanDelete();
-                    Serial.printf("[WIFI] No better AP found (best=%d dBm)\n", bestRssi);
                 }
             }
         }
     }
 
-    remoteSensor.update();   // Non-blocking; self-throttles to REMOTE_SENSOR_INTERVAL_MS
+    ArduinoOTA.handle();
+
+    wifiSensors.update();    // Non-blocking; polls each due sensor with exponential backoff
 
     if (millis() - lastWsPushMs >= WS_PUSH_INTERVAL_MS) {
         webBroadcast();
         lastWsPushMs = millis();
+    }
+
+    // ── Daily safe restart at 02:00 AM ───────────────────────────────────────
+    // Restarts just after the known crash window (01:30 AM) so the system
+    // recovers automatically even if the underlying bug fires.
+    // Only fires when NTP is synced. Restores within ~5 s.
+    {
+        time_t nowT = time(nullptr);
+        if (nowT > 1000000000L) {
+            struct tm lt;
+            localtime_r(&nowT, &lt);
+            bool in2AmWindow = (lt.tm_hour == 1 && lt.tm_min == 20);
+            if (in2AmWindow && !dailyRestartDone) {
+                dailyRestartDone = true;
+                rlog("[MAIN] Daily safe restart at 01:20");
+                syslogSaveCrashInfo("SOFTWARE-RESTART");
+                delay(200);
+                ESP.restart();
+            }
+            if (!in2AmWindow) dailyRestartDone = false;  // reset flag outside window
+        }
+    }
+
+    // ── Remote data push ──────────────────────────────────────────────────────
+    // Mirror every sensor log point and irrigation event to the remote server.
+    // Runs on Core 1 alongside WiFi — HTTPClient is not safe on Core 0.
+    {
+        static unsigned long lastRemoteLogMs = 0;
+        if (millis() - lastRemoteLogMs >= LOG_INTERVAL_MS && sensors.data().valid) {
+            lastRemoteLogMs = millis();
+            const SensorData& sd = sensors.data();
+            char body[100];
+            float soilPct = soil.data().valid ? soil.data().moisture : -1.0f;
+            int n;
+            if (soilPct >= 0.0f)
+                n = snprintf(body, sizeof(body),
+                    "{\"t\":%ld,\"T\":%.1f,\"H\":%.1f,\"V\":%.3f,\"S\":%.1f}",
+                    (long)sd.timestamp, sd.temperature, sd.humidity, sd.vpd, soilPct);
+            else
+                n = snprintf(body, sizeof(body),
+                    "{\"t\":%ld,\"T\":%.1f,\"H\":%.1f,\"V\":%.3f}",
+                    (long)sd.timestamp, sd.temperature, sd.humidity, sd.vpd);
+            (void)n;
+            HTTPClient http;
+            http.begin(REMOTE_LOG_URL "/vpd/log");
+            http.setTimeout(REMOTE_LOG_TIMEOUT);
+            http.addHeader("Content-Type", "application/json");
+            http.POST(body);
+            http.end();
+        }
+
+        if (_irrigPushPending) {
+            _irrigPushPending = false;
+            IrrigEvent ie = _pendingIrrig;
+            char body[128];
+            snprintf(body, sizeof(body),
+                "{\"t\":%ld,\"b\":%.1f,\"a\":%.1f,\"d\":%lu,\"ml\":%lu,\"src\":%u}",
+                (long)ie.ts, ie.soilBefore, ie.soilAfter,
+                (unsigned long)ie.durationSec, (unsigned long)ie.volumeML, (unsigned)ie.src);
+            HTTPClient http;
+            http.begin(REMOTE_LOG_URL "/vpd/irrig");
+            http.setTimeout(REMOTE_LOG_TIMEOUT);
+            http.addHeader("Content-Type", "application/json");
+            http.POST(body);
+            http.end();
+        }
     }
 
     // ── Heap watchdog ─────────────────────────────────────────────────────────
@@ -251,10 +373,10 @@ void loop() {
     // silent hangs caused by heap exhaustion after many hours of operation.
     if (millis() - lastHeapLogMs >= 300000UL) {
         uint32_t freeHeap = ESP.getFreeHeap();
-        Serial.printf("[HEAP] Free: %u bytes  (min ever: %u)\n",
-                      freeHeap, ESP.getMinFreeHeap());
+        rlog("[HEAP] Free: %u bytes  (min ever: %u)", freeHeap, ESP.getMinFreeHeap());
         if (freeHeap < 10000) {
-            Serial.println("[HEAP] Critical — restarting");
+            rlog("[HEAP] Critical — restarting");
+            syslogSaveCrashInfo("HEAP-CRITICAL");
             delay(200);
             ESP.restart();
         }

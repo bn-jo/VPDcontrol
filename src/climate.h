@@ -20,7 +20,7 @@ struct GrowProfile {
     uint8_t       lightOffHours;  // 0  = no off period
 };
 
-enum GrowMode : uint8_t { GROW_SEEDLING = 0, GROW_VEG, GROW_FLOWER, GROW_DRYING, NUM_GROW_MODES };
+enum GrowMode : uint8_t { GROW_SEEDLING = 0, GROW_VEG, GROW_FLOWER, GROW_LATE_FLOWER, GROW_DRYING, NUM_GROW_MODES };
 
 // ─── Manual VPD target (overrides grow-profile vpdMin/vpdMax when enabled) ───
 struct VpdTargetCfg {
@@ -92,6 +92,15 @@ public:
     void                  setVpdTarget(bool enabled, float kpa, float buffer);
     const VpdTargetCfg&   vpdTarget()      const { return _vpdTarget; }
 
+    // A/C temp overrides — 0 = use active profile value
+    void                  setAcTemps(float low, float high);
+    float                 acTempLow()      const { return _acTempLow; }
+    float                 acTempHigh()     const { return _acTempHigh; }
+
+    // Post-A/C stabilisation delay — humidifier and heat mat are suppressed for
+    // this many seconds after the A/C turns off, letting the environment settle.
+    void                  setAcHumDelay(uint32_t sec);
+    uint32_t              acHumDelaySec()  const { return _acHumDelaySec; }
     // Days elapsed since current stage was set (0 if NTP not yet synced)
     uint32_t              stageDay()        const;
 
@@ -104,6 +113,10 @@ private:
     GrowProfile   _profiles[NUM_GROW_MODES];
     LightSchedule _sched;
     VpdTargetCfg    _vpdTarget;
+    float           _acTempLow    = 0.0f;   // 0 = follow profile tempMin
+    float           _acTempHigh   = 0.0f;   // 0 = follow profile tempMax
+    uint32_t        _acHumDelaySec = 600;   // seconds humidifier/heat-mat stay suppressed after A/C turns off
+    unsigned long   _acLastOffMs   = 0;     // millis() when A/C last turned off (0 = never)
     int64_t         _stageStartEpoch;   // Unix epoch when current stage was last set
 
     // Hysteresis state (persist between control ticks)
@@ -113,6 +126,11 @@ private:
     bool _dehumidifierOn;
     bool _heatMatOn;
     bool _acOn;
+
+    // Ceramic heater pulse state (night auto mode)
+    bool          _heatPulseOn      = false;  // currently in ON phase
+    unsigned long _heatPulseStartMs = 0;      // millis() when ON phase started
+    unsigned long _heatPulseOffMs   = 0;      // millis() when OFF phase started (0 = never fired yet)
 
     void computeOutputs(const SensorData& sd);
 };

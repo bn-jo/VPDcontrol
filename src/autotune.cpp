@@ -1,5 +1,6 @@
 #include "autotune.h"
 #include "config.h"
+#include "syslog.h"
 #include <Arduino.h>
 
 AutoTuner autoTuner;
@@ -70,7 +71,7 @@ void AutoTuner::tick() {
         _status.stepTotal = NUM_TEST_RELAYS;
         _status.relayId   = -1;
         _status.relayName = "";
-        Serial.println("[AT] Reset — all relay buffers restored to defaults");
+        rlog("[AT] Reset — all relay buffers restored to defaults");
         return;
     }
 
@@ -86,6 +87,7 @@ void AutoTuner::tick() {
                 }
             }
             if (_activeCount == 0) return;  // nothing selected — ignore
+            rlog("[AT] Starting — %d relays selected", (int)_activeCount);
 
             _step               = 0;
             _status.resultCount = 0;
@@ -163,9 +165,13 @@ float AutoTuner::minBuf(uint8_t rid) const {
 }
 
 bool AutoTuner::safetyOk() const {
-    if (_curT > 38.0f || _curT < 8.0f)  return false;
-    if (_curH > 93.0f || _curH < 15.0f) return false;
-    if (_curV > 2.5f)                    return false;
+    // During the ON phase we intentionally drive the measured variable beyond its
+    // normal operating range.  Use emergency-level limits here — wide enough to
+    // let the test complete, tight enough to stop genuinely dangerous excursions.
+    // (Normal climate-control limits live in climate.cpp, not here.)
+    if (_curT > 42.0f || _curT < 5.0f)  return false;   // vs 38 / 8 in normal control
+    if (_curH > 97.0f || _curH < 10.0f) return false;   // vs 93 / 15
+    if (_curV > 3.5f)                    return false;   // vs 2.5
     return true;
 }
 
@@ -187,9 +193,10 @@ void AutoTuner::enterBaseline() {
     _status.phaseTotMs = AT_BASELINE_MS;
     _status.phaseRemMs = AT_BASELINE_MS;
 
-    Serial.printf("[AT] %d/%d  %s — BASELINE (%.0f s)\n",
-                  _step + 1, (int)NUM_TEST_RELAYS,
-                  relays.get(idx).name, AT_BASELINE_MS / 1000.0f);
+    rlog("[AT] %d/%d  %s — BASELINE (%.0f s)  T=%.1f H=%.0f VPD=%.2f",
+         _step + 1, (int)_activeCount,
+         relays.get(idx).name, AT_BASELINE_MS / 1000.0f,
+         _curT, _curH, _curV);
 }
 
 void AutoTuner::enterOn() {
@@ -205,9 +212,10 @@ void AutoTuner::enterOn() {
     _status.phaseTotMs = AT_ON_MS;
     _status.phaseRemMs = AT_ON_MS;
 
-    Serial.printf("[AT] %d/%d  %s — ON (%.0f s)\n",
-                  _step + 1, (int)NUM_TEST_RELAYS,
-                  relays.get(idx).name, AT_ON_MS / 1000.0f);
+    rlog("[AT] %d/%d  %s — ON (%.0f s)  T=%.1f H=%.0f VPD=%.2f",
+         _step + 1, (int)_activeCount,
+         relays.get(idx).name, AT_ON_MS / 1000.0f,
+         _curT, _curH, _curV);
 }
 
 void AutoTuner::enterCooldown() {
@@ -221,9 +229,9 @@ void AutoTuner::enterCooldown() {
     _status.phaseTotMs = AT_COOLDOWN_MS;
     _status.phaseRemMs = AT_COOLDOWN_MS;
 
-    Serial.printf("[AT] %d/%d  %s — COOLDOWN (%.0f s)\n",
-                  _step + 1, (int)NUM_TEST_RELAYS,
-                  relays.get(idx).name, AT_COOLDOWN_MS / 1000.0f);
+    rlog("[AT] %d/%d  %s — COOLDOWN (%.0f s)",
+         _step + 1, (int)_activeCount,
+         relays.get(idx).name, AT_COOLDOWN_MS / 1000.0f);
 }
 
 // ─── Step completion & advance ────────────────────────────────────────────────
@@ -249,9 +257,9 @@ void AutoTuner::finishStep() {
         r.valid      = true;
     }
 
-    Serial.printf("[AT] %s  base=%.3f  on=%.3f  Δ=%.3f  buf→%.3f\n",
-                  relays.get((RelayIndex)rid).name,
-                  _baseVal, onVal, delta, buf);
+    rlog("[AT] %s  base=%.3f on=%.3f delta=%.3f buf->%.3f",
+         relays.get((RelayIndex)rid).name,
+         _baseVal, onVal, delta, buf);
 }
 
 void AutoTuner::advance() {
@@ -265,7 +273,7 @@ void AutoTuner::advance() {
         _status.phaseRemMs = 0;
         _status.relayId    = -1;
         _status.relayName  = "";
-        Serial.println("[AT] Complete — all buffers updated");
+        rlog("[AT] Complete — all buffers updated");
     } else {
         enterBaseline();
     }
@@ -279,7 +287,9 @@ void AutoTuner::doAbort(bool safety) {
     _status.relayId     = -1;
     _status.relayName   = "";
     _status.abortSafety = safety;
-    Serial.printf("[AT] Aborted%s\n", safety ? " — safety limit" : " — user cancel");
+    rlog("[AT] Aborted %s  T=%.1f H=%.0f%% VPD=%.2f kPa  step=%d/%d",
+         safety ? "(safety limit)" : "(user cancel)",
+         _curT, _curH, _curV, _step + 1, (int)_activeCount);
 }
 
 // ─── Restore saved relay modes ────────────────────────────────────────────────

@@ -15,7 +15,8 @@
 #define RELAY_DEHUMIDIFIER_PIN 25   // Relay 5: Dehumidifier
 #define RELAY_HEAT_MAT_PIN     33   // Relay 6: Heat mat (root zone heating)
 #define RELAY_WATERING_PIN     32   // Relay 7: Watering / irrigation
-#define RELAY_AC_PIN           13   // Relay 8: A/C unit (active cooling)
+#define RELAY_EXTRA_PIN        13   // Relay 8: Spare / extra device
+
 
 // ─── Intake air sensor (DHT11 — room outside the tent) ───────────────────────
 // Wired to GPIO16 (free general-purpose IO; GPIO15 has pull-down that blocks DHT).
@@ -38,11 +39,14 @@
 #define WIFI_ROAM_RSSI_MIN        -72     // dBm — only scan if signal is weaker than this
 #define WIFI_ROAM_MIN_GAIN_DB       8     // only switch if new AP is ≥8 dBm stronger
 
-// ─── Remote sensor node ───────────────────────────────────────────────────────
-// Second ESP32 sensor at this address. If unreachable, main sensor is used alone.
-#define REMOTE_SENSOR_URL          "http://192.168.1.204"
-#define REMOTE_SENSOR_INTERVAL_MS  30000UL  // fetch every 30 s
-#define REMOTE_SENSOR_TIMEOUT_MS   2000     // 2 s HTTP timeout
+// ─── WiFi sensor nodes ────────────────────────────────────────────────────────
+// Managed at runtime via the Sensors tab in the web UI (stored in NVS).
+// Constants are defined in wifisensors.h — nothing needed here.
+
+// Built-in sensor: always registered, always active, cannot be removed via UI.
+// Change the URL path if your sensor serves JSON on a different endpoint.
+#define BUILTIN_SENSOR_NAME  "Sensor 2"
+#define BUILTIN_SENSOR_URL   "http://192.168.1.204/data"
 
 // Static IP — ESP32 will always appear at this address on your network.
 // If you ever get a conflict, change STATIC_IP to another unused address.
@@ -66,10 +70,22 @@
 #define MIN_RELAY_OFF_MS            30000UL   // Minimum relay OFF time
 #define LIGHTS_MANUAL_TIMEOUT_SEC    1200UL   // Auto-revert lights to AUTO after 20 min
 
+// ─── Ceramic heater pulse (night auto mode) ───────────────────────────────────
+// When lights are OFF and temp is low or humidity is high, the heater runs in
+// short pulses instead of sustained ON to prevent overshoot.
+// Tune these if the tent reacts too fast or too slow.
+#define HEAT_PULSE_ON_MS    45000UL   //  45 s  ON  per pulse
+#define HEAT_PULSE_REST_MS 420000UL   //   7 min OFF between pulses
+
 // ─── Hysteresis ──────────────────────────────────────────────────────────────
 #define TEMP_HYST       0.5f    // °C deadband around setpoints
 #define HUMIDITY_HYST   3.0f    // %RH deadband
 #define VPD_HYST        0.05f   // kPa deadband
+
+
+// ─── Flowering sub-stages ─────────────────────────────────────────────────────
+// Days 1-FLOWER_EARLY_DAYS = Early Flower; Day FLOWER_EARLY_DAYS+1 = auto-switch to Late Flower
+#define FLOWER_EARLY_DAYS  21
 
 // ─── Predictive VPD control ───────────────────────────────────────────────────
 // dVPD/dt is computed over a 60 s window (6 × SENSOR_INTERVAL_MS).
@@ -101,15 +117,17 @@
 #define IRRIG_LOG_MAX    200          // irrigation events kept in flash
 #define IRRIG_LOG_TRIM   100          // trim target when full
 
-#define MAX_PLANTS  4
+#define MAX_PLANTS  16
 
 struct IrrigationProfile {
     bool     enabled;           // false = no auto-watering (e.g. Drying stage)
     uint8_t  soilTriggerPct;    // start cycle when soil drops below this %
-    uint8_t  soilTargetPct;     // stop cycle when soil reaches this % (run-to-target)
-    uint32_t maxWaterSec;       // safety cutoff regardless of soil reading
-    uint32_t minRestDaySec;     // minimum rest between cycles (lights ON)
-    uint32_t minRestNightSec;   // minimum rest between cycles (lights OFF)
+    uint8_t  soilTargetPct;     // stop when soil reaches this % — checked only after each soak pause
+    uint32_t maxWaterSec;       // safety cutoff: total valve-on time across all pulses
+    uint32_t minRestDaySec;     // minimum rest between full sessions (lights ON)
+    uint32_t minRestNightSec;   // minimum rest between full sessions (lights OFF)
+    uint32_t pulseOnSec;        // valve-open time per pulse (0 = continuous legacy mode)
+    uint32_t pauseSec;          // soak pause between pulses (soil sensor checked at end of soak)
 };
 
 struct PlantEntry  { uint16_t potVolumeL; };   // 1 US gal ≈ 3.785 L
@@ -127,35 +145,42 @@ static const float SUBSTRATE_HOLD_CAP[3] = { 0.40f, 0.30f, 0.20f };
 // Substrate-aware defaults — IRRIG_DEFAULTS[substrate][stage]
 //   substrate: 0=Soil  1=Coco/Perlite  2=Perlite
 //   stage:     0=Seedling  1=Veg  2=Flower  3=Drying
-// Night rest = 86400 s (24 h) → effectively no irrigation after lights-off,
-// matching commercial protocol where dry-back happens overnight.
-//   { enabled, triggerPct, targetPct, maxSec, dayRestSec, nightRestSec }
+// Night rest = 86400 s (24 h) → effectively no irrigation after lights-off.
+// Pulse/soak: valve opens for pulseOnSec, closes for pauseSec, repeats until
+//   soil hits target (checked only at end of each soak) or maxWaterSec on-time is used.
+//   { enabled, triggerPct, targetPct, maxSec, dayRestSec, nightRestSec, pulseOnSec, pauseSec }
 static const IrrigationProfile IRRIG_DEFAULTS[3][4] = {
   // ── Soil ──────────────────────────────────────────────────────────────────
-  // Field capacity ~40% VWC → sensor ~45%.  Dry-back to ~28-35% before next cycle.
+  // Soil soaks slowly — 40 s pulses / 60 s soak gives water time to distribute.
   {
-    { true,  35, 48,  60,  5400, 86400 },  // Seedling — gentle, ~2-3 shots/day
-    { true,  30, 45, 120,  3600, 86400 },  // Veg      — moderate dry-back
-    { true,  28, 42, 180,  3600, 86400 },  // Flower   — deeper dry-back (generative)
-    { false,  0,  0,   0,     0,     0 },  // Drying   — off
+    { true,  35, 48,  60,  5400, 86400, 40, 60 },  // Seedling — gentle, ~2-3 shots/day
+    { true,  30, 45, 120,  3600, 86400, 40, 60 },  // Veg      — moderate dry-back
+    { true,  28, 42, 180,  3600, 86400, 40, 60 },  // Flower   — deeper dry-back (generative)
+    { false,  0,  0,   0,     0,     0,  0,  0 },  // Drying   — off
   },
   // ── Coco / Perlite mix ────────────────────────────────────────────────────
-  // Field capacity ~65% VWC → sensor ~63%.  Dry-back to ~45-50% (veg) / ~42-48% (flower).
+  // Coco absorbs quickly — 20 s pulses / 45 s soak.
   {
-    { true,  48, 62,  60,  3600, 86400 },  // Seedling — small shots, 1/h max
-    { true,  50, 65, 120,  1800, 86400 },  // Veg      — frequent shots (6-8/day)
-    { true,  44, 62, 180,  1800, 86400 },  // Flower   — deeper dry-back for resin
-    { false,  0,  0,   0,     0,     0 },  // Drying   — off
+    { true,  48, 62,  60,  3600, 86400, 20, 45 },  // Seedling — small shots, 1/h max
+    { true,  50, 65, 120,  1800, 86400, 20, 45 },  // Veg      — frequent shots (6-8/day)
+    { true,  44, 62, 180,  1800, 86400, 20, 45 },  // Flower   — deeper dry-back for resin
+    { false,  0,  0,   0,     0,     0,  0,  0 },  // Drying   — off
   },
   // ── Pure Perlite ──────────────────────────────────────────────────────────
-  // Drains very fast; higher trigger/target, shortest rests.
+  // Drains very fast — 15 s pulses / 30 s soak.
   {
-    { true,  55, 70,  60,  2700, 86400 },  // Seedling
-    { true,  52, 68,  90,  1800, 86400 },  // Veg
-    { true,  48, 65, 120,  1800, 86400 },  // Flower
-    { false,  0,  0,   0,     0,     0 },  // Drying   — off
+    { true,  55, 70,  60,  2700, 86400, 15, 30 },  // Seedling
+    { true,  52, 68,  90,  1800, 86400, 15, 30 },  // Veg
+    { true,  48, 65, 120,  1800, 86400, 15, 30 },  // Flower
+    { false,  0,  0,   0,     0,     0,  0,  0 },  // Drying   — off
   },
 };
+
+// ─── Remote data collector ────────────────────────────────────────────────────
+// Server that stores unlimited sensor history. Push happens every LOG_INTERVAL_MS.
+// Set to "" to disable remote logging.
+#define REMOTE_LOG_URL      "http://178.104.6.12"
+#define REMOTE_LOG_TIMEOUT  2000   // ms — HTTP timeout for push (fire-and-forget)
 
 // ─── NTP ─────────────────────────────────────────────────────────────────────
 #define NTP_SERVER          "pool.ntp.org"

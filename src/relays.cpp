@@ -16,11 +16,11 @@ RelayManager relays;
 static const uint8_t    PINS[NUM_RELAYS]  = { RELAY_TOP_FAN_PIN, RELAY_BOTTOM_FAN_PIN,
                                                RELAY_HUMIDIFIER_PIN, RELAY_LIGHTS_PIN,
                                                RELAY_DEHUMIDIFIER_PIN, RELAY_HEAT_MAT_PIN,
-                                               RELAY_WATERING_PIN, RELAY_AC_PIN };
+                                               RELAY_WATERING_PIN, RELAY_EXTRA_PIN };
 static const char* const NAMES[NUM_RELAYS] = { "Top Fan", "Bottom Fan",
                                                 "Humidifier", "Lights",
-                                                "Dehumidifier", "Heat",
-                                                "Watering", "A/C" };
+                                                "A/C", "Heat",
+                                                "Watering", "Dehumidifier" };
 
 // Default autoBuffer per relay — matches the control variable for each relay:
 //   VPD relays:      VPD_HYST      (kPa)
@@ -32,10 +32,10 @@ static const float DEFAULT_BUFFER[NUM_RELAYS] = {
     VPD_HYST,       // BOTTOM_FAN   — VPD crisis
     VPD_HYST,       // HUMIDIFIER   — VPD high
     0.0f,           // LIGHTS       — schedule-driven
-    HUMIDITY_HYST,  // DEHUMIDIFIER — humidity high
+    0.0f,           // AC_RELAY     — A/C power relay (temp-driven or IR-driven)
     TEMP_HYST,      // HEAT_MAT     — temp low
     0.0f,           // WATERING     — timer-driven
-    TEMP_HYST,      // AC           — temp cooling
+    HUMIDITY_HYST,  // DEHUMIDIFIER — humidity high (was EXTRA)
 };
 
 // ─── Construction ─────────────────────────────────────────────────────────────
@@ -62,8 +62,8 @@ RelayManager::RelayManager() {
         _r[i].timerPhaseStart  = 0;
         _r[i].timerInOnPhase   = false;
         _r[i].autoBuffer       = DEFAULT_BUFFER[i];
-        _r[i].minOnSec         = MIN_RELAY_ON_MS  / 1000;
-        _r[i].minOffSec        = (i == WATERING) ? 1800 : MIN_RELAY_OFF_MS / 1000;
+        _r[i].minOnSec         = (i == DEHUMIDIFIER) ? 180 : MIN_RELAY_ON_MS  / 1000;
+        _r[i].minOffSec        = (i == WATERING) ? 1800 : (i == DEHUMIDIFIER) ? 300 : MIN_RELAY_OFF_MS / 1000;
         _r[i].maxOnSec         = 0;
         _r[i].maxOnRestSec     = 0;
         _r[i].lastMaxOnMs      = 0;
@@ -77,15 +77,22 @@ RelayManager::RelayManager() {
         _r[i].fanIntake        = false;
         // Precision irrigation fields
         if (i == WATERING) {
-            _r[i].irrigProfile    = IRRIG_DEFAULTS[1][1];  // Veg/coco default until mode is set
-            _r[i].soilAtStart     = 0.0f;
-            _r[i].peakSoilPct     = 0.0f;
-            _r[i].dryBackPct      = 0.0f;
-            _r[i].lastWaterTs     = 0;
-            _r[i].lastWaterDurSec = 0;
-            _r[i].lastWaterML     = 0;
-            _r[i].todayML         = 0;
-            _r[i].todayDOY        = -1;
+            _r[i].irrigProfile     = IRRIG_DEFAULTS[1][1];  // Veg/coco default until mode is set
+            _r[i].soilAtStart      = 0.0f;
+            _r[i].soilAtStartPrev  = 0.0f;
+            _r[i].peakSoilPct      = 0.0f;
+            _r[i].dryBackPct       = 0.0f;
+            _r[i].lastWaterTs      = 0;
+            _r[i].lastWaterDurSec  = 0;
+            _r[i].lastWaterML      = 0;
+            _r[i].todayML          = 0;
+            _r[i].todayDOY         = -1;
+            _r[i].adaptiveDurSec   = 0;
+            _r[i].fixedDurMode     = false;
+            _r[i].fixedDurSec      = 60;
+            _r[i].pulsePhase       = RelayState::PULSE_IDLE;
+            _r[i].pulsePhaseStart  = 0;
+            _r[i].totalPulseOnMs   = 0;
         }
     }
 }
@@ -103,6 +110,7 @@ void RelayManager::begin() {
 }
 
 void RelayManager::setAutoState(RelayIndex idx, bool on) {
+    if (!_r[idx].installed) { _r[idx].autoOn = false; return; }
     _r[idx].autoOn = on;
     // Actual physical change happens in update()
 }
@@ -154,46 +162,110 @@ void RelayManager::setTimer(RelayIndex idx, uint32_t onSec, uint32_t offSec) {
 
 // ─── Main update (call every loop) ───────────────────────────────────────────
 void RelayManager::update() {
+    // ── Deferred NVS save (avoids deep call stack from applyPhysical) ─────────
+    if (_irrigPrefsDirty) {
+        saveIrrigPrefs();
+        _irrigPrefsDirty = false;
+    }
+
+    // ── Midnight rollover for daily water total (all modes) ───────────────────
+    {
+        int doy = _currentDOY();
+        if (doy >= 0) {
+            if (_r[WATERING].todayDOY < 0) {
+                // First NTP sync — record today without resetting accumulated ml
+                _r[WATERING].todayDOY = doy;
+            } else if (doy != _r[WATERING].todayDOY) {
+                // Actual midnight rollover — reset daily total
+                _r[WATERING].todayML  = 0;
+                _r[WATERING].todayDOY = doy;
+            }
+        }
+    }
+
     for (int i = 0; i < NUM_RELAYS; i++) {
         RelayIndex idx = (RelayIndex)i;
         switch (_r[i].mode) {
             case RELAY_AUTO:
                 if (idx == WATERING) {
-                    // ── Day-of-year rollover → reset daily total ──────────────
-                    int doy = _currentDOY();
-                    if (doy >= 0 && doy != _r[i].todayDOY) {
-                        _r[i].todayML  = 0;
-                        _r[i].todayDOY = doy;
-                    }
-
                     const IrrigationProfile& ip = _r[i].irrigProfile;
-                    bool usePrecision = _plantCfg.precisionEnabled && ip.enabled && _soilValid;
+                    bool usePrecision = _plantCfg.precisionEnabled && ip.enabled && _soilValid && !_probeMode;
 
                     if (usePrecision) {
-                        // ── Precision mode: run-to-target with day/night rest ───
-                        if (_r[i].physicalOn) {
-                            bool targetReached = (_soilPct >= (float)ip.soilTargetPct);
-                            bool timedOut = ((millis() - _r[i].lastOnMs) >=
-                                             (unsigned long)ip.maxWaterSec * 1000UL);
-                            if (targetReached || timedOut) {
-                                // Cycle complete — record event
-                                uint32_t durSec = (uint32_t)((millis() - _r[i].lastOnMs) / 1000UL);
+                        // ── Precision mode: pulse-soak cycling ───────────────────────────
+                        // Valve opens for ip.pulseOnSec, then closes for ip.pauseSec (soak).
+                        // Soil target is checked only at the end of each soak — not during
+                        // the pulse itself, where the sensor reads falsely high as water
+                        // flows past it before the medium has absorbed it.
+                        // Total valve-on time (sum of all pulses) is capped by maxWaterSec.
+
+                        if (_r[i].pulsePhase == RelayState::PULSE_ON) {
+                            // ── Currently pulsing — wait for pulse duration ───────────────
+                            unsigned long pulseSoFarMs = millis() - _r[i].pulsePhaseStart;
+                            unsigned long ceilMs = (unsigned long)(_r[i].fixedDurMode
+                                ? _r[i].fixedDurSec : ip.maxWaterSec) * 1000UL;
+                            if (_r[i].adaptiveDurSec > 0 && !_r[i].fixedDurMode) {
+                                unsigned long adaptMs = (unsigned long)_r[i].adaptiveDurSec * 1000UL;
+                                if (adaptMs < ceilMs) ceilMs = adaptMs;
+                            }
+                            bool pulseTimedOut = (pulseSoFarMs >= (unsigned long)ip.pulseOnSec * 1000UL);
+                            bool maxReached    = (_r[i].totalPulseOnMs + pulseSoFarMs >= ceilMs);
+
+                            if (pulseTimedOut || maxReached) {
+                                // End this pulse — enter soak
+                                _r[i].totalPulseOnMs += pulseSoFarMs;
+                                _r[i].pulsePhase      = RelayState::PULSE_SOAK;
+                                _r[i].pulsePhaseStart = millis();
+                                applyPhysical(idx, false);
+                            }
+
+                        } else if (_r[i].pulsePhase == RelayState::PULSE_SOAK) {
+                            // ── Soak phase — wait, then check sensor ──────────────────────
+                            // During soak track soil peak (water distributes and rises)
+                            if (_soilPct > _r[i].peakSoilPct)
+                                _r[i].peakSoilPct = _soilPct;
+
+                            unsigned long soakMs = millis() - _r[i].pulsePhaseStart;
+                            if (soakMs < (unsigned long)ip.pauseSec * 1000UL) break; // still soaking
+
+                            // Soak complete — evaluate
+                            unsigned long ceilMs = (unsigned long)(_r[i].fixedDurMode
+                                ? _r[i].fixedDurSec : ip.maxWaterSec) * 1000UL;
+                            if (_r[i].adaptiveDurSec > 0 && !_r[i].fixedDurMode) {
+                                unsigned long adaptMs = (unsigned long)_r[i].adaptiveDurSec * 1000UL;
+                                if (adaptMs < ceilMs) ceilMs = adaptMs;
+                            }
+                            bool targetReached = !_r[i].fixedDurMode
+                                                 && (_soilPct >= (float)ip.soilTargetPct);
+                            bool maxReached    = (_r[i].totalPulseOnMs >= ceilMs);
+
+                            if (targetReached || maxReached) {
+                                // ── Session complete — record event ───────────────────────
+                                uint32_t durSec = (uint32_t)(_r[i].totalPulseOnMs / 1000UL);
                                 uint32_t mlDel  = (_r[i].waterFlowML > 0)
                                     ? (uint32_t)((float)_r[i].waterFlowML * durSec / 60.0f) : 0;
-                                _r[i].peakSoilPct     = _soilPct;
                                 _r[i].dryBackPct      = 0.0f;
                                 _r[i].lastWaterDurSec = durSec;
                                 _r[i].lastWaterML     = mlDel;
-                                _r[i].lastWaterTs     = time(nullptr);
+                                { time_t _t = time(nullptr); if (_t > 1000000000L) _r[i].lastWaterTs = _t; }
                                 _r[i].todayML        += mlDel;
-                                // Stage event for main loop to log
                                 _lastIrrigEvent = { _r[i].lastWaterTs, _r[i].soilAtStart,
-                                                    _soilPct, durSec, mlDel };
+                                                    _soilPct, durSec, mlDel, 0 }; // src=0 auto/precision
                                 _irrigEventReady = true;
-                                applyPhysical(idx, false);
+                                _irrigPrefsDirty = true;
+                                _r[i].pulsePhase     = RelayState::PULSE_IDLE;
+                                _r[i].totalPulseOnMs = 0;
+                                // relay is already OFF from the last PULSE_ON→PULSE_SOAK transition
+                            } else {
+                                // Soil still below target — another pulse
+                                _r[i].pulsePhase      = RelayState::PULSE_ON;
+                                _r[i].pulsePhaseStart = millis();
+                                applyPhysical(idx, true);
                             }
+
                         } else {
-                            // Update dry-back
+                            // ── PULSE_IDLE: not in a session ─────────────────────────────
+                            // Update dry-back tracking
                             if (_r[i].peakSoilPct > 0.0f) {
                                 float db = _r[i].peakSoilPct - _soilPct;
                                 _r[i].dryBackPct = db > 0.0f ? db : 0.0f;
@@ -203,11 +275,35 @@ void RelayManager::update() {
                             bool rested = (_r[i].lastOffMs == 0 ||
                                 (millis() - _r[i].lastOffMs) >= (unsigned long)rest * 1000UL);
                             if (rested && _soilPct < (float)ip.soilTriggerPct) {
-                                _r[i].soilAtStart = _soilPct;
+                                // ── Adaptive duration: recalculate before starting session ─
+                                if (!_r[i].fixedDurMode &&
+                                    _r[i].lastWaterDurSec > 0 &&
+                                    _r[i].peakSoilPct > _r[i].soilAtStartPrev + 0.5f)
+                                {
+                                    float actualRise  = _r[i].peakSoilPct - _r[i].soilAtStartPrev;
+                                    float desiredRise = (float)ip.soilTargetPct - _soilPct;
+                                    if (desiredRise > 0.5f) {
+                                        uint32_t est = (uint32_t)((float)_r[i].lastWaterDurSec
+                                                                  * (desiredRise / actualRise));
+                                        est = max(3U, min(ip.maxWaterSec, est));
+                                        if (_r[i].adaptiveDurSec > 0) {
+                                            est = (uint32_t)(est * 0.7f
+                                                            + _r[i].adaptiveDurSec * 0.3f);
+                                            est = max(3U, min(ip.maxWaterSec, est));
+                                        }
+                                        _r[i].adaptiveDurSec = est;
+                                    }
+                                }
+                                _r[i].soilAtStartPrev = _r[i].soilAtStart;
+                                _r[i].soilAtStart     = _soilPct;
+                                _r[i].peakSoilPct     = _soilPct;  // reset peak for this session
+                                _r[i].totalPulseOnMs  = 0;
+                                _r[i].pulsePhase      = RelayState::PULSE_ON;
+                                _r[i].pulsePhaseStart = millis();
                                 applyPhysical(idx, true);
                             }
                         }
-                    } else if (_r[i].soilThreshold > 0 && _soilValid) {
+                    } else if (_r[i].soilThreshold > 0 && _soilValid && !_probeMode) {
                         // ── Legacy threshold mode ─────────────────────────────
                         if (_r[i].physicalOn) {
                             if ((millis() - _r[i].lastOnMs) >=
@@ -268,13 +364,39 @@ void RelayManager::update() {
 
 // ─── Private helpers ──────────────────────────────────────────────────────────
 void RelayManager::applyPhysical(RelayIndex idx, bool on) {
+    if (!_r[idx].installed) { on = false; }   // never energise a missing relay
     bool pinLevel = RELAY_ACTIVE_LOW ? !on : on;
     digitalWrite(_r[idx].pin, pinLevel);
 
     if (on && !_r[idx].physicalOn) {
         _r[idx].lastOnMs = millis();
+        // Record soil at session start for non-precision modes (PULSE_IDLE means
+        // the pulse-soak machine is not active — manual, timer, sched, or legacy).
+        if (idx == WATERING && _r[idx].pulsePhase == RelayState::PULSE_IDLE) {
+            _r[idx].soilAtStart = _soilValid ? _soilPct : -1.0f;
+        }
     } else if (!on && _r[idx].physicalOn) {
         _r[idx].lastOffMs = millis();
+        // Non-precision watering session complete: log event + update daily stats.
+        // PULSE_IDLE = not a mid-session pulse→soak boundary (which uses PULSE_SOAK).
+        if (idx == WATERING && _r[idx].pulsePhase == RelayState::PULSE_IDLE) {
+            unsigned long durMs = _r[idx].lastOffMs - _r[idx].lastOnMs;
+            uint32_t durSec = (uint32_t)(durMs / 1000UL);
+            if (durSec > 0) {
+                uint32_t ml = (_r[idx].waterFlowML > 0)
+                    ? (uint32_t)((float)_r[idx].waterFlowML * durSec / 60.0f) : 0;
+                _r[idx].todayML          += ml;
+                _r[idx].lastWaterDurSec   = durSec;
+                _r[idx].lastWaterML       = ml;
+                { time_t _t = time(nullptr); if (_t > 1000000000L) _r[idx].lastWaterTs = _t; }
+                _lastIrrigEvent = { _r[idx].lastWaterTs,
+                                    _r[idx].soilAtStart,
+                                    _soilValid ? _soilPct : -1.0f,
+                                    durSec, ml, (uint8_t)_r[idx].mode };
+                _irrigEventReady = true;
+                _irrigPrefsDirty = true;
+            }
+        }
     }
     _r[idx].physicalOn = on;
 }
@@ -387,6 +509,33 @@ void RelayManager::setFanIntake(RelayIndex idx, bool intake) {
     savePrefs();
 }
 
+void RelayManager::setInstalled(RelayIndex idx, bool installed) {
+    _r[idx].installed = installed;
+    if (!installed) {
+        // Turn off immediately — don't leave the relay energised
+        applyPhysical(idx, false);
+        _r[idx].autoOn     = false;
+        _r[idx].physicalOn = false;
+    }
+    savePrefs();
+}
+
+void RelayManager::setProbePlacement(bool m) {
+    _probeMode = m;
+    // If enabling probe mode while a session is in progress, abort it cleanly
+    if (m && _r[WATERING].pulsePhase != RelayState::PULSE_IDLE) {
+        applyPhysical(WATERING, false);
+        _r[WATERING].pulsePhase     = RelayState::PULSE_IDLE;
+        _r[WATERING].totalPulseOnMs = 0;
+    }
+}
+
+void RelayManager::setWaterDurMode(bool fixed, uint32_t fixedSec) {
+    _r[WATERING].fixedDurMode = fixed;
+    _r[WATERING].fixedDurSec  = (fixedSec > 0) ? fixedSec : 60;
+    saveIrrigPrefs();
+}
+
 void RelayManager::resetAllBuffers() {
     for (int i = 0; i < NUM_RELAYS; i++) {
         _r[i].autoBuffer = DEFAULT_BUFFER[i];
@@ -404,9 +553,15 @@ void RelayManager::setLightsOn(bool on) {
 }
 
 void RelayManager::setIrrigMode(uint8_t stage) {
-    if (stage >= 4) return;
-    _currentMode = stage;
-    _r[WATERING].irrigProfile = _irrigProfiles[stage];
+    // Map GrowMode enum → irrigation slot (4 buckets: 0=Seedling,1=Veg,2=Flower,3=Drying)
+    // GROW_LATE_FLOWER (3) shares the Flower irrigation profile.
+    // GROW_DRYING is now enum value 4 → slot 3.
+    uint8_t irrigStage = (stage == 3) ? 2   // Late Flower → Flower irrigation
+                       : (stage == 4) ? 3   // Drying → Drying irrigation
+                       : stage;             // 0,1,2 direct
+    if (irrigStage >= 4) return;
+    _currentMode = irrigStage;
+    _r[WATERING].irrigProfile = _irrigProfiles[irrigStage];
 }
 
 void RelayManager::setIrrigProfile(uint8_t stage, const IrrigationProfile& p) {
@@ -466,7 +621,20 @@ void RelayManager::saveIrrigPrefs() {
         snprintf(k, sizeof(k), "s%d_mx",  s); p.putUInt  (k, ip.maxWaterSec);
         snprintf(k, sizeof(k), "s%d_dr",  s); p.putUInt  (k, ip.minRestDaySec);
         snprintf(k, sizeof(k), "s%d_nr",  s); p.putUInt  (k, ip.minRestNightSec);
+        snprintf(k, sizeof(k), "s%d_po",  s); p.putUInt  (k, ip.pulseOnSec);
+        snprintf(k, sizeof(k), "s%d_ps",  s); p.putUInt  (k, ip.pauseSec);
     }
+    // ── Watering runtime stats (persist across reboots) ──────────────────────
+    p.putUInt  ("lastTs",   (uint32_t)_r[WATERING].lastWaterTs);
+    p.putUInt  ("lastDur",  _r[WATERING].lastWaterDurSec);
+    p.putUInt  ("lastML",   _r[WATERING].lastWaterML);
+    p.putUInt  ("todayML",  _r[WATERING].todayML);
+    p.putInt   ("todayDOY", _r[WATERING].todayDOY);
+    p.putFloat ("peak",     _r[WATERING].peakSoilPct);
+    p.putFloat ("dryBack",  _r[WATERING].dryBackPct);
+    p.putUInt  ("adapDur",  _r[WATERING].adaptiveDurSec);
+    p.putBool  ("fixMode",  _r[WATERING].fixedDurMode);
+    p.putUInt  ("fixDur",   _r[WATERING].fixedDurSec);
     p.end();
 }
 
@@ -498,8 +666,21 @@ void RelayManager::loadIrrigPrefs() {
             snprintf(k, sizeof(k), "s%d_mx", s); _irrigProfiles[s].maxWaterSec     = p.getUInt  (k, def.maxWaterSec);
             snprintf(k, sizeof(k), "s%d_dr", s); _irrigProfiles[s].minRestDaySec   = p.getUInt  (k, def.minRestDaySec);
             snprintf(k, sizeof(k), "s%d_nr", s); _irrigProfiles[s].minRestNightSec = p.getUInt  (k, def.minRestNightSec);
+            snprintf(k, sizeof(k), "s%d_po", s); _irrigProfiles[s].pulseOnSec      = p.getUInt  (k, def.pulseOnSec);
+            snprintf(k, sizeof(k), "s%d_ps", s); _irrigProfiles[s].pauseSec        = p.getUInt  (k, def.pauseSec);
         }
     }
+    // ── Watering runtime stats ────────────────────────────────────────────────
+    _r[WATERING].lastWaterTs      = (time_t)p.getUInt ("lastTs",   0);
+    _r[WATERING].lastWaterDurSec  = p.getUInt ("lastDur",  0);
+    _r[WATERING].lastWaterML      = p.getUInt ("lastML",   0);
+    _r[WATERING].todayML          = p.getUInt ("todayML",  0);
+    _r[WATERING].todayDOY         = p.getInt  ("todayDOY", -1);
+    _r[WATERING].peakSoilPct      = p.getFloat("peak",     0.0f);
+    _r[WATERING].dryBackPct       = p.getFloat("dryBack",  0.0f);
+    _r[WATERING].adaptiveDurSec   = p.getUInt ("adapDur",  0);
+    _r[WATERING].fixedDurMode     = p.getBool ("fixMode",  false);
+    _r[WATERING].fixedDurSec      = p.getUInt ("fixDur",   60);
     p.end();
 }
 
@@ -532,6 +713,7 @@ void RelayManager::savePrefs() {
         snprintf(k, sizeof(k), "r%d_wdur", i);   p.putUInt (k, _r[i].waterDurationSec);
         snprintf(k, sizeof(k), "r%d_fi",   i);   p.putBool (k, _r[i].fanIntake);
         snprintf(k, sizeof(k), "r%d_wfl",  i);   p.putUInt (k, _r[i].waterFlowML);
+        snprintf(k, sizeof(k), "r%d_inst", i);   p.putBool (k, _r[i].installed);
     }
     p.end();
 }
@@ -557,8 +739,8 @@ void RelayManager::loadPrefs() {
             snprintf(sk, sizeof(sk), "r%d_%d_em", i, s); _r[i].schedule.slots[s].endMin    = p.getUChar(sk, 0);
         }
         snprintf(k, sizeof(k), "r%d_buf",  i);   _r[i].autoBuffer       = p.getFloat(k, DEFAULT_BUFFER[i]);
-        snprintf(k, sizeof(k), "r%d_mion", i);   _r[i].minOnSec         = p.getUInt (k, MIN_RELAY_ON_MS  / 1000);
-        snprintf(k, sizeof(k), "r%d_miof", i);   _r[i].minOffSec        = p.getUInt (k, (i == WATERING) ? 1800 : MIN_RELAY_OFF_MS / 1000);
+        snprintf(k, sizeof(k), "r%d_mion", i);   _r[i].minOnSec         = p.getUInt (k, (i == DEHUMIDIFIER) ? 180 : MIN_RELAY_ON_MS  / 1000);
+        snprintf(k, sizeof(k), "r%d_miof", i);   _r[i].minOffSec        = p.getUInt (k, (i == WATERING) ? 1800 : (i == DEHUMIDIFIER) ? 300 : MIN_RELAY_OFF_MS / 1000);
         snprintf(k, sizeof(k), "r%d_mxon", i);   _r[i].maxOnSec         = p.getUInt (k, 0);
         snprintf(k, sizeof(k), "r%d_mxrs", i);   _r[i].maxOnRestSec     = p.getUInt (k, 0);
         // TOP_FAN defaults to 60 s max-off (negative pressure guard); all others default disabled
@@ -567,6 +749,7 @@ void RelayManager::loadPrefs() {
         snprintf(k, sizeof(k), "r%d_wdur", i);   _r[i].waterDurationSec = p.getUInt (k, 300);
         snprintf(k, sizeof(k), "r%d_fi",   i);   _r[i].fanIntake        = p.getBool (k, false);
         snprintf(k, sizeof(k), "r%d_wfl",  i);   _r[i].waterFlowML      = p.getUInt (k, (i == WATERING) ? 500 : 0);
+        snprintf(k, sizeof(k), "r%d_inst", i);   _r[i].installed        = p.getBool (k, true);
     }
     p.end();
 }

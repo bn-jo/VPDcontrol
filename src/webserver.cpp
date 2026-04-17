@@ -7,8 +7,9 @@
 #include "climate.h"
 #include "datalogger.h"
 #include "autotune.h"
-#include "remotesensor.h"
+#include "wifisensors.h"
 #include "intakesensor.h"
+#include "syslog.h"
 
 #include <ESPAsyncWebServer.h>
 #include <ArduinoJson.h>
@@ -41,14 +42,15 @@ static void buildStateJson(String& out) {
     doc["soilAdcDry"] = soil.adcDry();
     doc["soilAdcWet"] = soil.adcWet();
 
-    const SensorData&       sd  = sensors.data();
-    const RemoteSensorData& rsd = remoteSensor.data();
+    const SensorData& sd = sensors.data();
 
-    // If the remote node is reachable, average its readings with the local sensor
+    // Average local sensor with any reachable WiFi sensors
     float dispTemp, dispHum, dispVpd;
-    if (rsd.valid) {
-        dispTemp = (sd.temperature + rsd.temperature) / 2.0f;
-        dispHum  = (sd.humidity    + rsd.humidity)    / 2.0f;
+    float remoteT, remoteH;
+    bool  remoteValid = wifiSensors.getAverage(remoteT, remoteH);
+    if (remoteValid) {
+        dispTemp = (sd.temperature + remoteT) / 2.0f;
+        dispHum  = (sd.humidity    + remoteH) / 2.0f;
         dispVpd  = SensorManager::calcVPD(dispTemp, dispHum);
     } else {
         dispTemp = sd.temperature;
@@ -59,9 +61,14 @@ static void buildStateJson(String& out) {
     doc["temp"]            = dispTemp;
     doc["hum"]             = dispHum;
     doc["vpd"]             = dispVpd;
-    doc["vpdTrend"]        = sd.vpdTrend;   // kPa/min — positive = drying, negative = humidifying
+    doc["vpdTrend"]        = sd.vpdTrend;
     doc["valid"]           = sd.valid;
-    doc["remoteConnected"] = rsd.valid;
+    doc["remoteConnected"] = remoteValid;
+
+    // WiFi sensor array (name, T/H, valid, stream URL for camera tab)
+    static char sensBuf[WIFI_SENSOR_MAX * 220 + 8];
+    wifiSensors.getJson(sensBuf, sizeof(sensBuf));
+    doc["wifiSensors"] = serialized(sensBuf);
 
     doc["growMode"]   = (int)climate.getMode();
     doc["dryingFast"] = climate.isDryingFast();
@@ -72,6 +79,11 @@ static void buildStateJson(String& out) {
     vtObj["enabled"]        = vt.enabled;
     vtObj["kpa"]            = vt.kpa;
     vtObj["buffer"]         = vt.buffer;
+
+    JsonObject acObj        = doc["acTemps"].to<JsonObject>();
+    acObj["low"]            = climate.acTempLow();
+    acObj["high"]           = climate.acTempHigh();
+    acObj["delay"]          = climate.acHumDelaySec();
 
     // Intake air sensor (DHT11 outside grow tent)
     const IntakeData& isd = intakeSensor.data();
@@ -140,6 +152,7 @@ static void buildStateJson(String& out) {
         rel["waterDur"]  = r.waterDurationSec;
         rel["waterFlow"] = (unsigned int)r.waterFlowML;
         rel["fanIntake"] = r.fanIntake;
+        rel["installed"] = r.installed;
         // Timer countdown: remaining seconds in current phase + which phase we are in
         if (r.mode == RELAY_TIMER && r.timerPhaseStart > 0) {
             unsigned long elapsed    = millis() - r.timerPhaseStart;
@@ -201,6 +214,9 @@ static void buildStateJson(String& out) {
         ap["maxSec"]         = wr.irrigProfile.maxWaterSec;
         ap["dayRest"]        = wr.irrigProfile.minRestDaySec;
         ap["nightRest"]      = wr.irrigProfile.minRestNightSec;
+        ap["pulseOn"]        = wr.irrigProfile.pulseOnSec;
+        ap["pauseSec"]       = wr.irrigProfile.pauseSec;
+        ap["pulsePhase"]     = (uint8_t)wr.pulsePhase;
 
         // All 4 stored profiles (user edits these)
         JsonArray profiles = irr["profiles"].to<JsonArray>();
@@ -214,6 +230,8 @@ static void buildStateJson(String& out) {
             po["maxSec"]    = p.maxWaterSec;
             po["dayRest"]   = p.minRestDaySec;
             po["nightRest"] = p.minRestNightSec;
+            po["pulseOn"]   = p.pulseOnSec;
+            po["pauseSec"]  = p.pauseSec;
         }
 
         // Plant config
@@ -229,7 +247,11 @@ static void buildStateJson(String& out) {
         plants["totalVolL"] = totalVol;
         plants["holdCap"]   = SUBSTRATE_HOLD_CAP[pc.substrateType];
 
+        // Probe placement mode
+        irr["probeMode"] = relays.probePlacementMode();
+
         // Runtime stats
+        const RelayState& wrSt = relays.get(WATERING);
         JsonObject stats    = irr["stats"].to<JsonObject>();
         stats["peakSoil"]   = relays.getPeakSoilPct();
         stats["dryBack"]    = relays.getDryBackPct();
@@ -237,6 +259,9 @@ static void buildStateJson(String& out) {
         stats["lastWaterDur"] = relays.getLastWaterDur();
         stats["lastWaterML"]  = relays.getLastWaterML();
         stats["todayML"]      = relays.getTodayML();
+        stats["adaptiveDurSec"] = wrSt.adaptiveDurSec;
+        stats["fixedDurMode"]   = wrSt.fixedDurMode;
+        stats["fixedDurSec"]    = wrSt.fixedDurSec;
     }
 
     // Auto-Tune status
@@ -273,6 +298,13 @@ static void onWsEvent(AsyncWebSocket*       server,
                       uint8_t*              data,
                       size_t                len)
 {
+    if (type == WS_EVT_CONNECT) {
+        // Push full state immediately so new browsers don't wait for the next broadcast tick
+        String out;
+        buildStateJson(out);
+        client->text(out);
+        return;
+    }
     if (type != WS_EVT_DATA) return;
 
     AwsFrameInfo* info = (AwsFrameInfo*)arg;
@@ -291,6 +323,14 @@ static void onWsEvent(AsyncWebSocket*       server,
         float kpa = doc["kpa"]     | 1.0f;
         float buf = doc["buffer"]  | 0.1f;
         climate.setVpdTarget(en, kpa, buf);
+    } else if (strcmp(msgType, "setAcTemps") == 0) {
+        float    low   = doc["low"]   | 0.0f;
+        float    high  = doc["high"]  | 0.0f;
+        uint32_t delay = doc["delay"] | (uint32_t)600;
+        climate.setAcTemps(low, high);
+        climate.setAcHumDelay(delay);
+    } else if (strcmp(msgType, "setProbePlacement") == 0) {
+        relays.setProbePlacement(doc["active"] | false);
     } else if (strcmp(msgType, "setMode") == 0) {
         int m = doc["mode"] | -1;
         if (m >= 0 && m < NUM_GROW_MODES) {
@@ -337,6 +377,13 @@ static void onWsEvent(AsyncWebSocket*       server,
         } else if (strcmp(action, "waterFlow") == 0) {
             uint32_t mlPerMin = doc["value"] | (uint32_t)500;
             relays.setWaterFlow(idx, mlPerMin);
+        } else if (strcmp(action, "installed") == 0) {
+            bool v = doc["value"] | true;
+            relays.setInstalled(idx, v);
+        } else if (strcmp(action, "waterDurMode") == 0) {
+            bool     fixed = doc["fixed"] | false;
+            uint32_t sec   = doc["sec"]   | (uint32_t)60;
+            relays.setWaterDurMode(fixed, sec);
         } else if (strcmp(action, "schedule") == 0) {
             ScheduleCfg cfg;
             cfg.daysMask  = doc["days"] | 0x7F;
@@ -369,6 +416,8 @@ static void onWsEvent(AsyncWebSocket*       server,
             p.maxWaterSec       = doc["maxSec"]    | (uint32_t)180;
             p.minRestDaySec     = doc["dayRest"]   | (uint32_t)1800;
             p.minRestNightSec   = doc["nightRest"] | (uint32_t)3600;
+            p.pulseOnSec        = doc["pulseOn"]   | (uint32_t)20;
+            p.pauseSec          = doc["pauseSec"]  | (uint32_t)45;
             relays.setIrrigProfile(stage, p);
         }
     } else if (strcmp(msgType, "resetIrrigDefaults") == 0) {
@@ -411,6 +460,24 @@ static void onWsEvent(AsyncWebSocket*       server,
         } else if (strcmp(action, "reset") == 0) {
             autoTuner.requestReset();
         }
+    } else if (strcmp(msgType, "addSensor") == 0) {
+        const char* name      = doc["name"]      | "";
+        const char* sensorUrl = doc["sensorUrl"] | "";
+        const char* streamUrl = doc["streamUrl"] | "";
+        // Allow camera-only entries (no sensorUrl) as long as name + streamUrl are set
+        if (name[0] && (sensorUrl[0] || streamUrl[0]))
+            wifiSensors.add(name, sensorUrl, streamUrl);
+    } else if (strcmp(msgType, "removeSensor") == 0) {
+        int id = doc["id"] | -1;
+        if (id >= 0) wifiSensors.remove(id);
+    } else if (strcmp(msgType, "toggleSensor") == 0) {
+        int  id = doc["id"]      | -1;
+        bool en = doc["enabled"] | false;
+        if (id >= 0) wifiSensors.setEnabled(id, en);
+    } else if (strcmp(msgType, "setSensorActive") == 0) {
+        int  id     = doc["id"]     | -1;
+        bool active = doc["active"] | true;
+        if (id >= 0) wifiSensors.setSensorActive(id, active);
     }
 
     // Echo updated state back to all clients
@@ -428,7 +495,11 @@ static void handleLogRequest(AsyncWebServerRequest* req) {
         hours = req->getParam("hours")->value().toInt();
         hours = constrain(hours, 1, 168);
     }
-    logger.getJsonLast(hours, logBuf, sizeof(logBuf));
+    long since = 0;
+    if (req->hasParam("since")) {
+        since = req->getParam("since")->value().toInt();
+    }
+    logger.getJsonLast(hours, logBuf, sizeof(logBuf), since);
 
     AsyncWebServerResponse* resp = req->beginResponse(200, "application/json", logBuf);
     resp->addHeader("Cache-Control", "no-cache");
@@ -602,6 +673,27 @@ void webBegin() {
             }
         }
     );
+
+    // ── WiFi sensor list ──────────────────────────────────────────────────────
+    server.on("/api/sensors", HTTP_GET, [](AsyncWebServerRequest* req) {
+        if (!checkAuth(req)) return;
+        static char sensBuf[WIFI_SENSOR_MAX * 220 + 8];
+        wifiSensors.getJson(sensBuf, sizeof(sensBuf));
+        AsyncWebServerResponse* resp = req->beginResponse(200, "application/json", sensBuf);
+        resp->addHeader("Cache-Control", "no-cache");
+        resp->addHeader("Access-Control-Allow-Origin", "*");
+        req->send(resp);
+    });
+
+    // ── Remote system log ─────────────────────────────────────────────────────
+    server.on("/api/syslog", HTTP_GET, [](AsyncWebServerRequest* req) {
+        if (!checkAuth(req)) return;
+        static char syslogBuf[SYSLOG_LINES * (SYSLOG_LINE_LEN + 4) + 256];
+        syslogGetJson(syslogBuf, sizeof(syslogBuf));
+        AsyncWebServerResponse* resp = req->beginResponse(200, "application/json", syslogBuf);
+        resp->addHeader("Cache-Control", "no-cache");
+        req->send(resp);
+    });
 
     // ── Irrigation event history ──────────────────────────────────────────────
     server.on("/api/irrigation", HTTP_GET, [](AsyncWebServerRequest* req) {

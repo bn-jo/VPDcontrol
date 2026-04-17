@@ -6,62 +6,90 @@
 <title>Guetos Systems</title>
 <style>
 :root {
-  --bg:      #111827;
-  --surface: #1f2937;
-  --border:  #374151;
-  --text:    #f3f4f6;
-  --muted:   #9ca3af;
-  --green:   #22c55e;
-  --yellow:  #eab308;
-  --red:     #ef4444;
-  --blue:    #3b82f6;
-  --accent:  #1d4ed8;
-  --radius:  10px;
+  --bg:      #07111d;
+  --surface: #0d1c2b;
+  --surface2:#12243a;
+  --border:  #1c3048;
+  --text:    #ddeeff;
+  --muted:   #5d7e9a;
+  --green:   #00e676;
+  --yellow:  #ffc107;
+  --red:     #ff5252;
+  --blue:    #40c4ff;
+  --accent:  #6d28d9;
+  --radius:  12px;
 }
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { font-size: 16px; }
+
+/* ── Animations ─────────────────────────────────────────────────────────── */
+@keyframes pulse-relay {
+  0%,100%{ box-shadow:0 0 0 0 rgba(0,230,118,.5); }
+  50%    { box-shadow:0 0 0 7px rgba(0,230,118,0); }
+}
+@keyframes pulse-blue {
+  0%,100%{ box-shadow:0 0 0 0 rgba(64,196,255,.5); }
+  50%    { box-shadow:0 0 0 7px rgba(64,196,255,0); }
+}
+@keyframes pulse-dot {
+  0%,100%{ transform:scale(1); }
+  50%    { transform:scale(1.8); opacity:.55; }
+}
+@keyframes float-plant {
+  0%,100%{ transform:translateY(0) rotate(-4deg); }
+  50%    { transform:translateY(-5px) rotate(4deg); }
+}
+@keyframes card-in {
+  from{ opacity:0; transform:translateY(7px); }
+  to  { opacity:1; transform:translateY(0);   }
+}
+@keyframes spin{ to{ transform:rotate(360deg); } }
+*, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+html { font-size:16px; }
 body {
   background: var(--bg);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   min-height: 100vh;
+  background-image:
+    radial-gradient(ellipse at 15% 0%, rgba(0,230,118,.04) 0%, transparent 55%),
+    radial-gradient(ellipse at 85% 100%, rgba(109,40,217,.05) 0%, transparent 55%);
 }
 
 /* ─── Header ──────────────────────────────────────────────────────────────── */
 header {
-  background: var(--surface);
+  background: rgba(13,28,43,.96);
+  backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--border);
-  padding: .75rem 1rem;
+  padding: .6rem 1rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  position: sticky; top: 0; z-index: 10;
+  position: sticky; top:0; z-index:10;
 }
-.logo { font-size: 1.1rem; font-weight: 700; letter-spacing: -.02em; }
-.logo span { color: var(--green); }
+.logo { font-size:1.1rem; font-weight:700; letter-spacing:-.02em; display:flex; align-items:center; gap:.3rem; }
+.logo-plant { display:inline-block; animation:float-plant 3.5s ease-in-out infinite; transform-origin:bottom center; }
+.logo span { color:var(--green); }
 select.grow-mode {
-  background: var(--bg);
+  background: var(--surface2);
   border: 1px solid var(--border);
   color: var(--text);
-  padding: .35rem .7rem;
-  border-radius: 6px;
-  font-size: .85rem;
+  padding: .3rem .65rem;
+  border-radius: 8px;
+  font-size: .82rem;
   cursor: pointer;
+  transition: border-color .2s;
 }
-.dry-toggle { display:flex; border:1px solid var(--border); border-radius:6px; overflow:hidden; font-size:.78rem; }
-.dry-toggle button { background:transparent; color:var(--muted); border:none; padding:.28rem .65rem; cursor:pointer; transition:background .15s,color .15s; }
-.dry-toggle button.active { background:var(--green); color:#fff; font-weight:600; }
+select.grow-mode:hover { border-color:var(--green); }
+.dry-toggle { display:flex; border:1px solid var(--border); border-radius:8px; overflow:hidden; font-size:.78rem; }
+.dry-toggle button { background:transparent; color:var(--muted); border:none; padding:.28rem .65rem; cursor:pointer; transition:background .2s,color .2s; }
+.dry-toggle button.active { background:var(--green); color:#000; font-weight:700; }
 
 /* ─── Layout ──────────────────────────────────────────────────────────────── */
-main { max-width: 880px; margin: auto; padding: 1rem; }
-section { margin-bottom: 1.25rem; }
+main { max-width:880px; margin:auto; padding:.85rem 1rem; }
+section { margin-bottom:1rem; }
 .section-title {
-  font-size: .7rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: .08em;
-  color: var(--muted);
-  margin-bottom: .6rem;
+  font-size:.68rem; font-weight:700;
+  text-transform:uppercase; letter-spacing:.09em;
+  color:var(--muted); margin-bottom:.52rem;
 }
 
 /* ─── Metric cards ────────────────────────────────────────────────────────── */
@@ -79,26 +107,33 @@ section { margin-bottom: 1.25rem; }
   gap: .3rem;
   padding: .8rem 1rem;
 }
-.mood-emoji { font-size: 2rem; line-height: 1; }
-.mood-msg   { font-size: .85rem; font-style: italic; text-align: center; line-height: 1.35; }
+.mood-emoji { font-size:2.3rem; line-height:1; filter:drop-shadow(0 0 10px rgba(0,230,118,.3)); }
+.mood-msg   { font-size:.83rem; font-style:italic; text-align:center; line-height:1.35; }
 .metric {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 1rem;
+  padding: .85rem;
   position: relative;
   overflow: hidden;
+  transition: border-color .3s, box-shadow .3s;
+}
+.metric::before {
+  content:'';
+  position:absolute; left:0; top:0; bottom:0; width:3px;
+  background:var(--c, var(--muted));
+  border-radius:var(--radius) 0 0 var(--radius);
 }
 .metric::after {
-  content: '';
-  position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
-  background: var(--c, var(--muted));
-  border-radius: var(--radius) 0 0 var(--radius);
+  content:'';
+  position:absolute; inset:0;
+  background:linear-gradient(135deg,rgba(255,255,255,.025) 0%,transparent 55%);
+  pointer-events:none;
 }
-.metric.green { --c: var(--green); }
-.metric.yellow { --c: var(--yellow); }
-.metric.red { --c: var(--red); }
-.metric.blue { --c: var(--blue); }
+.metric.green  { --c:var(--green);  border-color:rgba(0,230,118,.2);  box-shadow:0 0 18px rgba(0,230,118,.06); }
+.metric.yellow { --c:var(--yellow); border-color:rgba(255,193,7,.18); }
+.metric.red    { --c:var(--red);    border-color:rgba(255,82,82,.2);   box-shadow:0 0 14px rgba(255,82,82,.07); }
+.metric.blue   { --c:var(--blue);   border-color:rgba(64,196,255,.18); }
 .metric-label { font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: .35rem; }
 .metric-value { font-size: 2rem; font-weight: 700; line-height: 1; margin-bottom: .4rem; }
 .metric-value.green { color: var(--green); }
@@ -114,22 +149,24 @@ section { margin-bottom: 1.25rem; }
   padding: .15rem .45rem;
   border-radius: 20px;
 }
-.metric-badge.green { background: #22c55e18; color: var(--green); }
-.metric-badge.yellow { background: #eab30818; color: var(--yellow); }
-.metric-badge.red { background: #ef444418; color: var(--red); }
-.metric-badge.blue { background: #3b82f618; color: var(--blue); }
+.metric-badge.green  { background:rgba(0,230,118,.12);  color:var(--green); }
+.metric-badge.yellow { background:rgba(255,193,7,.12);  color:var(--yellow); }
+.metric-badge.red    { background:rgba(255,82,82,.12);  color:var(--red); }
+.metric-badge.blue   { background:rgba(64,196,255,.12); color:var(--blue); }
 .metric-range { display: block; font-size: .65rem; color: var(--muted); margin: .1rem 0 .2rem; }
 
 /* ─── Relay mini-status strip ────────────────────────────────────────────── */
 .relay-mini-bar {
-  display: flex; flex-wrap: wrap; gap: .2rem .55rem;
-  padding: .3rem .9rem .35rem;
-  border-top: 1px solid var(--border);
-  font-size: .68rem; color: var(--muted);
+  display:flex; flex-wrap:wrap; gap:.18rem .5rem;
+  padding:.28rem .85rem .3rem;
+  border-top:1px solid var(--border);
+  font-size:.66rem; color:var(--muted);
+  background:var(--surface); border-radius:0 0 10px 10px;
 }
-.relay-mini-pill { display: flex; align-items: center; gap: .22rem; }
-.relay-mini-pill.on { color: var(--green); }
-.relay-mini-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+.relay-mini-pill { display:flex; align-items:center; gap:.2rem; }
+.relay-mini-pill.on { color:var(--green); }
+.relay-mini-dot { width:5px; height:5px; border-radius:50%; background:currentColor; flex-shrink:0; }
+.relay-mini-pill.on .relay-mini-dot { animation:pulse-dot 1.8s ease-in-out infinite; }
 
 /* ─── Relay grid ──────────────────────────────────────────────────────────── */
 .relay-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
@@ -137,21 +174,25 @@ section { margin-bottom: 1.25rem; }
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: .85rem;
+  padding: .75rem;
   display: flex;
   flex-direction: column;
-  gap: .6rem;
+  gap: .55rem;
+  transition: border-color .3s;
 }
 .relay-head { display: flex; align-items: center; justify-content: space-between; }
 .relay-name { font-weight: 600; font-size: .88rem; }
 .relay-status {
-  font-size: .68rem; font-weight: 700; letter-spacing: .05em;
-  padding: .18rem .55rem; border-radius: 20px;
-  background: #1f2937; color: var(--muted);
-  border: 1px solid var(--border);
-  transition: all .3s;
+  font-size:.65rem; font-weight:700; letter-spacing:.05em;
+  padding:.16rem .5rem; border-radius:20px;
+  background:var(--surface2); color:var(--muted);
+  border:1px solid var(--border);
+  transition:all .3s;
 }
-.relay-status.on { background: #14532d; color: var(--green); border-color: #166534; }
+.relay-status.on {
+  background:rgba(0,60,26,.7); color:var(--green); border-color:rgba(0,230,118,.35);
+  animation:pulse-relay 2s ease-in-out infinite;
+}
 
 /* Mode tabs */
 .tabs {
@@ -189,10 +230,10 @@ section { margin-bottom: 1.25rem; }
   font-size: .85rem; font-weight: 700;
   cursor: pointer; transition: all .15s;
 }
-.btn-on { border-color: var(--green); color: var(--green); }
-.btn-on:hover, .btn-on.active { background: var(--green); color: #000; }
-.btn-off { border-color: var(--red); color: var(--red); }
-.btn-off:hover, .btn-off.active { background: var(--red); color: #fff; }
+.btn-on  { border-color:var(--green); color:var(--green); }
+.btn-on:hover, .btn-on.active  { background:var(--green); color:#000; box-shadow:0 0 14px rgba(0,230,118,.35); }
+.btn-off { border-color:var(--red);   color:var(--red); }
+.btn-off:hover, .btn-off.active { background:var(--red); color:#fff; }
 
 /* Timer inputs */
 .timer-body { display: flex; flex-direction: column; gap: .4rem; }
@@ -209,14 +250,14 @@ section { margin-bottom: 1.25rem; }
 .timer-row span { color: var(--muted); font-size: .74rem; }
 
 .btn-apply {
-  align-self: flex-start;
-  background: var(--accent); border: none; color: #fff;
-  padding: .3rem .85rem; border-radius: 5px;
-  font-size: .78rem; font-weight: 600; cursor: pointer;
-  transition: background .2s;
+  align-self:flex-start;
+  background:var(--accent); border:none; color:#fff;
+  padding:.28rem .82rem; border-radius:6px;
+  font-size:.76rem; font-weight:600; cursor:pointer;
+  transition:all .2s;
 }
-.btn-apply:hover  { background: #2563eb; }
-.btn-apply.saved  { background: var(--green) !important; }
+.btn-apply:hover  { background:#7c3aed; box-shadow:0 0 12px rgba(109,40,217,.4); }
+.btn-apply.saved  { background:var(--green) !important; color:#000; }
 .btn-secondary {
   align-self: flex-start;
   background: transparent; border: 1px solid var(--muted); color: var(--muted);
@@ -293,16 +334,18 @@ section { margin-bottom: 1.25rem; }
 /* ─── Grow-stage confirmation modal ──────────────────────────────────────── */
 .modal-overlay {
   display: none; position: fixed; inset: 0; z-index: 200;
-  background: rgba(0,0,0,.75);
+  background: rgba(0,0,0,.82);
+  backdrop-filter: blur(4px);
   align-items: center; justify-content: center;
 }
 .modal-overlay.visible { display: flex; }
 .modal {
   background: var(--surface); border: 1px solid #92400e;
-  border-radius: 12px; padding: 1.5rem;
+  border-radius: 16px; padding: 1.5rem;
   max-width: 340px; width: 92%;
-  display: flex; flex-direction: column; gap: .9rem;
-  box-shadow: 0 24px 64px rgba(0,0,0,.6);
+  display: flex; flex-direction: column; gap: .85rem;
+  box-shadow: 0 32px 80px rgba(0,0,0,.7);
+  animation: card-in .2s ease;
 }
 .modal-warn { font-size: 1.8rem; text-align: center; }
 .modal-title { font-size: 1rem; font-weight: 700; text-align: center; color: var(--yellow); }
@@ -378,6 +421,7 @@ canvas { width: 100% !important; height: 100% !important; }
   display: flex;
   flex-direction: column;
   padding: 1rem 1.25rem;
+  background: var(--bg);
 }
 #histChartCard.chart-card-fs .chart-wrap {
   flex: 1;
@@ -386,19 +430,31 @@ canvas { width: 100% !important; height: 100% !important; }
 }
 body.chart-fs-lock { overflow: hidden; }
 
-/* ─── Status bar ──────────────────────────────────────────────────────────── */
-.status-bar {
-  text-align: center;
-  font-size: .72rem;
-  color: var(--muted);
-  padding: .6rem 0 .2rem;
+/* ─── Irrigation chart fullscreen ──────────────────────────────────────────── */
+#irrigSoilChartCard.chart-card-fs {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  border-radius: 0;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 1.25rem;
 }
-.dot-conn { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--red); margin-right: .3rem; vertical-align: middle; }
-.dot-conn.ok { background: var(--green); }
+#irrigSoilChartCard.chart-card-fs .chart-wrap {
+  flex: 1;
+  height: auto !important;
+  min-height: 0;
+}
+
+/* ─── Status bar ──────────────────────────────────────────────────────────── */
+.status-bar { text-align:center; font-size:.7rem; color:var(--muted); padding:.5rem 0 .18rem; }
+.dot-conn { display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--red); margin-right:.3rem; vertical-align:middle; }
+.dot-conn.ok { background:var(--green); animation:pulse-dot 2.2s ease-in-out infinite; }
 
 /* ─── VPD Target card ────────────────────────────────────────────────────── */
-.vpdt-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:.85rem 1rem; }
-.vpdt-card.active { border-color: var(--accent); }
+.vpdt-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:.78rem .95rem; transition:border-color .3s,box-shadow .3s; }
+.vpdt-card.active { border-color:var(--accent); box-shadow:0 0 22px rgba(109,40,217,.15); }
 .vpdt-header { display:flex; align-items:center; justify-content:space-between; }
 .vpdt-title  { font-weight:700; font-size:.92rem; }
 .vpdt-sub    { font-size:.72rem; color:var(--muted); margin-top:.15rem; }
@@ -407,17 +463,17 @@ body.chart-fs-lock { overflow: hidden; }
 .vpdt-kpa-val { font-size:1.6rem; font-weight:700; min-width:110px; text-align:center; }
 .vpdt-btn { background:var(--bg); border:1px solid var(--border); color:var(--text);
             width:2.2rem; height:2.2rem; border-radius:50%; font-size:1.2rem;
-            cursor:pointer; display:flex; align-items:center; justify-content:center; }
-.vpdt-btn:hover { background: var(--accent); border-color: var(--accent); }
+            cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .2s; }
+.vpdt-btn:hover { background:var(--accent); border-color:var(--accent); box-shadow:0 0 12px rgba(109,40,217,.4); }
 .vpdt-detail-row { display:flex; align-items:center; justify-content:center; gap:.5rem; }
 /* Toggle switch */
 .toggle-wrap { position:relative; display:inline-block; width:44px; height:24px; cursor:pointer; }
 .toggle-wrap input { opacity:0; width:0; height:0; }
-.toggle-slider { position:absolute; inset:0; background:#374151; border-radius:24px; transition:.3s; }
+.toggle-slider { position:absolute; inset:0; background:#1a2f45; border-radius:24px; transition:.3s; border:1px solid var(--border); }
 .toggle-slider::before { content:''; position:absolute; width:18px; height:18px;
-  left:3px; bottom:3px; background:#fff; border-radius:50%; transition:.3s; }
-.toggle-wrap input:checked + .toggle-slider { background:var(--accent); }
-.toggle-wrap input:checked + .toggle-slider::before { transform:translateX(20px); }
+  left:2px; bottom:2px; background:var(--muted); border-radius:50%; transition:.3s; }
+.toggle-wrap input:checked + .toggle-slider { background:var(--accent); border-color:var(--accent); }
+.toggle-wrap input:checked + .toggle-slider::before { transform:translateX(20px); background:#fff; }
 
 /* ─── Day / Night badge ───────────────────────────────────────────────────── */
 .phase-badge {
@@ -519,35 +575,35 @@ body.chart-fs-lock { overflow: hidden; }
   gap: 0;
 }
 .page-tab {
-  padding: .6rem 1.1rem;
+  padding: .55rem 1.05rem;
   border: none;
   border-bottom: 2px solid transparent;
   background: transparent;
   color: var(--muted);
-  font-size: .85rem;
+  font-size: .83rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all .15s;
+  transition: all .18s;
   letter-spacing: .01em;
 }
 .page-tab:hover  { color: var(--text); }
-.page-tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+.page-tab.active { color: var(--green); border-bottom-color: var(--green); }
 
 /* ─── Irrigation tab ───────────────────────────────────────────────────────── */
 .irrig-card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: .9rem 1rem;
+  padding: .85rem .95rem;
 }
 .irrig-header-card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: .9rem 1rem;
-  transition: border-color .25s;
+  padding: .85rem .95rem;
+  transition: border-color .3s, box-shadow .3s;
 }
-.irrig-header-card.active { border-color: var(--blue); }
+.irrig-header-card.active { border-color:var(--blue); box-shadow:0 0 16px rgba(64,196,255,.08); }
 .irrig-stat-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: .5rem; margin-top: .75rem; }
 .irrig-stat {
   background: var(--bg);
@@ -599,6 +655,7 @@ body.chart-fs-lock { overflow: hidden; }
 @media (max-width: 340px) {
   .metrics { grid-template-columns: 1fr; }
 }
+
 </style>
 </head>
 <body>
@@ -640,7 +697,7 @@ body.chart-fs-lock { overflow: hidden; }
 </div>
 
 <header>
-  <div class="logo">🌿 <span>Guetos</span> Systems</div>
+  <div class="logo"><span class="logo-plant">🌿</span> <span>Guetos</span> Systems</div>
   <span class="phase-badge" id="phaseBadge" style="display:none"></span>
   <div style="display:flex;align-items:center;gap:.75rem">
     <div id="clockBox" style="display:flex;flex-direction:column;align-items:center;line-height:1.3">
@@ -656,8 +713,9 @@ body.chart-fs-lock { overflow: hidden; }
     <select class="grow-mode" id="growMode" onchange="requestStageChange(parseInt(this.value))">
       <option value="0">🌱 Seedling</option>
       <option value="1">🍃 Vegetative</option>
-      <option value="2">🌸 Flowering</option>
-      <option value="3">🍂 Drying</option>
+      <option value="2">🌸 Early Flower</option>
+      <option value="3">🌺 Late Flower</option>
+      <option value="4">🍂 Drying</option>
     </select>
     <span id="stageDayBadge" style="font-size:.68rem;color:var(--muted);padding-right:.2rem"></span>
     <button onclick="rebootESP()" style="font-size:.62rem;padding:.15rem .5rem;background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:5px;cursor:pointer;align-self:flex-end" title="Restart ESP32">↺ Restart</button>
@@ -672,8 +730,11 @@ body.chart-fs-lock { overflow: hidden; }
 
 <!-- Alert banner — shown only when active alerts exist -->
 <nav class="page-tabs">
-  <button class="page-tab active" id="ptab-dash"  onclick="showPageTab('dashboard')">Dashboard</button>
-  <button class="page-tab"        id="ptab-irrig" onclick="showPageTab('irrigation')">💧 Irrigation</button>
+  <button class="page-tab active" id="ptab-dash"   onclick="showPageTab('dashboard')">Dashboard</button>
+  <button class="page-tab"        id="ptab-irrig"  onclick="showPageTab('irrigation')">💧 Irrigation</button>
+  <button class="page-tab"        id="ptab-sensors" onclick="showPageTab('sensors')">📡 Sensors</button>
+  <button class="page-tab"        id="ptab-syslog"  onclick="showPageTab('syslog')">🔍 Syslog</button>
+  <button class="page-tab"        id="ptab-camera"  onclick="showPageTab('camera')">📷 Camera</button>
 </nav>
 <div class="alert-banner" id="alertBanner">
   <span class="alert-icon">⚠️</span>
@@ -765,6 +826,7 @@ body.chart-fs-lock { overflow: hidden; }
           <button class="range-btn" onclick="loadChart(6)"   id="rbtn-6">6h</button>
           <button class="range-btn active" onclick="loadChart(24)"  id="rbtn-24">24h</button>
           <button class="range-btn" onclick="loadChart(168)" id="rbtn-168">7d</button>
+          <button class="range-btn" onclick="loadChart(720)" id="rbtn-720">30d</button>
           <button class="chart-ctrl-btn warn" id="chartResetZoom"
                   onclick="resetChartZoom()" style="display:none" title="Reset zoom">↺ Reset</button>
           <button class="chart-ctrl-btn" id="chartFsBtn"
@@ -818,10 +880,10 @@ body.chart-fs-lock { overflow: hidden; }
       <label class="extra-toggle"><input type="checkbox" id="showRelay_1" checked onchange="setRelayVisible(1,this.checked)"><span>Bottom Fan</span></label>
       <label class="extra-toggle"><input type="checkbox" id="showRelay_2" checked onchange="setRelayVisible(2,this.checked)"><span>Humidifier</span></label>
       <label class="extra-toggle"><input type="checkbox" id="showRelay_3" checked onchange="setRelayVisible(3,this.checked)"><span>Lights</span></label>
-      <label class="extra-toggle"><input type="checkbox" id="showRelay_4" checked onchange="setRelayVisible(4,this.checked)"><span>Dehumidifier</span></label>
+      <label class="extra-toggle"><input type="checkbox" id="showRelay_4" checked onchange="setRelayVisible(4,this.checked)"><span>A/C</span></label>
       <label class="extra-toggle"><input type="checkbox" id="showRelay_5" checked onchange="setRelayVisible(5,this.checked)"><span>Heat</span></label>
       <label class="extra-toggle"><input type="checkbox" id="showRelay_6" checked onchange="setRelayVisible(6,this.checked)"><span>Watering</span></label>
-      <label class="extra-toggle"><input type="checkbox" id="showRelay_7" checked onchange="setRelayVisible(7,this.checked)"><span>A/C</span></label>
+      <label class="extra-toggle"><input type="checkbox" id="showRelay_7" checked onchange="setRelayVisible(7,this.checked)"><span>Dehumidifier</span></label>
     </div>
 
     <!-- Auto-Tune progress panel — visible while tuning or after completion -->
@@ -866,6 +928,7 @@ body.chart-fs-lock { overflow: hidden; }
     </div>
   </section>
 
+
 </div><!-- end #tab-dashboard -->
 
 <!-- ═══════════════════════════════════════════════════════════════════════════
@@ -892,6 +955,12 @@ body.chart-fs-lock { overflow: hidden; }
         <div class="irrig-stat"><div class="irrig-stat-label">Last water</div><div class="irrig-stat-val" id="is-last">--</div></div>
         <div class="irrig-stat"><div class="irrig-stat-label">Today</div>    <div class="irrig-stat-val" id="is-today">--</div></div>
       </div>
+      <!-- Probe placement mode -->
+      <div style="margin-top:.6rem;border-top:1px solid var(--border);padding-top:.6rem;display:flex;align-items:center;gap:.6rem">
+        <span style="font-size:.78rem;color:var(--muted);flex:1">Probe placement — pauses auto-watering while moving probe</span>
+        <button id="probePlacementBtn" class="btn-secondary" onclick="toggleProbePlacement()"
+                style="font-size:.76rem;padding:.28rem .8rem;white-space:nowrap">Moving Probe</button>
+      </div>
       <!-- Flow rate (global) -->
       <div style="margin-top:.7rem;display:flex;align-items:center;gap:.5rem;border-top:1px solid var(--border);padding-top:.65rem">
         <span style="font-size:.8rem;color:var(--muted);flex:1">Dripper flow rate</span>
@@ -903,17 +972,41 @@ body.chart-fs-lock { overflow: hidden; }
         <button class="btn-apply" style="padding:.3rem .75rem;font-size:.8rem"
                 onclick="saveFlowRate(this)">Set</button>
       </div>
-      <!-- Water Now quick action -->
-      <div style="margin-top:.55rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
-        <button class="btn-apply" style="background:var(--blue);border:none;padding:.4rem .9rem"
-                onclick="waterNowFromIrrig()">💧 Water Now</button>
-        <input type="number" id="irrigWaterMin" value="3" min="0.5" max="60" step="0.5"
-               oninput="updateIrrigWaterEst()"
-               style="width:50px;background:#111827;border:1px solid var(--border);color:var(--text);
-                      border-radius:4px;padding:.2rem .35rem;font-size:.82rem;text-align:center">
-        <span style="font-size:.78rem;color:var(--muted)">min</span>
-        <span id="irrigWaterEst" style="font-size:.78rem;color:var(--blue);margin-left:auto"></span>
+
+      <!-- Cycle duration: Auto (adaptive) / Manual (fixed) -->
+      <div style="margin-top:.7rem;border-top:1px solid var(--border);padding-top:.65rem">
+        <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.45rem">
+          <span style="font-size:.8rem;color:var(--muted);flex:1">Cycle Duration</span>
+          <button id="durModeAutoBtn"  class="tab active" style="padding:.2rem .55rem;font-size:.75rem" onclick="setIrrigDurMode(false)">Auto</button>
+          <button id="durModeFixedBtn" class="tab"        style="padding:.2rem .55rem;font-size:.75rem" onclick="setIrrigDurMode(true)">Manual</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:.5rem">
+          <input type="range" id="durSlider" min="5" max="600" step="5" value="60"
+                 oninput="onDurSlider(this.value)"
+                 style="flex:1;accent-color:var(--blue)">
+          <span id="durSliderLabel" style="font-size:.82rem;font-weight:700;color:var(--blue);min-width:5.5rem;text-align:right">1.0 min</span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:.25rem">
+          <span id="durSliderNote" style="font-size:.7rem;color:var(--muted)">Auto-adjusted — no history yet</span>
+          <button id="durApplyBtn" class="btn-apply" onclick="applyIrrigDurMode(this)"
+                  style="padding:.25rem .65rem;font-size:.76rem;display:none">Apply</button>
+        </div>
       </div>
+
+    </div>
+  </section>
+
+  <!-- Water Now ────────────────────────────────────────────────────────────── -->
+  <section>
+    <div class="irrig-card" style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
+      <button class="btn-apply" style="background:var(--blue);border:none;padding:.45rem 1rem;font-size:.9rem"
+              onclick="waterNowFromIrrig()">💧 Water Now</button>
+      <input type="number" id="irrigWaterMin" value="3" min="0.5" max="60" step="0.5"
+             oninput="updateIrrigWaterEst()"
+             style="width:54px;background:#111827;border:1px solid var(--border);color:var(--text);
+                    border-radius:4px;padding:.3rem .35rem;font-size:.85rem;text-align:center">
+      <span style="font-size:.8rem;color:var(--muted)">min</span>
+      <span id="irrigWaterEst" style="font-size:.8rem;color:var(--blue);margin-left:auto;font-weight:600"></span>
     </div>
   </section>
 
@@ -923,11 +1016,10 @@ body.chart-fs-lock { overflow: hidden; }
     <div class="irrig-card">
       <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.6rem">
         <span style="color:var(--muted);font-size:.8rem;flex:1">Plants</span>
-        <div style="display:flex;gap:.25rem" id="plantCountBtns">
-          <button class="dur-btn" onclick="setPlantCount(1)">1</button>
-          <button class="dur-btn" onclick="setPlantCount(2)">2</button>
-          <button class="dur-btn" onclick="setPlantCount(3)">3</button>
-          <button class="dur-btn" onclick="setPlantCount(4)">4</button>
+        <div style="display:flex;align-items:center;gap:.35rem" id="plantCountBtns">
+          <button class="dur-btn" onclick="adjustPlantCount(-1)" style="padding:.2rem .6rem;font-size:1rem;line-height:1">−</button>
+          <span id="plantCountVal" style="min-width:1.6rem;text-align:center;font-weight:700;font-size:.9rem">1</span>
+          <button class="dur-btn" onclick="adjustPlantCount(1)"  style="padding:.2rem .6rem;font-size:1rem;line-height:1">+</button>
         </div>
       </div>
       <div id="potSizesRow" class="irrig-pot-row"></div>
@@ -952,13 +1044,13 @@ body.chart-fs-lock { overflow: hidden; }
         <thead>
           <tr>
             <th>Stage</th><th style="text-align:center">Trigger</th><th style="text-align:center">Target</th>
-            <th style="text-align:center">Max</th><th style="text-align:center">Day rest</th><th style="text-align:center">Night rest</th>
+            <th style="text-align:center">Max</th><th style="text-align:center">Pulse</th><th style="text-align:center">Soak</th><th style="text-align:center">Day rest</th><th style="text-align:center">Night rest</th>
           </tr>
         </thead>
         <tbody id="irrigProfileRows"></tbody>
       </table>
       <div style="font-size:.72rem;color:var(--muted);margin-top:.5rem">
-        Trigger: start watering when soil drops below · Target: stop when soil reaches · Rest: min gap between cycles
+        Trigger: start when soil drops below · Target: stop when soil reaches (checked after each soak) · Pulse: valve-on per burst · Soak: pause between bursts · Rest: min gap between sessions
       </div>
       <div style="display:flex;gap:.5rem;margin-top:.65rem;flex-wrap:wrap">
         <button class="btn-apply" onclick="applyAllProfiles(this)">Save Profiles</button>
@@ -970,13 +1062,17 @@ body.chart-fs-lock { overflow: hidden; }
   <!-- History ──────────────────────────────────────────────────────────────── -->
   <section>
     <div class="section-title">History</div>
-    <div class="chart-card" style="margin-bottom:.75rem">
+    <div class="chart-card" id="irrigSoilChartCard" style="margin-bottom:.75rem">
       <div class="chart-header">
         <span class="chart-title">Soil Moisture + Watering Events</span>
-        <div class="range-group">
+        <div class="range-group" style="display:flex;align-items:center;gap:.3rem;flex-wrap:wrap">
           <button class="range-btn active" id="irrigBtn-24"  onclick="loadIrrigChart(24)">24h</button>
           <button class="range-btn"        id="irrigBtn-72"  onclick="loadIrrigChart(72)">3d</button>
           <button class="range-btn"        id="irrigBtn-168" onclick="loadIrrigChart(168)">7d</button>
+          <button class="chart-ctrl-btn warn" id="irrigResetZoom"
+                  onclick="resetIrrigZoom()" style="display:none" title="Reset zoom">↺ Reset</button>
+          <button class="chart-ctrl-btn" id="irrigFsBtn"
+                  onclick="toggleIrrigFullscreen()" title="Fullscreen">⤢</button>
         </div>
       </div>
       <div class="chart-wrap">
@@ -985,7 +1081,7 @@ body.chart-fs-lock { overflow: hidden; }
     </div>
     <div class="chart-card" style="margin-bottom:.75rem">
       <div class="chart-header"><span class="chart-title">Daily Water Volume</span></div>
-      <div class="chart-wrap" style="height:160px"><canvas id="irrigDayChart"></canvas></div>
+      <div class="chart-wrap" style="height:180px"><canvas id="irrigDayChart"></canvas></div>
     </div>
   </section>
 
@@ -1045,18 +1141,107 @@ body.chart-fs-lock { overflow: hidden; }
       <table class="irrig-tbl" style="width:100%;border-collapse:collapse">
         <thead>
           <tr>
-            <th>When</th><th style="text-align:center">Before</th><th style="text-align:center">After</th>
+            <th>When</th><th style="text-align:center">Mode</th><th style="text-align:center">Before</th><th style="text-align:center">After</th>
             <th style="text-align:center">Duration</th><th style="text-align:center">Volume</th>
           </tr>
         </thead>
         <tbody id="irrigEventRows">
-          <tr><td colspan="5" style="text-align:center;padding:.75rem;color:var(--muted)">No events yet</td></tr>
+          <tr><td colspan="6" style="text-align:center;padding:.75rem;color:var(--muted)">No events yet</td></tr>
         </tbody>
       </table>
     </div>
   </section>
 
 </div><!-- end #tab-irrigation -->
+
+<!-- ─── Sensors tab ─────────────────────────────────────────────────────────── -->
+<div id="tab-sensors" style="display:none;padding:.5rem 0">
+
+  <section class="card" style="padding:1rem">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
+      <h3 style="margin:0;font-size:1rem">WiFi Sensors</h3>
+      <span style="font-size:.75rem;color:var(--muted)">Up to 4 remote nodes</span>
+    </div>
+
+    <!-- Sensor list — populated by JS -->
+    <div id="wifiSensorList" style="display:flex;flex-direction:column;gap:.5rem">
+      <span style="color:var(--muted);font-size:.82rem">No sensors configured yet — add one below.</span>
+    </div>
+
+    <!-- Add sensor form -->
+    <details id="addSensorDetails" style="margin-top:1rem">
+      <summary style="cursor:pointer;font-size:.85rem;font-weight:600;color:var(--blue);user-select:none">+ Add sensor</summary>
+      <div style="display:grid;gap:.45rem;margin-top:.65rem">
+        <input id="addSensorName" placeholder="Name  (e.g. ESP-CAM)"
+          style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+                 padding:.38rem .7rem;color:var(--text);font-size:.82rem;outline:none">
+        <input id="addSensorUrl" placeholder="Sensor data URL  (optional, e.g. http://192.168.1.101/data)"
+          style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+                 padding:.38rem .7rem;color:var(--text);font-size:.82rem;outline:none">
+        <input id="addStreamUrl" placeholder="Camera stream URL  (optional, e.g. http://192.168.1.101:81/stream)"
+          style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+                 padding:.38rem .7rem;color:var(--text);font-size:.82rem;outline:none">
+        <div style="font-size:.72rem;color:var(--muted);line-height:1.5">
+          At least one URL is required. Sensor URL must return JSON with <code>temp</code> and <code>hum</code> fields.<br>
+          Camera-only: leave sensor URL blank, fill in stream URL only.
+        </div>
+        <button class="btn-sm" onclick="addWifiSensor()" style="width:fit-content">Add</button>
+      </div>
+    </details>
+  </section>
+
+</div><!-- end #tab-sensors -->
+
+<!-- ─── Syslog tab ──────────────────────────────────────────────────────────── -->
+<div id="tab-syslog" style="display:none;padding:.5rem 0">
+
+  <section class="card" style="padding:1rem">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
+      <h3 style="margin:0;font-size:1rem">System Log</h3>
+      <button class="btn-sm" onclick="loadSyslog()" style="font-size:.78rem">↺ Refresh</button>
+    </div>
+
+    <!-- Previous crash banner (hidden when no crash) -->
+    <div id="crashBanner" style="display:none;background:var(--red)1a;border:1px solid var(--red);border-radius:6px;padding:.5rem .75rem;margin-bottom:.75rem;font-size:.8rem">
+      <strong style="color:var(--red)">Previous crash detected</strong>
+      <span id="crashDetail"></span>
+    </div>
+
+    <!-- Log lines -->
+    <div id="syslogLines" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.5rem .75rem;font-family:monospace;font-size:.75rem;line-height:1.6;max-height:60vh;overflow-y:auto;white-space:pre-wrap;word-break:break-all">
+      <span style="color:var(--muted)">Click ↺ Refresh to load log…</span>
+    </div>
+
+  </section>
+
+</div><!-- end #tab-syslog -->
+
+<!-- ─── Camera tab ──────────────────────────────────────────────────────────── -->
+<div id="tab-camera" style="display:none;padding:.5rem 0">
+
+  <section class="card" style="padding:1rem">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
+      <h3 style="margin:0;font-size:1rem">📷 Live Camera</h3>
+      <div style="display:flex;gap:.5rem;align-items:center">
+        <button class="btn-sm" onclick="cameraReload()" style="font-size:.75rem">⟳ Reload</button>
+        <a href="http://192.168.1.100" target="_blank" rel="noopener"
+           style="background:var(--green);color:#000;font-weight:700;font-size:.78rem;
+                  padding:.3rem .8rem;border-radius:7px;text-decoration:none">Open ↗</a>
+      </div>
+    </div>
+    <div style="background:#000;border-radius:8px;overflow:hidden">
+      <img id="camStreamImg" src="http://192.168.1.100:81/stream"
+           style="width:100%;display:block;max-height:480px;object-fit:contain"
+           onerror="_camRetry()">
+      <div id="camStreamErr" style="display:none;padding:2.5rem 1rem;text-align:center;
+           color:var(--muted);font-size:.82rem;line-height:1.7">
+        <span id="camErrMsg">Connecting…</span><br>
+        Use <strong>Open ↗</strong> to view the camera in a new tab.
+      </div>
+    </div>
+  </section>
+
+</div><!-- end #tab-camera -->
 
 </main>
 
@@ -1077,6 +1262,8 @@ let lastState  = null;
 const _cache       = {};   // relay id → last known relay state for instant UI updates
 const _displayMode = {};   // relay id → pending tab mode (Timer/Sched shown but not yet applied)
 let _confirmedStage = 0;   // grow stage — matches HTML default (Seedling); overridden by localStorage/server
+let _chartLastTs    = 0;   // epoch of newest data point currently in the chart (for incremental fetch)
+let _wsWasConnected = false; // true after first successful WS connect — used to detect reconnects
 
 // ─── WebSocket ────────────────────────────────────────────────────────────────
 function connect() {
@@ -1090,7 +1277,8 @@ function connect() {
 
   ws.onopen = () => {
     setStatus(true, 'Connected');
-    loadChart(chartHours);
+    if (_wsWasConnected) loadChart(chartHours);   // reconnect — reload to catch up on missed data
+    _wsWasConnected = true;
   };
 
   ws.onclose = () => {
@@ -1118,13 +1306,15 @@ function handleState(s) {
   lastState = s;
   updateMetrics(s);
   updateSoil(s);
-  updateRelays(s.relays, s.lightSched);
+  updateRelays(s.relays, s.lightSched, s.acTemps, s.profile);
   updateRelayMini(s.relays);
   const dot = document.getElementById('remoteSensorDot');
   if (dot) {
-    dot.textContent = s.remoteConnected ? '● 2 sensors' : '● 1 sensor';
-    dot.style.color = s.remoteConnected ? 'var(--green)' : 'var(--yellow)';
+    const cnt = Array.isArray(s.wifiSensors) ? s.wifiSensors.filter(x => x.valid).length : 0;
+    dot.textContent = cnt ? `● ${cnt + 1} sensors` : '● 1 sensor';
+    dot.style.color = cnt ? 'var(--green)' : 'var(--yellow)';
   }
+  if (Array.isArray(s.wifiSensors)) updateWifiSensors(s.wifiSensors);
   try { localStorage.setItem('relayModes', JSON.stringify(s.relays.map(r => r.mode))); } catch(_) {}
   updatePhaseBadge(s.lightSched);
   updateAlerts(s.alerts || []);
@@ -1142,7 +1332,7 @@ function handleState(s) {
 
   const dryFast = !!s.dryingFast;
   try { localStorage.setItem('dryingFast', dryFast ? '1' : '0'); } catch(_) {}
-  applyDryToggle(s.growMode === 3, dryFast);
+  applyDryToggle(s.growMode === 4, dryFast);
 
   updateIrrigationTab(s);
 }
@@ -1167,9 +1357,9 @@ function rangeBadge(v, min, max, margin, aboveRed, aboveYellow, belowRed, belowY
 function updateMetrics(s) {
   const p = s.profile;
 
-  const tempMargin = (p.tempMax - p.tempMin) * 0.3;
-  const humMargin  = (p.humMax  - p.humMin)  * 0.3;
-  const vpdMargin  = (p.vpdMax  - p.vpdMin)  * 0.3;
+  const tempMargin = 10;   // red when ±10 °C beyond min/max
+  const humMargin  = 15;   // red when ±15 % beyond min/max
+  const vpdMargin  = 0.5;  // red when ±0.5 kPa beyond min/max
 
   const tempF = s.temp * 9 / 5 + 32;
   setMetric('temp', s.temp.toFixed(1) + '°C (' + tempF.toFixed(1) + '°F)',
@@ -1203,7 +1393,14 @@ function updateMetrics(s) {
     if (labelEl) labelEl.textContent = 'Grow Day ' + stageName;
     setMetric('stageday', 'Day ' + day, 'green', stageName);
     const badge = document.getElementById('stageDayBadge');
-    if (badge) badge.textContent = 'Day ' + day;
+    if (badge) {
+      // Early Flower: show how many days until Late Flower auto-transition
+      if (s.growMode === 2 && day <= 21) {
+        badge.textContent = 'Day ' + day + ' (→Late at 22)';
+      } else {
+        badge.textContent = 'Day ' + day;
+      }
+    }
   } else {
     if (labelEl) labelEl.textContent = 'Grow Day';
     setMetric('stageday', '--', 'muted', 'NTP needed');
@@ -1232,13 +1429,12 @@ function setMetric(key, value, color, badge) {
 // ─── Soil moisture ────────────────────────────────────────────────────────────
 function updateSoil(s) {
   if (!s.soilValid) return;
-  const pct = s.soil;
-  let color, badge;
-  if      (pct < 20)  { color = 'red';    badge = 'Too Dry'; }
-  else if (pct < 40)  { color = 'yellow'; badge = 'Dry'; }
-  else if (pct <= 70) { color = 'green';  badge = 'Optimal'; }
-  else if (pct <= 85) { color = 'yellow'; badge = 'Moist'; }
-  else                { color = 'red';    badge = 'Wet'; }
+  const pct    = s.soil;
+  const irr    = s.irrigation;
+  const soilMin = (irr && irr.trigger != null) ? irr.trigger : 40;
+  const soilMax = (irr && irr.target  != null) ? irr.target  : 70;
+  const color = colorForValue(pct, soilMin, soilMax, 20);  // red ±20% beyond range
+  const badge = rangeBadge(pct, soilMin, soilMax, 20, 'Too Wet', 'Moist', 'Too Dry', 'Dry');
   setMetric('soil', pct.toFixed(0) + '%', color, badge);
   const autoEl = document.getElementById('badge-soil-auto');
   if (autoEl) autoEl.style.display = (s.irrigation && s.irrigation.precisionEnabled) ? 'block' : 'none';
@@ -1346,10 +1542,14 @@ function dismissAlert() {
 }
 
 // ─── Relay cards ─────────────────────────────────────────────────────────────
-let _lightSched = null;
+let _lightSched  = null;
+let _acTemps     = { low: 0, high: 0 };
+let _acProfTemps = { low: 20, high: 25 };
 
-function updateRelays(relayArr, lightSched) {
-  _lightSched = lightSched || null;
+function updateRelays(relayArr, lightSched, acTemps, profile) {
+  _lightSched  = lightSched || null;
+  _acTemps     = acTemps   || { low: 0, high: 0 };
+  _acProfTemps = { low: profile?.tempMin ?? 20, high: profile?.tempMax ?? 25 };
   const grid = document.getElementById('relayGrid');
 
   relayArr.forEach(r => {
@@ -1367,9 +1567,11 @@ function updateRelays(relayArr, lightSched) {
 }
 
 // Relay index 3 = Lights (schedule-driven AUTO body)
+// Relay index 4 = A/C (physical relay cuts/restores mains power)
 // Relay index 6 = Watering (soil-driven)
-// Relay index 7 = A/C (temperature-driven AUTO)
+// Relay index 7 = Dehumidifier
 const LIGHTS_ID   = 3;
+const AC_RELAY_ID = 4;
 const WATERING_ID = 6;
 
 function renderRelayCard(card, r, force) {
@@ -1521,6 +1723,36 @@ function renderRelayCard(card, r, force) {
         <button class="btn-apply" onclick="applyWaterCfg(${r.id},this)">Apply</button>
       </div>`;
       } // end else (precision off)
+    } else if (r.id === AC_RELAY_ID) {
+      // ── A/C relay AUTO body ────────────────────────────────────────────────
+      const acHigh  = _acTemps.high  > 0 ? _acTemps.high  : '';
+      const acLow   = _acTemps.low   > 0 ? _acTemps.low   : '';
+      const acDelay = Math.round((_acTemps.delay ?? 600) / 60);  // display in minutes
+      body = `<span class="auto-note">Climate-driven — ON at ceiling, OFF at floor</span>
+        <div class="auto-tuning">
+          <div class="tuning-row">
+            <label title="A/C turns ON when temp reaches this value">Start at</label>
+            <input type="number" id="ac_high_${r.id}" value="${acHigh}"
+                   placeholder="${_acProfTemps.high}" min="15" max="45" step="0.5">
+            <span>°C</span>
+          </div>
+          <div class="tuning-row">
+            <label title="A/C turns OFF when temp drops to this value">Stop at</label>
+            <input type="number" id="ac_low_${r.id}" value="${acLow}"
+                   placeholder="${_acProfTemps.low}" min="10" max="40" step="0.5">
+            <span>°C</span>
+          </div>
+          <div class="tuning-row">
+            <label title="How long after A/C stops before humidifier and heater are allowed to run again">Settle delay</label>
+            <input type="number" id="ac_delay_${r.id}" value="${acDelay}"
+                   min="0" max="60" step="1">
+            <span>min</span>
+          </div>
+          <div style="font-size:.68rem;color:var(--muted);padding:.1rem 0 .35rem 0;line-height:1.4">
+            Blank temps = use profile (${_acProfTemps.high}°C / ${_acProfTemps.low}°C). Settle delay blocks humidifier &amp; heater after A/C stops.
+          </div>
+          <button class="btn-apply" onclick="applyAcTemps(${r.id},this)">Apply</button>
+        </div>`;
     } else {
       const buf        = (r.buffer     ?? 0.05).toFixed(2);
       const minOn      = r.minOn      ?? 30;
@@ -1779,13 +2011,21 @@ function renderRelayCard(card, r, force) {
     </div>`;
   }
 
+  const installed = r.installed !== false;
   const html = `
     <div class="relay-head">
-      <span class="relay-name">${r.name}</span>
-      <span class="relay-status${r.state?' on':''}">${r.state?'ON':'OFF'}</span>
+      <span class="relay-name" style="${installed?'':'color:var(--muted);text-decoration:line-through'}">${r.name}</span>
+      <span style="display:flex;align-items:center;gap:.45rem">
+        <label style="display:flex;align-items:center;gap:.22rem;font-size:.72rem;color:var(--muted);cursor:pointer;user-select:none">
+          <input type="checkbox" ${installed?'checked':''} onchange="setRelayInstalled(${r.id},this.checked)" style="accent-color:var(--green)">Installed
+        </label>
+        <span class="relay-status${r.state?' on':''}">${r.state?'ON':'OFF'}</span>
+      </span>
     </div>
+    <div style="${installed?'':'opacity:.45;pointer-events:none'}">
     <div class="tabs">${modeTabs}</div>
-    <div class="ctrl-body">${waterCountdown}${body}</div>`;
+    <div class="ctrl-body">${waterCountdown}${body}</div>
+    </div>`;
 
   const lastTouch = parseInt(card.dataset.touch || '0');
   const touched   = (Date.now() - lastTouch) < 5000;
@@ -1793,7 +2033,7 @@ function renderRelayCard(card, r, force) {
 }
 
 // ─── User actions → WebSocket ─────────────────────────────────────────────────
-const STAGE_NAMES = ['Seedling', 'Vegetative', 'Flowering', 'Drying'];
+const STAGE_NAMES = ['Seedling', 'Vegetative', 'Early Flower', 'Late Flower', 'Drying'];
 let _pendingStage = null;
 
 function requestStageChange(newMode) {
@@ -1807,9 +2047,9 @@ function requestStageChange(newMode) {
   document.getElementById('mFromStage').textContent  = STAGE_NAMES[_confirmedStage];
   document.getElementById('mToStage').textContent    = STAGE_NAMES[newMode];
   document.getElementById('mConfirmBtn').textContent = 'Change to ' + STAGE_NAMES[newMode];
-  document.getElementById('mModalBody').innerHTML = (newMode === 3)
+  document.getElementById('mModalBody').innerHTML = (newMode === 4)
     ? 'Lights will turn <strong>OFF</strong> and the system will hold drying conditions. Use the <strong>Slow / Fast</strong> toggle to switch speed at any time — the day counter keeps running.'
-    : 'This <strong>cannot be undone</strong>. Wrong timing — especially switching to Flowering early — can permanently harm your plants. Only proceed if you are certain.';
+    : 'This <strong>cannot be undone</strong>. Wrong timing — especially switching to flowering early — can permanently harm your plants. Only proceed if you are certain.';
   document.getElementById('stageModal').classList.add('visible');
   // Revert the dropdown — confirmed stage hasn't changed yet
   document.getElementById('growMode').value = String(_confirmedStage);
@@ -1828,7 +2068,7 @@ function confirmStageChange() {
   document.getElementById('stageModal').classList.remove('visible');
   document.getElementById('growMode').value = String(mode);
   try { localStorage.setItem('growStage', String(mode)); } catch(_) {}
-  applyDryToggle(mode === 3, false);
+  applyDryToggle(mode === 4, false);
   send({ type: 'setMode', mode });
   // Update lights card preview immediately (no ESP32 echo when disconnected)
   if (!ws || ws.readyState !== WebSocket.OPEN) {
@@ -1886,6 +2126,8 @@ function updateVpdTargetUI(vt) {
   if (sub)   sub.textContent = vt.enabled
     ? `Active — targeting ${_vpdTargetKpa.toFixed(2)} kPa ± ${(vt.buffer||0.1).toFixed(2)}`
     : 'Overrides profile range for all AUTO relays';
+  // Persist so the UI restores instantly on next page load
+  try { localStorage.setItem('vpdTarget', JSON.stringify({ enabled: !!vt.enabled, kpa: _vpdTargetKpa, buffer: vt.buffer || 0.1 })); } catch(_) {}
 }
 
 function stepVpdTarget(delta) {
@@ -1904,6 +2146,8 @@ function sendVpdTarget() {
   if (sub)  sub.textContent = en
     ? `Active — targeting ${_vpdTargetKpa.toFixed(2)} kPa ± ${buf.toFixed(2)}`
     : 'Overrides profile range for all AUTO relays';
+  // Persist immediately so a page refresh doesn't lose the state before server echo-back
+  try { localStorage.setItem('vpdTarget', JSON.stringify({ enabled: en, kpa: _vpdTargetKpa, buffer: buf })); } catch(_) {}
   send({ type: 'setVpdTarget', enabled: en, kpa: _vpdTargetKpa, buffer: buf });
 }
 
@@ -2041,10 +2285,80 @@ function setFanDirection(id, intake, btn) {
   }
 }
 
+// ─── Irrigation cycle duration slider ────────────────────────────────────────
+let _durFixedMode  = false;
+let _durFixedSec   = 60;
+
+function onDurSlider(val) {
+  val = parseInt(val);
+  const min = (val / 60).toFixed(1);
+  const flow = parseInt(document.getElementById('irrigFlowML')?.value || '500');
+  const ml = flow > 0 ? Math.round(flow * val / 60) : 0;
+  const mlStr = ml >= 1000 ? (ml/1000).toFixed(1)+'L' : ml+'ml';
+  document.getElementById('durSliderLabel').textContent = min + ' min' + (flow > 0 ? ' / ~' + mlStr : '');
+  if (_durFixedMode) {
+    _durFixedSec = val;
+    const btn = document.getElementById('durApplyBtn');
+    if (btn) btn.style.display = '';
+  }
+}
+
+function setIrrigDurMode(isFixed) {
+  _durFixedMode = isFixed;
+  document.getElementById('durModeAutoBtn')?.classList.toggle('active', !isFixed);
+  document.getElementById('durModeFixedBtn')?.classList.toggle('active', isFixed);
+  const slider = document.getElementById('durSlider');
+  if (slider) {
+    slider.disabled = !isFixed;
+    slider.style.opacity = isFixed ? '1' : '0.5';
+  }
+  const applyBtn = document.getElementById('durApplyBtn');
+  if (applyBtn) applyBtn.style.display = isFixed ? '' : 'none';
+  // Send immediately — prevents 2s state push from flipping the UI back
+  send({ type: 'relay', id: WATERING_ID, action: 'waterDurMode', fixed: isFixed, sec: _durFixedSec });
+  _updateDurNote();
+}
+
+function applyIrrigDurMode(btn) {
+  send({ type: 'relay', id: WATERING_ID, action: 'waterDurMode', fixed: true, sec: _durFixedSec });
+  flashApply(btn);
+}
+
+function _updateDurNote() {
+  const noteEl = document.getElementById('durSliderNote');
+  if (!noteEl) return;
+  const adap = parseInt(document.getElementById('durSlider')?.dataset.adaptive || '0');
+  if (_durFixedMode) {
+    noteEl.textContent = 'Manual — fixed duration, ignores soil sensor';
+  } else if (adap > 0) {
+    noteEl.textContent = 'Auto — adjusted from last cycle (' + (adap/60).toFixed(1) + ' min estimated)';
+  } else {
+    noteEl.textContent = 'Auto — no history yet, runs to soil target';
+  }
+}
+
+function setRelayInstalled(id, installed) {
+  send({ type: 'relay', id, action: 'installed', value: installed });
+  if (_cache[id]) {
+    _cache[id] = { ..._cache[id], installed };
+    const card = document.getElementById('rcard-' + id);
+    if (card) renderRelayCard(card, _cache[id], true);
+  }
+}
+
 function onMaxOnChange(id) {
   const mxonEl = document.getElementById('mxon_' + id);
   const row    = document.getElementById('mxrs_row_' + id);
   if (mxonEl && row) row.style.display = parseInt(mxonEl.value, 10) > 0 ? '' : 'none';
+}
+
+function applyAcTemps(id, btn) {
+  const high  = parseFloat(document.getElementById('ac_high_'  + id).value) || 0;
+  const low   = parseFloat(document.getElementById('ac_low_'   + id).value) || 0;
+  const delay = Math.round((parseFloat(document.getElementById('ac_delay_' + id).value) || 10) * 60);
+  send({ type: 'setAcTemps', low, high, delay });
+  btn.textContent = '✓ Saved';
+  setTimeout(() => { btn.textContent = 'Apply'; }, 1500);
 }
 
 function applyAutoTuning(id, btn) {
@@ -2198,7 +2512,8 @@ function onDayStartToggle(id) {
 }
 
 // ─── Chart ────────────────────────────────────────────────────────────────────
-const RANGE_BTNS = { 1: 'rbtn-1', 6: 'rbtn-6', 24: 'rbtn-24', 168: 'rbtn-168' };
+const RANGE_BTNS = { 1: 'rbtn-1', 6: 'rbtn-6', 24: 'rbtn-24', 168: 'rbtn-168', 720: 'rbtn-720' };
+const REMOTE_LOG_BASE = 'http://178.104.6.12';
 let _chartLoading = false;
 let _chartZoomed  = false;
 
@@ -2217,15 +2532,38 @@ function setChartLoading(on) {
 
 function loadChart(hours) {
   chartHours = hours;
+  _chartLastTs = 0;
   Object.keys(RANGE_BTNS).forEach(h => {
     const el = document.getElementById(RANGE_BTNS[h]);
     if (el) el.className = 'range-btn' + (Number(h) === hours ? ' active' : '');
   });
   setChartLoading(true);
-  fetch('/api/logs?hours=' + hours)
-    .then(r => r.ok ? r.json() : Promise.reject(r.status))
-    .then(data => { setChartLoading(false); renderChart(data); })
-    .catch(e  => { setChartLoading(false); console.warn('[Chart] Load failed:', e); });
+
+  if (hours <= 168) {
+    // Local ESP — fast path
+    fetch('/api/logs?hours=' + hours)
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then(data => { setChartLoading(false); renderChart(data); })
+      .catch(e  => { setChartLoading(false); console.warn('[Chart] Load failed:', e); });
+  } else {
+    // 30d — merge remote server (older history) + local ESP (last 7d, most recent)
+    const remoteUrl = REMOTE_LOG_BASE + '/vpd/history?hours=' + hours;
+    const localUrl  = '/api/logs?hours=168';
+    Promise.allSettled([
+      fetch(remoteUrl).then(r => r.ok ? r.json() : []),
+      fetch(localUrl).then(r  => r.ok ? r.json() : [])
+    ]).then(([remoteRes, localRes]) => {
+      setChartLoading(false);
+      const remote = remoteRes.status === 'fulfilled' ? remoteRes.value : [];
+      const local  = localRes.status  === 'fulfilled' ? localRes.value  : [];
+      // Merge: use remote for older data, local for recent; dedupe by timestamp
+      const seen = new Set();
+      const merged = [...remote, ...local]
+        .filter(d => { if (seen.has(d.t)) return false; seen.add(d.t); return true; })
+        .sort((a, b) => a.t - b.t);
+      renderChart(merged.length ? merged : local);
+    });
+  }
 }
 
 function resetChartZoom() {
@@ -2251,8 +2589,8 @@ function toggleChartFullscreen() {
   document.body.classList.toggle('chart-fs-lock', _chartFsActive);
   btn.textContent = _chartFsActive ? '✕' : '⤢';
   btn.title = _chartFsActive ? 'Exit fullscreen' : 'Fullscreen';
-  // Resize after CSS transition (50ms is enough)
-  setTimeout(() => { if (chart) chart.resize(); }, 60);
+  // Resize after CSS transition settles
+  setTimeout(() => { if (chart) chart.resize(); }, 200);
   if (_chartFsActive) {
     document.addEventListener('keydown', _chartEscHandler);
   } else {
@@ -2287,6 +2625,7 @@ const _crosshairPlugin = {
 
 function renderChart(data) {
   const rows   = Array.isArray(data) ? data : [];
+  if (rows.length) _chartLastTs = rows[rows.length - 1].t;
   const labels = rows.map(d => new Date(d.t * 1000));
   const T = rows.map(d => d.T);
   const H = rows.map(d => d.H);
@@ -2411,7 +2750,7 @@ function renderChart(data) {
         },
         yT: {
           position: 'left',
-          ticks: { color: '#f87171', font: { size: 10 }, callback: v => v + '°' },
+          ticks: { color: '#f87171', font: { size: 10 }, callback: v => v.toFixed(1) + '°' },
           grid: { color: '#1f2937' },
           title: { display: true, text: 'Temp °C', color: '#f87171', font: { size: 10 } }
         },
@@ -2436,8 +2775,49 @@ function renderChart(data) {
   });
 }
 
-// Auto-refresh chart every 2 minutes regardless of WebSocket state
-setInterval(() => loadChart(chartHours), 2 * 60 * 1000);
+// ── Incremental chart update — append only new rows since last fetch ──────────
+// The server honours ?since=<epoch> and skips rows already seen, so the response
+// is typically 2–6 rows (one per 5-min log interval) instead of the full dataset.
+function appendToChart(newRows) {
+  if (!chart || !newRows.length) return;
+  _chartLastTs = newRows[newRows.length - 1].t;
+
+  const hasSoil = chart.data.datasets.length >= 4;
+  const newHasSoil = newRows.some(d => d.S != null && d.S >= 0);
+  // If soil data appears for the first time, trigger a full reload for proper dataset setup
+  if (!hasSoil && newHasSoil) { loadChart(chartHours); return; }
+
+  newRows.forEach(d => {
+    chart.data.labels.push(new Date(d.t * 1000));
+    chart.data.datasets[0].data.push(d.T);
+    chart.data.datasets[1].data.push(d.H);
+    chart.data.datasets[2].data.push(d.V);
+    if (hasSoil) chart.data.datasets[3].data.push(d.S >= 0 ? d.S : null);
+  });
+
+  // Trim data that has scrolled out of the time window (skip when user is zoomed)
+  if (!_chartZoomed) {
+    const cutoff = Date.now() / 1000 - chartHours * 3600;
+    while (chart.data.labels.length > 0 &&
+           chart.data.labels[0].getTime() / 1000 < cutoff) {
+      chart.data.labels.shift();
+      chart.data.datasets.forEach(ds => ds.data.shift());
+    }
+  }
+  chart.update('none');
+}
+
+function loadChartIncremental() {
+  // Fall back to full reload if chart not ready, no cursor, or user is zoomed in
+  if (!chart || _chartLastTs === 0 || _chartZoomed) { loadChart(chartHours); return; }
+  fetch('/api/logs?hours=' + chartHours + '&since=' + _chartLastTs)
+    .then(r => r.ok ? r.json() : Promise.reject(r.status))
+    .then(data => { if (Array.isArray(data) && data.length) appendToChart(data); })
+    .catch(e  => console.warn('[Chart] Incremental update failed:', e));
+}
+
+// Auto-refresh — incremental when possible; skip when tab is hidden
+setInterval(() => { if (!document.hidden) loadChartIncremental(); }, 2 * 60 * 1000);
 
 function rebootESP() {
   if (!confirm('Restart the ESP32?\nThe system will be offline for ~5 seconds.')) return;
@@ -2627,8 +3007,8 @@ const AT_METRIC_UNIT = ['kPa', '%RH', '°C'];
 // relayId → metric index (matches METRIC[] in autotune.cpp)
 const AT_RELAY_METRIC = { 0: 0, 1: 2, 2: 0, 4: 1, 5: 2 };
 
-const AT_TUNABLE = [0, 1, 2, 4, 5];  // relay IDs auto-tune can test
-const AT_TUNABLE_NAMES = { 0:'Top Fan', 1:'Bottom Fan', 2:'Humidifier', 4:'Dehumidifier', 5:'Heat' };
+const AT_TUNABLE = [0, 1, 2, 5, 7];  // relay IDs auto-tune can test
+const AT_TUNABLE_NAMES = { 0:'Top Fan', 1:'Bottom Fan', 2:'Humidifier', 5:'Heat', 7:'Dehumidifier' };
 
 function getSelectedATRelays() {
   return AT_TUNABLE.filter(id => {
@@ -2798,17 +3178,16 @@ function updateAutoTune(at) {
 
 // ─── Page tab switching ───────────────────────────────────────────────────────
 function showPageTab(name) {
-  const dash   = document.getElementById('tab-dashboard');
-  const irrig  = document.getElementById('tab-irrigation');
-  const pdash  = document.getElementById('ptab-dash');
-  const pirrig = document.getElementById('ptab-irrig');
-  const isIrrig = (name === 'irrigation');
-  if (dash)   dash.style.display   = isIrrig ? 'none' : '';
-  if (irrig)  irrig.style.display  = isIrrig ? '' : 'none';
-  if (pdash)  pdash.classList.toggle('active', !isIrrig);
-  if (pirrig) pirrig.classList.toggle('active', isIrrig);
+  ['dashboard', 'irrigation', 'sensors', 'syslog', 'camera'].forEach(t => {
+    const el  = document.getElementById('tab-' + t);
+    const btn = document.getElementById('ptab-' + t);
+    if (el)  el.style.display = (t === name) ? '' : 'none';
+    if (btn) btn.classList.toggle('active', t === name);
+  });
   try { localStorage.setItem('pageTab', name); } catch(_) {}
-  if (isIrrig) loadIrrigHistory();
+  if (name === 'irrigation') loadIrrigHistory();
+  if (name === 'syslog')     loadSyslog();
+  if (name === 'camera')     cameraAutoConnect();
 }
 
 // ─── Live state update ────────────────────────────────────────────────────────
@@ -2820,6 +3199,16 @@ function updateIrrigationTab(s) {
   if (enEl) enEl.checked = !!irr.precisionEnabled;
   const card = document.getElementById('irrigCard');
   if (card) card.classList.toggle('active', !!irr.precisionEnabled);
+
+  // Probe placement mode
+  const probeBtn = document.getElementById('probePlacementBtn');
+  if (probeBtn) {
+    const pm = !!irr.probeMode;
+    probeBtn.textContent = pm ? 'Resume Auto' : 'Moving Probe';
+    probeBtn.style.background = pm ? 'var(--yellow)' : '';
+    probeBtn.style.color = pm ? '#000' : '';
+    probeBtn.style.borderColor = pm ? 'var(--yellow)' : '';
+  }
 
   const stLine = document.getElementById('irrigStatusLine');
   const stageNames = ['Seedling','Veg','Flower','Drying'];
@@ -2836,7 +3225,9 @@ function updateIrrigationTab(s) {
     setIStat('is-dryback', db.toFixed(0) + '%',
       db > 20 ? 'var(--green)' : db > 10 ? 'var(--yellow)' : 'var(--muted)');
     const ts = irr.stats.lastWaterTs || 0;
-    setIStat('is-last', ts > 1000000 ? fmtAgo(ts) : '—', 'var(--text)');
+    setIStat('is-last',
+      ts > 1000000000 ? fmtAgo(ts) : ts > 0 ? 'syncing…' : '—',
+      'var(--text)');
     const ml = irr.stats.todayML || 0;
     setIStat('is-today', ml >= 1000 ? (ml/1000).toFixed(1)+'L' : ml+'ml',
              ml > 0 ? 'var(--blue)' : 'var(--muted)');
@@ -2867,6 +3258,30 @@ function updateIrrigationTab(s) {
   const flowEl = document.getElementById('irrigFlowML');
   if (flowEl && _wFlow > 0 && document.activeElement !== flowEl) flowEl.value = _wFlow;
   updateIrrigWaterEst();
+
+  // ── Duration slider ────────────────────────────────────────────────────────
+  if (irr.stats) {
+    const adaptSec = irr.stats.adaptiveDurSec || 0;
+    const fixedMode = !!irr.stats.fixedDurMode;
+    const fixedSec  = irr.stats.fixedDurSec  || 60;
+    _durFixedMode = fixedMode;
+    _durFixedSec  = fixedSec;
+
+    const slider = document.getElementById('durSlider');
+    if (slider && document.activeElement !== slider) {
+      const dispSec = fixedMode ? fixedSec : (adaptSec > 0 ? adaptSec : 60);
+      slider.value = dispSec;
+      slider.dataset.adaptive = adaptSec;
+      slider.disabled = !fixedMode;
+      slider.style.opacity = fixedMode ? '1' : '0.5';
+      onDurSlider(dispSec);
+    }
+    document.getElementById('durModeAutoBtn')?.classList.toggle('active', !fixedMode);
+    document.getElementById('durModeFixedBtn')?.classList.toggle('active', fixedMode);
+    const applyBtn = document.getElementById('durApplyBtn');
+    if (applyBtn) applyBtn.style.display = fixedMode ? '' : 'none';
+    _updateDurNote();
+  }
 }
 
 function setIStat(id, val, color) {
@@ -2906,6 +3321,13 @@ function calibrateSoil(point) {
   ws.send(JSON.stringify({ type: 'soilCalib', point }));
 }
 
+function toggleProbePlacement() {
+  const probeBtn = document.getElementById('probePlacementBtn');
+  const currentlyActive = probeBtn && probeBtn.textContent.includes('Resume');
+  const next = !currentlyActive;
+  send({ type: 'setProbePlacement', active: next });
+}
+
 function setPrecisionEnabled(en) {
   _irrigPlantCfg.enabled = en;
   const card = document.getElementById('irrigCard');
@@ -2927,10 +3349,9 @@ const L_PER_GAL = 3.785;
 
 function renderPlantSetup() {
   const { count, pots, substrate } = _irrigPlantCfg;
-  // Count buttons
-  document.querySelectorAll('#plantCountBtns .dur-btn').forEach((b, i) => {
-    b.classList.toggle('active', i + 1 === count);
-  });
+  // Count display
+  const countVal = document.getElementById('plantCountVal');
+  if (countVal) countVal.textContent = count;
   // Substrate buttons
   document.querySelectorAll('#substrateBtns .dur-btn').forEach((b, i) => {
     b.classList.toggle('active', i === substrate);
@@ -2957,13 +3378,17 @@ function renderPlantSetup() {
   updateIrrigHints();
 }
 
+function adjustPlantCount(delta) {
+  const n = Math.max(1, Math.min(16, (_irrigPlantCfg.count || 1) + delta));
+  setPlantCount(n);
+}
+
 function setPlantCount(n) {
   _plantSetupTouched = true;
   _showPlantApplyBtn();
   _irrigPlantCfg.count = n;
-  document.querySelectorAll('#plantCountBtns .dur-btn').forEach((b, i) => {
-    b.classList.toggle('active', i + 1 === n);
-  });
+  const countVal = document.getElementById('plantCountVal');
+  if (countVal) countVal.textContent = n;
   const row = document.getElementById('potSizesRow');
   if (!row) return;
   row.innerHTML = '';
@@ -3107,10 +3532,12 @@ function renderIrrigProfiles(profiles, activeStage, flowML) {
     return `<tr>
       <td style="font-weight:600">${dot}${IRRIG_STAGE_NAMES[i]}</td>
       <td style="text-align:center"><input type="number" id="ip_tr_${i}" value="${p.trigger}" min="10" max="90" title="Start watering below this %">%</td>
-      <td style="text-align:center"><input type="number" id="ip_tg_${i}" value="${p.target}"  min="20" max="100" title="Stop watering when soil reaches this %">%</td>
-      <td style="text-align:center"><input type="number" id="ip_mx_${i}" value="${mxMin}" min="0" max="60" title="Safety max duration (minutes)" oninput="_updMxMl(${i},this.value)">m${mlEst ? ` <span id="ip_mx_ml_${i}" style="font-size:.7rem;color:var(--muted)">${mlEst}</span>` : `<span id="ip_mx_ml_${i}" style="font-size:.7rem;color:var(--muted)"></span>`}</td>
-      <td style="text-align:center"><input type="number" id="ip_dr_${i}" value="${Math.round(p.dayRest/60)}" min="1" max="1440" title="Min rest during lights-on (minutes)">m</td>
-      <td style="text-align:center"><input type="number" id="ip_nr_${i}" value="${Math.round(p.nightRest/60)}" min="1" max="1440" title="Min rest during lights-off (minutes)">m</td>
+      <td style="text-align:center"><input type="number" id="ip_tg_${i}" value="${p.target}"  min="20" max="100" title="Stop when soil reaches this % (checked after each soak)">%</td>
+      <td style="text-align:center"><input type="number" id="ip_mx_${i}" value="${mxMin}" min="0" max="60" title="Safety max total on-time (minutes)" oninput="_updMxMl(${i},this.value)">m${mlEst ? ` <span id="ip_mx_ml_${i}" style="font-size:.7rem;color:var(--muted)">${mlEst}</span>` : `<span id="ip_mx_ml_${i}" style="font-size:.7rem;color:var(--muted)"></span>`}</td>
+      <td style="text-align:center"><input type="number" id="ip_po_${i}" value="${p.pulseOn || 20}" min="5" max="300" title="Valve-on time per pulse (seconds)">s</td>
+      <td style="text-align:center"><input type="number" id="ip_ps_${i}" value="${p.pauseSec || 45}" min="10" max="300" title="Soak pause between pulses (seconds)">s</td>
+      <td style="text-align:center"><input type="number" id="ip_dr_${i}" value="${Math.round(p.dayRest/60)}" min="1" max="1440" title="Min rest between sessions during lights-on (minutes)">m</td>
+      <td style="text-align:center"><input type="number" id="ip_nr_${i}" value="${Math.round(p.nightRest/60)}" min="1" max="1440" title="Min rest between sessions during lights-off (minutes)">m</td>
     </tr>`;
   }).join('');
 }
@@ -3120,12 +3547,14 @@ function applyAllProfiles(btn) {
     const tr = document.getElementById('ip_tr_' + i);
     const tg = document.getElementById('ip_tg_' + i);
     const mx = document.getElementById('ip_mx_' + i);
+    const po = document.getElementById('ip_po_' + i);
+    const ps = document.getElementById('ip_ps_' + i);
     const dr = document.getElementById('ip_dr_' + i);
     const nr = document.getElementById('ip_nr_' + i);
     if (!tr) {
       // Disabled stage (Drying)
       send({ type: 'setIrrigProfile', stage: i, enabled: false,
-             trigger: 0, target: 0, maxSec: 0, dayRest: 0, nightRest: 0 });
+             trigger: 0, target: 0, maxSec: 0, pulseOn: 0, pauseSec: 0, dayRest: 0, nightRest: 0 });
       continue;
     }
     send({
@@ -3133,6 +3562,8 @@ function applyAllProfiles(btn) {
       trigger:   Math.max(10, parseInt(tr.value, 10) || 50),
       target:    Math.max(20, parseInt(tg.value, 10) || 70),
       maxSec:    Math.max(30, (parseFloat(mx.value) || 3) * 60),
+      pulseOn:   Math.max(5,  parseInt(po ? po.value : 20, 10) || 20),
+      pauseSec:  Math.max(10, parseInt(ps ? ps.value : 45, 10) || 45),
       dayRest:   Math.max(60, (parseFloat(dr.value) || 30) * 60),
       nightRest: Math.max(60, (parseFloat(nr.value) || 60) * 60)
     });
@@ -3147,11 +3578,289 @@ function resetIrrigProfilesToDefault(btn) {
 }
 
 // ─── History charts ────────────────────────────────────────────────────────────
-let _irrigChartHours = 24;
-let _irrigSoilChart  = null;
-let _irrigDayChart   = null;
+let _irrigChartHours  = 24;
+let _irrigSoilChart   = null;
+let _irrigDayChart    = null;
+let _irrigZoomed      = false;
+let _irrigFsActive    = false;
 
 function loadIrrigHistory() { loadIrrigChart(_irrigChartHours); }
+
+function resetIrrigZoom() {
+  if (_irrigSoilChart) _irrigSoilChart.resetZoom();
+  _irrigZoomed = false;
+  const btn = document.getElementById('irrigResetZoom');
+  if (btn) btn.style.display = 'none';
+}
+
+function _onIrrigZoom() {
+  _irrigZoomed = true;
+  const btn = document.getElementById('irrigResetZoom');
+  if (btn) btn.style.display = 'inline';
+}
+
+function toggleIrrigFullscreen() {
+  const card = document.getElementById('irrigSoilChartCard');
+  const btn  = document.getElementById('irrigFsBtn');
+  if (!card) return;
+  _irrigFsActive = !_irrigFsActive;
+  card.classList.toggle('chart-card-fs', _irrigFsActive);
+  document.body.classList.toggle('chart-fs-lock', _irrigFsActive);
+  btn.textContent = _irrigFsActive ? '✕' : '⤢';
+  btn.title = _irrigFsActive ? 'Exit fullscreen' : 'Fullscreen';
+  setTimeout(() => { if (_irrigSoilChart) _irrigSoilChart.resize(); }, 60);
+  if (_irrigFsActive) {
+    document.addEventListener('keydown', _irrigEscHandler);
+  } else {
+    document.removeEventListener('keydown', _irrigEscHandler);
+  }
+}
+function _irrigEscHandler(e) {
+  if (e.key === 'Escape' && _irrigFsActive) toggleIrrigFullscreen();
+}
+
+// ─── Syslog loader ─────────────────────────────────────────────────────────────
+function loadSyslog() {
+  const el = document.getElementById('syslogLines');
+  if (el) el.textContent = 'Loading…';
+  fetch('/api/syslog')
+    .then(r => r.json())
+    .then(data => {
+      // Previous crash banner
+      const banner = document.getElementById('crashBanner');
+      const detail = document.getElementById('crashDetail');
+      if (data.crash && banner && detail) {
+        const ts = data.crash.epoch ? new Date(data.crash.epoch * 1000).toLocaleString() : '?';
+        const up = data.crash.uptime ? ` (uptime ${data.crash.uptime}s)` : '';
+        detail.textContent = ` — ${data.crash.reason} at ${ts}${up}`;
+        banner.style.display = '';
+      } else if (banner) {
+        banner.style.display = 'none';
+      }
+      // Log lines
+      if (el) {
+        if (!data.log || data.log.length === 0) {
+          el.innerHTML = '<span style="color:var(--muted)">No log entries yet.</span>';
+        } else {
+          // Color-code by tag
+          el.innerHTML = data.log.map(line => {
+            let color = 'var(--text)';
+            if (/\[BOOT\]|\[WIFI\]|\[NTP\]/.test(line))  color = 'var(--blue)';
+            if (/\[HEAT\]/.test(line))                    color = 'var(--yellow)';
+            if (/\[IR\]/.test(line))                      color = 'var(--green)';
+            if (/\[WARN\]|\[HEAP\]/.test(line))           color = 'var(--red)';
+            const safe = line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            return `<span style="color:${color}">${safe}</span>`;
+          }).join('\n');
+          // Scroll to bottom (newest entry)
+          el.scrollTop = el.scrollHeight;
+        }
+      }
+    })
+    .catch(err => {
+      if (el) el.textContent = 'Error: ' + err;
+    });
+}
+
+// ─── WiFi Sensor management ───────────────────────────────────────────────────
+let _wifiSensors = [];  // last received array from WS state
+
+function updateWifiSensors(arr) {
+  if (!Array.isArray(arr)) return;
+  _wifiSensors = arr;
+  try { localStorage.setItem('wifiSensors', JSON.stringify(arr)); } catch(_) {}
+  const list = document.getElementById('wifiSensorList');
+  if (!list) return;
+
+  // Build sensor-pick buttons for the camera tab
+  _updateCamSensorPick(arr);
+
+  if (!arr.some(s => s.name)) {
+    list.innerHTML = '<span style="color:var(--muted);font-size:.82rem">No sensors configured yet — add one below.</span>';
+    return;
+  }
+
+  list.innerHTML = arr.map(s => {
+    if (!s.name) return '';
+    const dot  = s.valid ? '🟢' : (s.enabled ? '🔴' : '⚫');
+    const temp = s.valid && s.sensorUrl ? s.temp.toFixed(1) + '°C' : '—';
+    const hum  = s.valid && s.sensorUrl ? s.hum.toFixed(0)  + '%'  : '—';
+    const subtitle = s.sensorUrl
+      ? `<span style="color:var(--muted)">${s.sensorUrl}</span>`
+      : `<span style="color:var(--muted)">📷 camera only</span>`;
+    const camBtn = s.streamUrl
+      ? `<button class="btn-sm" style="font-size:.72rem;padding:.15rem .45rem"
+           onclick="cameraFromSensor(${s.id})" title="View camera">📷</button>`
+      : '';
+    // Sensor data toggle — only shown when device has a sensor URL
+    const sensorOn = s.sensorActive !== false;
+    const sensorBtn = s.sensorUrl
+      ? `<button class="btn-sm" title="${sensorOn ? 'Sensor data active — click to disable' : 'Sensor data disabled — click to enable'}"
+           style="font-size:.72rem;padding:.15rem .5rem;${sensorOn
+             ? 'background:var(--green)22;color:var(--green)'
+             : 'background:var(--surface2);color:var(--muted)'}"
+           onclick="toggleSensorActive(${s.id},${!sensorOn})">📡 ${sensorOn ? 'On' : 'Off'}</button>`
+      : '';
+    return `
+    <div style="display:flex;align-items:center;gap:.55rem;padding:.45rem .6rem;
+                background:var(--surface2);border-radius:8px;${!s.enabled?'opacity:.5':''}">
+      <span style="font-size:1rem">${dot}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.name}</div>
+        <div style="font-size:.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${subtitle}</div>
+      </div>
+      <span style="font-size:.82rem;font-weight:600;min-width:4rem;text-align:right">${temp} / ${hum}</span>
+      ${camBtn}
+      ${sensorBtn}
+      ${s.builtin
+        ? `<span style="font-size:.72rem;color:var(--muted);padding:.15rem .3rem" title="Built-in sensor — always active">📌</span>`
+        : `<label style="display:flex;align-items:center;gap:.25rem;font-size:.75rem;cursor:pointer">
+             <input type="checkbox" ${s.enabled?'checked':''} onchange="toggleWifiSensor(${s.id},this.checked)"
+                    style="accent-color:var(--green)"> On
+           </label>
+           <button class="btn-sm" style="font-size:.72rem;padding:.15rem .45rem;background:var(--red)22;color:var(--red)"
+                   onclick="removeWifiSensor(${s.id})" title="Remove">✕</button>`
+      }
+    </div>`;
+  }).join('');
+}
+
+function _updateCamSensorPick(arr) {
+  // Refresh camera link list whenever sensor list updates
+  _renderCamLinks(arr);
+}
+
+function addWifiSensor() {
+  const name      = (document.getElementById('addSensorName')?.value || '').trim();
+  const sensorUrl = (document.getElementById('addSensorUrl')?.value  || '').trim();
+  const streamUrl = (document.getElementById('addStreamUrl')?.value  || '').trim();
+  if (!name || (!sensorUrl && !streamUrl)) {
+    alert('Name and at least one URL (sensor or camera) are required.');
+    return;
+  }
+  send({ type: 'addSensor', name, sensorUrl, streamUrl });
+  document.getElementById('addSensorName').value = '';
+  document.getElementById('addSensorUrl').value  = '';
+  document.getElementById('addStreamUrl').value  = '';
+  const d = document.getElementById('addSensorDetails');
+  if (d) d.removeAttribute('open');
+}
+
+function toggleSensorActive(id, active) {
+  send({ type: 'setSensorActive', id, active });
+}
+
+function removeWifiSensor(id) {
+  if (!confirm('Remove this sensor?')) return;
+  send({ type: 'removeSensor', id });
+}
+
+function toggleWifiSensor(id, en) {
+  send({ type: 'toggleSensor', id, enabled: en });
+}
+
+// ─── Camera tab ───────────────────────────────────────────────────────────────
+// Derives stream + page URLs from whichever URL field the user filled in.
+// Tries to show the MJPEG stream inline; falls back to an "Open ↗" link if
+// the browser blocks the cross-origin load.
+
+function _getCamUrls(s) {
+  const base = s.streamUrl;
+  if (!base) return null;
+  try {
+    const u = new URL(base);
+    const isStream = u.port === '81' || u.pathname.toLowerCase().includes('stream');
+    return isStream
+      ? { stream: base,                                           page: `${u.protocol}//${u.hostname}` }
+      : { stream: `${u.protocol}//${u.hostname}:81/stream`,      page: base };
+  } catch(_) {
+    return { stream: base, page: base };
+  }
+}
+
+function _renderCamLinks(arr) {
+  const list = document.getElementById('camLinkList');
+  if (!list) return;
+  const sensors = (arr || _wifiSensors).filter(s => s.enabled && s.streamUrl);
+  if (!sensors.length) {
+    list.innerHTML = `<div style="color:var(--muted);font-size:.85rem;line-height:1.9;
+        text-align:center;padding:2.5rem 1rem">
+      No camera configured.<br>
+      Go to <strong>Sensors</strong> tab → Add sensor.<br>
+      <span style="font-size:.75rem">The Camera URL field is optional — if left empty, stream
+      is auto-detected from the sensor URL.</span>
+    </div>`;
+    return;
+  }
+  list.innerHTML = sensors.map(s => {
+    const urls = _getCamUrls(s);
+    if (!urls) return '';
+    const imgId = 'camImg-' + s.id;
+    const errId = 'camErr-' + s.id;
+    return `
+    <div style="margin-bottom:1.1rem">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.45rem">
+        <strong style="font-size:.9rem">📷 ${s.name}</strong>
+        <a href="${urls.page}" target="_blank" rel="noopener"
+           style="background:var(--green);color:#000;font-weight:700;font-size:.78rem;
+                  padding:.3rem .8rem;border-radius:7px;text-decoration:none">Open ↗</a>
+      </div>
+      <div style="background:#000;border-radius:8px;overflow:hidden">
+        <img id="${imgId}" src="${urls.stream}"
+             style="width:100%;display:block;max-height:420px;object-fit:contain"
+             onerror="this.style.display='none';document.getElementById('${errId}').style.display=''">
+        <div id="${errId}" style="display:none;padding:2.5rem 1rem;text-align:center;
+             color:var(--muted);font-size:.82rem;line-height:1.7">
+          Stream blocked by browser security.<br>
+          Use <strong>Open ↗</strong> to view the camera in a new tab.
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ─── Camera stream with retry ─────────────────────────────────────────────────
+const CAM_STREAM_URL = 'http://192.168.1.100:81/stream';
+let _camRetryCount = 0;
+let _camRetryTimer = null;
+
+function _camSetStream() {
+  const img = document.getElementById('camStreamImg');
+  const err = document.getElementById('camStreamErr');
+  if (!img) return;
+  img.style.display = '';
+  if (err) err.style.display = 'none';
+  // Force reload by blanking src first, then setting it
+  img.src = '';
+  img.src = CAM_STREAM_URL;
+}
+
+function _camRetry() {
+  const img = document.getElementById('camStreamImg');
+  const err = document.getElementById('camStreamErr');
+  const msg = document.getElementById('camErrMsg');
+  if (!img) return;
+  img.style.display = 'none';
+  if (_camRetryCount < 5) {
+    _camRetryCount++;
+    const delay = _camRetryCount * 2000;  // 2 s, 4 s, 6 s, 8 s, 10 s
+    if (msg) msg.textContent = `Connecting… (attempt ${_camRetryCount}/5)`;
+    if (err) err.style.display = '';
+    clearTimeout(_camRetryTimer);
+    _camRetryTimer = setTimeout(_camSetStream, delay);
+  } else {
+    if (msg) msg.textContent = 'Stream unavailable or blocked by browser security.';
+    if (err) err.style.display = '';
+  }
+}
+
+function cameraAutoConnect() {
+  _camRetryCount = 0;
+  clearTimeout(_camRetryTimer);
+  _camSetStream();
+}
+function cameraFromSensor(id) { showPageTab('camera'); }
+function cameraReload() { cameraAutoConnect(); }
 
 function loadIrrigChart(hours) {
   _irrigChartHours = hours;
@@ -3173,9 +3882,10 @@ function _renderIrrigCharts(soilData, events, hours) {
   const soilRows = rows.filter(d => d.S != null && d.S >= 0);
   const labels   = soilRows.map(d => new Date(d.t * 1000));
   const soilVals = soilRows.map(d => d.S);
-  const evPts    = (events || [])
-    .filter(e => e.b != null)
-    .map(e => ({ x: new Date(e.t * 1000), y: e.b }));
+
+  // Build event points — store ml on the raw data object so tooltip can use it
+  const filteredEvts = (events || []).filter(e => e.b != null);
+  const evPts = filteredEvts.map(e => ({ x: new Date(e.t * 1000), y: e.b, ml: e.ml || 0 }));
 
   const tOpts = chartTimeOpts(hours);
 
@@ -3189,36 +3899,70 @@ function _renderIrrigCharts(soilData, events, hours) {
         datasets: [
           { type: 'line', label: 'Soil %', data: soilVals,
             borderColor: '#f59e0b', backgroundColor: '#f59e0b18',
-            yAxisID: 'y', tension: 0.3, pointRadius: 0, borderWidth: 2, fill: true, spanGaps: true },
+            yAxisID: 'y', tension: 0.35, pointRadius: 0,
+            pointHoverRadius: 4, pointHoverBackgroundColor: '#f59e0b',
+            borderWidth: 2, fill: true, spanGaps: true },
           { type: 'scatter', label: 'Watered', data: evPts,
-            backgroundColor: '#3b82f6', pointRadius: 7, pointStyle: 'triangle',
-            pointHoverRadius: 9, yAxisID: 'y' }
+            backgroundColor: '#3b82f6cc', borderColor: '#3b82f6',
+            borderWidth: 1.5, pointRadius: 7, pointStyle: 'triangle',
+            pointHoverRadius: 10, yAxisID: 'y' }
         ]
       },
+      plugins: [_crosshairPlugin],
       options: {
         responsive: true, maintainAspectRatio: false, animation: false,
-        interaction: { mode: 'nearest', intersect: false },
+        interaction: { mode: 'index', intersect: false },
         plugins: {
-          legend: { labels: { color: '#9ca3af', boxWidth: 12, font: { size: 11 } } },
+          legend: { labels: { color: '#9ca3af', boxWidth: 12, font: { size: 11 },
+                              usePointStyle: false } },
           tooltip: {
             backgroundColor: '#0f172a', borderColor: '#334155', borderWidth: 1,
-            titleColor: '#f1f5f9', bodyColor: '#94a3b8', padding: 10,
+            titleColor: '#e2e8f0', bodyColor: '#94a3b8',
+            padding: { x: 12, y: 10 },
             callbacks: {
-              label: ctx => {
-                if (ctx.datasetIndex === 1) return ` 💧 Watered at ${ctx.parsed.y.toFixed(0)}%`;
-                return ` Soil: ${ctx.parsed.y != null ? ctx.parsed.y.toFixed(0) : '--'}%`;
+              title: items => {
+                if (!items.length) return '';
+                const d = new Date(items[0].parsed.x);
+                const hh = String(d.getHours()).padStart(2,'0');
+                const mm = String(d.getMinutes()).padStart(2,'0');
+                const day = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];
+                return `${day} ${hh}:${mm}`;
+              },
+              label: item => {
+                if (item.datasetIndex === 1) {
+                  const raw = item.raw;
+                  const mlStr = raw.ml >= 1000
+                    ? (raw.ml / 1000).toFixed(2).replace(/\.?0+$/, '') + ' L'
+                    : raw.ml > 0 ? raw.ml + ' ml' : '';
+                  return ` 💧 Watered at ${item.parsed.y.toFixed(0)}%` + (mlStr ? `  (${mlStr})` : '');
+                }
+                return ` Soil: ${item.parsed.y != null ? item.parsed.y.toFixed(0) : '--'}%`;
               }
+            }
+          },
+          zoom: {
+            zoom: {
+              wheel: { enabled: true, speed: 0.08 },
+              pinch: { enabled: true },
+              mode: 'x',
+              onZoomComplete: _onIrrigZoom
+            },
+            pan: {
+              enabled: true,
+              mode: 'x',
+              onPanComplete: _onIrrigZoom
             }
           }
         },
         scales: {
           x: { type: 'time', time: { unit: tOpts.unit, stepSize: tOpts.stepSize,
                  tooltipFormat: tOpts.tooltipFormat, displayFormats: tOpts.displayFormats },
-               ticks: { color: '#4b5563', maxRotation: 0, maxTicksLimit: tOpts.maxTicksLimit, font: { size: 10 } },
-               grid: { color: '#1e293b' } },
+               ticks: { color: '#6b7280', maxRotation: 0, maxTicksLimit: tOpts.maxTicksLimit, font: { size: 10 } },
+               grid: { color: '#1f2937' } },
           y: { min: 0, max: 100,
                ticks: { color: '#f59e0b', font: { size: 10 }, callback: v => v + '%' },
-               grid: { color: '#1e293b' } }
+               grid: { color: '#1f2937' },
+               title: { display: true, text: 'Moisture %', color: '#f59e0b88', font: { size: 10 } } }
         }
       }
     });
@@ -3231,6 +3975,13 @@ function _renderIrrigCharts(soilData, events, hours) {
       tooltipFormat: tOpts.tooltipFormat, displayFormats: tOpts.displayFormats
     });
     _irrigSoilChart.options.scales.x.ticks.maxTicksLimit = tOpts.maxTicksLimit;
+    // Reset zoom when range button changes
+    if (_irrigZoomed) {
+      _irrigSoilChart.resetZoom();
+      _irrigZoomed = false;
+      const rb = document.getElementById('irrigResetZoom');
+      if (rb) rb.style.display = 'none';
+    }
     _irrigSoilChart.update('none');
   }
 
@@ -3252,24 +4003,44 @@ function _renderIrrigCharts(soilData, events, hours) {
       type: 'bar',
       data: {
         labels: dayLabels,
-        datasets: [{ label: 'Water (ml)', data: dayVals,
-                     backgroundColor: '#3b82f680', borderColor: '#3b82f6',
-                     borderWidth: 1, borderRadius: 4 }]
+        datasets: [{ label: 'Water', data: dayVals,
+                     backgroundColor: '#3b82f655', borderColor: '#3b82f6',
+                     borderWidth: 1.5, borderRadius: 5 }]
       },
       options: {
         responsive: true, maintainAspectRatio: false, animation: false,
-        plugins: { legend: { display: false },
-          tooltip: { backgroundColor: '#0f172a', borderColor: '#334155', borderWidth: 1,
-            titleColor: '#f1f5f9', bodyColor: '#94a3b8', padding: 10,
-            callbacks: { label: ctx => {
-              const v = ctx.parsed.y;
-              return ' ' + (v >= 1000 ? (v/1000).toFixed(1)+'L' : v+'ml');
-            }}}},
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#0f172a', borderColor: '#334155', borderWidth: 1,
+            titleColor: '#e2e8f0', bodyColor: '#94a3b8',
+            padding: { x: 12, y: 10 },
+            callbacks: {
+              label: ctx => {
+                const v = ctx.parsed.y;
+                const str = v >= 1000
+                  ? (v / 1000).toFixed(2).replace(/\.?0+$/, '') + ' L'
+                  : v + ' ml';
+                return ` Total: ${str}`;
+              },
+              afterLabel: ctx => {
+                // count events for this day
+                const key = ctx.label;
+                const count = (events || []).filter(e => {
+                  const k = new Date(e.t * 1000).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' });
+                  return k === key;
+                }).length;
+                return count > 0 ? ` ${count} watering event${count > 1 ? 's' : ''}` : null;
+              }
+            }
+          }
+        },
         scales: {
-          x: { ticks: { color: '#4b5563', font: { size: 10 } }, grid: { color: '#1e293b' } },
-          y: { beginAtZero: true, grid: { color: '#1e293b' },
+          x: { ticks: { color: '#6b7280', font: { size: 10 } }, grid: { color: '#1f2937' } },
+          y: { beginAtZero: true, grid: { color: '#1f2937' },
                ticks: { color: '#3b82f6', font: { size: 10 },
-                        callback: v => v >= 1000 ? (v/1000).toFixed(1)+'L' : v+'ml' } }
+                        callback: v => v >= 1000 ? (v/1000).toFixed(1)+'L' : v+'ml' },
+               title: { display: true, text: 'Volume', color: '#3b82f688', font: { size: 10 } } }
         }
       }
     });
@@ -3285,18 +4056,27 @@ function _renderIrrigLog(events) {
   const tbody = document.getElementById('irrigEventRows');
   if (!tbody) return;
   const evs = Array.isArray(events) ? [...events].reverse().slice(0, 20) : [];
+  const SRC_LABEL = [
+    ['Auto',   'var(--green)'],
+    ['Manual', 'var(--yellow)'],
+    ['Timer',  'var(--blue)'],
+    ['Sched',  'var(--muted)'],
+  ];
   if (!evs.length) {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:.75rem;color:var(--muted)">No irrigation events yet</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:.75rem;color:var(--muted)">No irrigation events yet</td></tr>';
     return;
   }
   tbody.innerHTML = evs.map(e => {
     const when   = e.t > 1000000 ? fmtAgo(e.t) : '--';
-    const before = e.b != null ? e.b.toFixed(0) + '%' : '--';
-    const after  = e.a != null ? e.a.toFixed(0) + '%' : '--';
+    const si     = (e.src != null && e.src < 4) ? e.src : 0;
+    const [srcTxt, srcClr] = SRC_LABEL[si];
+    const before = (e.b != null && e.b >= 0) ? e.b.toFixed(0) + '%' : '--';
+    const after  = (e.a != null && e.a >= 0) ? e.a.toFixed(0) + '%' : '--';
     const dur    = fmtDuration(e.d || 0);
     const vol    = e.ml ? (e.ml >= 1000 ? (e.ml/1000).toFixed(1)+'L' : e.ml+'ml') : '--';
     return `<tr>
       <td style="color:var(--muted)">${when}</td>
+      <td style="text-align:center;font-size:.78rem;font-weight:600;color:${srcClr}">${srcTxt}</td>
       <td style="text-align:center;color:var(--yellow)">${before}</td>
       <td style="text-align:center;color:var(--green)">${after}</td>
       <td style="text-align:center">${dur}</td>
@@ -3316,7 +4096,7 @@ loadDisabledRelays();
 applyDisabledRelays();
 
 /// Light schedule hours per grow mode: [onHours, offHours]
-const LIGHT_HOURS = [[24, 0], [18, 6], [12, 12], [0, 24]];
+const LIGHT_HOURS = [[24, 0], [18, 6], [12, 12], [12, 12], [0, 24]];
 
 function mockSchedForMode(mode) {
   const [on, off] = LIGHT_HOURS[mode] || [18, 6];
@@ -3335,8 +4115,8 @@ function mockSchedForMode(mode) {
   } catch(_) {}
 
   const names = ['Top Fan','Bottom Fan','Humidifier','Lights',
-                 'Dehumidifier','Heat','Watering','A/C'];
-  const DEFAULT_BUFFERS = [0.05, 0.05, 0.05, 0, 3.0, 0.5, 0, 0];
+                 'A/C','Heat','Watering','Dehumidifier'];
+  const DEFAULT_BUFFERS = [0.05, 0.05, 0.05, 0, 0, 0.5, 0, 3.0];
   const mockRelays = names.map((name, i) => ({
     id: i, name, mode: 0, state: false, manual: false,
     buffer: DEFAULT_BUFFERS[i], minOn: 30, maxOn: 0,
@@ -3375,17 +4155,30 @@ function mockSchedForMode(mode) {
       _confirmedStage = parseInt(saved, 10);
       document.getElementById('growMode').value = saved;
       const savedFast = localStorage.getItem('dryingFast') === '1';
-      applyDryToggle(_confirmedStage === 3, savedFast);
+      applyDryToggle(_confirmedStage === 4, savedFast);
     }
   } catch(_) {}
 
   // Restore last active page tab
   try {
     const tab = localStorage.getItem('pageTab');
-    if (tab === 'irrigation') showPageTab('irrigation');
+    if (tab === 'irrigation' || tab === 'sensors' || tab === 'syslog' || tab === 'camera') showPageTab(tab);
+  } catch(_) {}
+
+  // Restore VPD target so it shows instantly before WebSocket connects
+  try {
+    const vt = JSON.parse(localStorage.getItem('vpdTarget') || 'null');
+    if (vt) updateVpdTargetUI(vt);
+  } catch(_) {}
+
+  // Restore sensor list instantly before WebSocket connects
+  try {
+    const cached = JSON.parse(localStorage.getItem('wifiSensors') || 'null');
+    if (Array.isArray(cached) && cached.length) updateWifiSensors(cached);
   } catch(_) {}
 })();
 
+loadChart(chartHours);   // start chart fetch immediately — parallel with WS handshake
 connect();
 
 // ─── Relay card interaction guard ────────────────────────────────────────────

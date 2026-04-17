@@ -2,18 +2,19 @@
 #include <Arduino.h>
 #include "config.h"
 
-// ─── Irrigation event — emitted when a precision watering cycle completes ─────
+// ─── Irrigation event — emitted when any watering cycle completes ─────────────
 struct IrrigEvent {
     time_t   ts;
-    float    soilBefore;
-    float    soilAfter;
-    uint32_t durationSec;
-    uint32_t volumeML;
+    float    soilBefore;   // soil % at session start (-1 if no sensor)
+    float    soilAfter;    // soil % at session end   (-1 if no sensor)
+    uint32_t durationSec;  // total valve-on time (seconds)
+    uint32_t volumeML;     // estimated volume delivered (ml)
+    uint8_t  src;          // 0=auto/precision  1=manual  2=timer  3=schedule
 };
 
 enum RelayMode  : uint8_t { RELAY_AUTO = 0, RELAY_MANUAL, RELAY_TIMER, RELAY_SCHEDULE };
 enum RelayIndex : uint8_t { TOP_FAN = 0, BOTTOM_FAN, HUMIDIFIER, LIGHTS,
-                            DEHUMIDIFIER, HEAT_MAT, WATERING, AC, NUM_RELAYS };
+                            DEHUMIDIFIER, HEAT_MAT, WATERING, EXTRA, NUM_RELAYS };
 
 struct TimerCfg {
     uint32_t onSec  = 3600;   // default 1 h ON
@@ -90,6 +91,7 @@ struct RelayState {
     // Precision irrigation (WATERING relay only) ─────────────────────────────
     IrrigationProfile irrigProfile;   // active profile for the current grow stage
     float    soilAtStart;             // soil % when current watering cycle began
+    float    soilAtStartPrev;         // soilAtStart from the PREVIOUS cycle (for adaptive calc)
     float    peakSoilPct;             // highest soil % recorded after last watering
     float    dryBackPct;              // peakSoilPct − current soil (dry-back tracking)
     time_t   lastWaterTs;             // epoch of last completed cycle
@@ -98,9 +100,24 @@ struct RelayState {
     uint32_t todayML;                 // cumulative today in ml (resets at midnight)
     int      todayDOY;                // day-of-year for midnight rollover detection
 
+    // Adaptive / fixed duration (WATERING relay only) ─────────────────────────
+    uint32_t adaptiveDurSec;  // auto-calibrated total on-time estimate (0 = no history yet)
+    bool     fixedDurMode;    // true = ignore soil sensor, run for fixedDurSec total on-time
+    uint32_t fixedDurSec;     // user-set fixed total on-time (seconds, delivered as pulses)
+
+    // Pulse-soak state (precision irrigation, WATERING relay only) ────────────
+    enum PulsePhase : uint8_t { PULSE_IDLE=0, PULSE_ON=1, PULSE_SOAK=2 };
+    PulsePhase    pulsePhase;       // current phase of the pulse-soak cycle
+    unsigned long pulsePhaseStart;  // millis() when current pulse or soak started
+    unsigned long totalPulseOnMs;   // cumulative valve-open ms this session
+
     // Fan direction — TOP_FAN and BOTTOM_FAN only
     // false = exhaust (removes air from tent); true = intake (brings air in)
     bool fanIntake;
+
+    // Physically connected to the tent — if false, AUTO logic skips this relay
+    // and the GPIO is never toggled. Set via the UI checkbox "Installed".
+    bool installed = true;
 };
 
 class RelayManager {
@@ -125,8 +142,12 @@ public:
     void setWaterFlow(RelayIndex idx, uint32_t mlPerMin);
     void setFanIntake(RelayIndex idx, bool intake);
     void setOnFor(RelayIndex idx, uint32_t seconds);  // turn ON for N seconds then OFF
+    void setInstalled(RelayIndex idx, bool installed); // mark relay as connected/missing
     void setSoilMoisture(float pct, bool valid);
     void resetAllBuffers();   // Restore every relay's autoBuffer to factory default
+    void setWaterDurMode(bool fixed, uint32_t fixedSec);  // set adaptive vs fixed duration
+    void setProbePlacement(bool m);  // suppress soil-triggered watering while moving probe
+    bool probePlacementMode() const { return _probeMode; }
 
     // ── Precision irrigation ─────────────────────────────────────────────────
     void setIrrigMode(uint8_t stage);                                        // call on grow-mode change
@@ -166,6 +187,8 @@ private:
     uint8_t           _currentMode = 1;    // default Veg
     IrrigEvent        _lastIrrigEvent;
     bool              _irrigEventReady = false;
+    bool              _irrigPrefsDirty = false;  // deferred NVS write flag
+    bool              _probeMode = false;         // probe placement: suppress soil-triggered watering
 
     void     applyPhysical(RelayIndex idx, bool on);
     bool     canChange(RelayIndex idx, bool newOn) const;

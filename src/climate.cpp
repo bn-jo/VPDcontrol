@@ -1,5 +1,6 @@
 #include "climate.h"
 #include "config.h"
+#include "syslog.h"
 #include <Preferences.h>
 #include <time.h>
 
@@ -253,11 +254,23 @@ ClimateController::ClimateController()
         18, 6
     };
 
-    // ── Flowering ────────────────────────────────────────────────────────────
+    // ── Early Flowering (Days 1-21) ───────────────────────────────────────────
+    // Stretch phase. Higher RH (45-55%) tolerated; VPD 1.0-1.4 kPa (Aroya/Pulse standard).
+    // Auto-transitions to Late Flower at Day FLOWER_EARLY_DAYS+1.
     _profiles[GROW_FLOWER] = {
-        "Flowering",
-        { 20.0f, 26.0f, 40.0f, 55.0f, 1.00f, 1.60f, 1.30f },  // day  12 h  (hum max 60→55)
-        { 16.0f, 22.0f, 40.0f, 55.0f, 0.80f, 1.30f, 1.05f },  // night 12 h (hum 50-70→40-55, vpd 0.70-1.10→0.80-1.30)
+        "Early Flower",
+        { 22.0f, 26.0f, 45.0f, 55.0f, 1.00f, 1.40f, 1.20f },  // day  12 h
+        { 18.0f, 22.0f, 45.0f, 55.0f, 0.80f, 1.10f, 0.95f },  // night 12 h
+        12, 12
+    };
+
+    // ── Late Flowering (Day 22+ — auto-set from Early Flower) ────────────────
+    // Bud-fattening phase. Lower RH (35-45%) prevents botrytis; VPD 1.3-1.8 kPa
+    // to maximise resin and water transport (Aroya/Pulse/AC Infinity guidelines).
+    _profiles[GROW_LATE_FLOWER] = {
+        "Late Flower",
+        { 20.0f, 25.0f, 35.0f, 45.0f, 1.30f, 1.80f, 1.55f },  // day  12 h
+        { 16.0f, 21.0f, 35.0f, 45.0f, 1.00f, 1.40f, 1.20f },  // night 12 h
         12, 12
     };
 
@@ -313,10 +326,20 @@ uint32_t ClimateController::stageDay() const {
 void ClimateController::update(const SensorData& sd) {
     // Skip if no reading yet (boot state)
     if (sd.temperature == 0.0f && sd.humidity == 0.0f && sd.vpd == 0.0f) return;
+
+    // Auto-transition: Early Flower → Late Flower after FLOWER_EARLY_DAYS
+    if (_mode == GROW_FLOWER && stageDay() > FLOWER_EARLY_DAYS) {
+        rlog("[CLIMATE] Day %lu: auto-transition Early Flower → Late Flower", (unsigned long)stageDay());
+        setMode(GROW_LATE_FLOWER);
+    }
+
     // On stale sensor data: allow fans/heat for safety, block humidifier (don't humidify blindly)
     if (!sd.valid) {
         relays.setAutoState(HUMIDIFIER, false);
+        relays.setAutoState(HEAT_MAT, false);   // never heat blindly on stale sensor
         _humidifierOn = false;
+        _heatMatOn    = false;
+        _heatPulseOn  = false;
         _sched.tick();
         return;
     }
@@ -371,7 +394,7 @@ void ClimateController::computeOutputs(const SensorData& sd) {
     const float humBuf  = relays.get(HUMIDIFIER).autoBuffer;
     const float fanBuf  = relays.get(TOP_FAN).autoBuffer;
     const float botBuf  = relays.get(BOTTOM_FAN).autoBuffer;
-    const float dehBuf  = relays.get(DEHUMIDIFIER).autoBuffer;
+    const float dehBuf  = relays.get(EXTRA).autoBuffer;
     const float heatBuf = relays.get(HEAT_MAT).autoBuffer;
 
     // ── VPD operating range ───────────────────────────────────────────────────
@@ -410,6 +433,7 @@ void ClimateController::computeOutputs(const SensorData& sd) {
 
     // ── TOP FAN ──────────────────────────────────────────────────────────────
     // Priority: temperature > VPD > baseline off
+    // Skip entirely if relay is not installed.
     //
     // Exhaust mode (default):
     //   tempHigh         → always on  (temperature emergency overrides everything)
@@ -435,19 +459,22 @@ void ClimateController::computeOutputs(const SensorData& sd) {
                 want = true;                        // temp emergency — always exhaust
             } else if (tempLow) {
                 want = false;                       // too cold — keep heat in
-            } else if (fanShouldStop && !humHigh) {
-                // Air is already dry (VPD above max) and no mold risk:
+            } else if (!lightsOn && fanShouldStop && !humHigh) {
+                // Lights OFF + air dry + no mold risk:
                 // stop exhausting so the humidifier can build moisture.
-                // humHigh exception: mold risk overrides VPD (humidity must come down).
+                // When lights are ON we never stop the fan for VPD — lights heat
+                // the tent and airflow is needed; the humidifier compensates instead.
                 want = false;
             } else if (_topFanOn) {
-                // Was ON: keep running until VPD clearly recovers or humidity ok
-                want = fanShouldRun || humHigh;
+                // Was ON: keep running when humid, mold risk, or lights are on (heat exhaust).
+                // Lights ON + dry: stay on — humidifier handles moisture, fan handles heat.
+                want = fanShouldRun || humHigh || lightsOn;
             } else {
                 // Was OFF: only restart when clearly too humid (outer band)
                 want = vpdWet || humHigh;
             }
         }
+        if (!relays.get(TOP_FAN).installed) want = false;
         _topFanOn = want;
         relays.setAutoState(TOP_FAN, want);
     }
@@ -471,6 +498,9 @@ void ClimateController::computeOutputs(const SensorData& sd) {
             else if (humHigh && _topFanOn)  want = true;    // cascade: assist top fan
             // Not triggered by VPD alone — VPD is the top fan's responsibility
         }
+        // A/C interlock: A/C already supplies cold intake air — bottom fan intake is redundant
+        if (bottomIntake && relays.get(DEHUMIDIFIER).physicalOn) want = false;
+        if (!relays.get(BOTTOM_FAN).installed) want = false;
         _bottomFanOn = want;
         relays.setAutoState(BOTTOM_FAN, want);
     }
@@ -493,11 +523,12 @@ void ClimateController::computeOutputs(const SensorData& sd) {
         } else {
             want = (vpdDry || humLow) && !humHigh;
         }
+        if (!relays.get(HUMIDIFIER).installed) want = false;
         _humidifierOn = want;
         relays.setAutoState(HUMIDIFIER, want);
     }
 
-    // ── DEHUMIDIFIER ─────────────────────────────────────────────────────────
+    // ── DEHUMIDIFIER (relay 8 / EXTRA index) ─────────────────────────────────
     // ON when humidity clearly too high. Asymmetric hysteresis:
     //   Turn ON  when h > humMax + dehBuf  (outer band)
     //   Turn OFF when h ≤ humMax           (inner band)
@@ -510,30 +541,73 @@ void ClimateController::computeOutputs(const SensorData& sd) {
             want = humHigh;
         }
         if (_humidifierOn) want = false;
+        if (!relays.get(EXTRA).installed) want = false;
         _dehumidifierOn = want;
-        relays.setAutoState(DEHUMIDIFIER, want);
+        relays.setAutoState(EXTRA, want);
     }
 
-    // ── HEAT MAT ─────────────────────────────────────────────────────────────
-    // Root-zone warming: ON when temp too low.
-    // Cold+humid assist: also runs when humidity is very high AND temp has room
-    // to rise — warming air reduces RH passively without running the dehumidifier.
-    // Skip humColdAssist if dehumidifier already running (avoid fighting each other).
-    // Hard interlocks:
-    //   • tempHigh → off (never overheat)
-    //   • lightsOn → off (lights already provide heat)
-    //   • lights turning on within 30 min → off (pre-heat lockout)
+    // ── CERAMIC HEATER (Heat Mat relay) ──────────────────────────────────────
+    // Powerful ceramic heater inside the tent — sustained ON risks overshoot.
+    // Strategy: PULSED heating at night.
+    //   • Trigger: temp too low OR humidity too high (warming air reduces RH)
+    //   • Dehumidifier interlock REMOVED — they work together (dehumid removes
+    //     moisture, heater warms air = both lower RH from different angles)
+    //   • Pulse: HEAT_PULSE_ON_MS on → HEAT_PULSE_REST_MS off → repeat
+    //   • Hard off: tempHigh, lightsOn, or pre-lights lockout (<30 min to lights-on)
     {
-        bool want;
-        const bool humColdAssist = humHigh && t < p.tempMax && !_dehumidifierOn;
-        if (_heatMatOn) {
-            want = (t < p.tempMin) || humColdAssist;
+        bool want = false;
+
+        const bool humColdAssist = humHigh && t < p.tempMax;
+        const bool needHeat = (tempLow || humColdAssist) && !lightsOn && !tempHigh
+                              && (_sched.remainingSec() >= 1800U);
+
+        if (needHeat) {
+            unsigned long now = millis();
+            if (_heatPulseOn) {
+                // Currently in ON phase — keep until HEAT_PULSE_ON_MS elapsed
+                if (now - _heatPulseStartMs >= HEAT_PULSE_ON_MS) {
+                    _heatPulseOn    = false;
+                    _heatPulseOffMs = now;
+                    want = false;
+                    rlog("[HEAT] Pulse OFF — resting %lu s", HEAT_PULSE_REST_MS / 1000UL);
+                } else {
+                    want = true;
+                }
+            } else {
+                // In rest (OFF) phase — fire when rest expires or on first trigger
+                if (_heatPulseOffMs == 0 || (now - _heatPulseOffMs >= HEAT_PULSE_REST_MS)) {
+                    _heatPulseOn      = true;
+                    _heatPulseStartMs = now;
+                    want = true;
+                    rlog("[HEAT] Pulse ON — t=%.1f°C h=%.0f%%", t, h);
+                } else {
+                    want = false;
+                }
+            }
         } else {
-            want = tempLow || humColdAssist;
+            // Conditions cleared — reset pulse state so next trigger starts fresh
+            if (_heatPulseOn || _heatPulseOffMs != 0) {
+                rlog("[HEAT] Pulse reset — conditions cleared");
+            }
+            _heatPulseOn      = false;
+            _heatPulseStartMs = 0;
+            _heatPulseOffMs   = 0;
         }
+
+        // Absolute safety cutoffs (belt-and-suspenders)
         if (tempHigh) want = false;
         if (lightsOn) want = false;
-        if (!lightsOn && _sched.remainingSec() < 1800U) want = false;
+        if (!relays.get(HEAT_MAT).installed) want = false;
+
+        // A/C interlock: never heat while A/C is running or still settling.
+        // A/C overshoot pushes temp below tempMin, which would otherwise trigger
+        // the heater — blocking it here avoids heating against a running A/C cycle.
+        {
+            bool acCooldown = _acLastOffMs > 0 &&
+                              (millis() - _acLastOffMs) < (unsigned long)_acHumDelaySec * 1000UL;
+            if (_acOn || acCooldown) want = false;
+        }
+
         _heatMatOn = want;
         relays.setAutoState(HEAT_MAT, want);
     }
@@ -542,21 +616,28 @@ void ClimateController::computeOutputs(const SensorData& sd) {
     // Precision irrigation is handled in RelayManager::update() (soil-driven).
     relays.setAutoState(WATERING, false);
 
-    // ── A/C ───────────────────────────────────────────────────────────────────
-    // Active cooling: ON when temperature clearly exceeds the profile maximum.
-    // Asymmetric hysteresis: turn ON at tempMax+acBuf, turn OFF when temp ≤ tempMax.
+    // ── A/C (relay 5 / DEHUMIDIFIER index) ───────────────────────────────────
+    // Physical relay cuts/restores A/C mains power.
+    // Wide hysteresis using full profile range — A/C takes time to start cooling:
+    //   Turn ON  when temp ≥ acHigh (default = profile tempMax)
+    //   Turn OFF when temp ≤ acLow  (default = profile tempMin)
+    // Both thresholds can be overridden via UI (0 = use profile value).
     // Hard interlock: never runs simultaneously with heat mat.
     {
-        const float acBuf = relays.get(AC).autoBuffer;
+        const float acLow  = (_acTempLow  > 0.0f) ? _acTempLow  : p.tempMin;
+        const float acHigh = (_acTempHigh > 0.0f) ? _acTempHigh : p.tempMax;
         bool want;
         if (_acOn) {
-            want = t > p.tempMax;             // stay ON until temp drops to max
+            want = t > acLow;   // running: keep going until floor is reached
         } else {
-            want = t > (p.tempMax + acBuf);   // turn ON only past outer band
+            want = t >= acHigh; // idle: kick in as soon as ceiling is hit
         }
         if (_heatMatOn) want = false;
+        if (!relays.get(DEHUMIDIFIER).installed) want = false;
+        bool prevAcOn = _acOn;
         _acOn = want;
-        relays.setAutoState(AC, want);
+        if (prevAcOn && !_acOn) _acLastOffMs = millis();  // record when A/C turns off
+        relays.setAutoState(DEHUMIDIFIER, _acOn);
     }
 
     // ── FINAL INTERLOCK ───────────────────────────────────────────────────────
@@ -565,6 +646,19 @@ void ClimateController::computeOutputs(const SensorData& sd) {
     if (_humidifierOn && _dehumidifierOn) {
         relays.setAutoState(HUMIDIFIER, false);
         _humidifierOn = false;
+    }
+
+    // A/C ↔ humidifier interlock: A/C naturally dehumidifies — running the
+    // humidifier against it causes large humidity swings and wastes energy.
+    // Block humidifier while A/C is ON and for _acHumDelaySec afterwards so
+    // the environment can thermally stabilise before we add moisture again.
+    {
+        bool acCooldown = _acLastOffMs > 0 &&
+                          (millis() - _acLastOffMs) < (unsigned long)_acHumDelaySec * 1000UL;
+        if ((_acOn || acCooldown) && _humidifierOn) {
+            relays.setAutoState(HUMIDIFIER, false);
+            _humidifierOn = false;
+        }
     }
 }
 
@@ -579,16 +673,30 @@ void ClimateController::setVpdTarget(bool enabled, float kpa, float buffer) {
     savePrefs();
 }
 
+void ClimateController::setAcTemps(float low, float high) {
+    _acTempLow  = low;
+    _acTempHigh = high;
+    savePrefs();
+}
+
+void ClimateController::setAcHumDelay(uint32_t sec) {
+    _acHumDelaySec = sec;
+    savePrefs();
+}
+
 // ─── Persistence ─────────────────────────────────────────────────────────────
 void ClimateController::savePrefs() {
     Preferences p;
     p.begin("climate", false);
     p.putUChar  ("mode",    (uint8_t)_mode);
     p.putBool   ("dryFast", _dryingFast);
-    p.putBool   ("vtEn",    _vpdTarget.enabled);
-    p.putFloat  ("vtKpa",   _vpdTarget.kpa);
-    p.putFloat  ("vtBuf",   _vpdTarget.buffer);
-    p.putLong64 ("stEpoch", _stageStartEpoch);
+    p.putBool   ("vtEn",      _vpdTarget.enabled);
+    p.putFloat  ("vtKpa",     _vpdTarget.kpa);
+    p.putFloat  ("vtBuf",     _vpdTarget.buffer);
+    p.putFloat  ("acLow",     _acTempLow);
+    p.putFloat  ("acHigh",    _acTempHigh);
+    p.putUInt   ("acDelay",   _acHumDelaySec);
+    p.putLong64 ("stEpoch",   _stageStartEpoch);
     p.end();
 }
 
@@ -598,10 +706,13 @@ void ClimateController::loadPrefs() {
     uint8_t m = p.getUChar("mode", (uint8_t)GROW_VEG);
     _mode = (m < NUM_GROW_MODES) ? (GrowMode)m : GROW_VEG;
     _dryingFast        = p.getBool   ("dryFast", false);
-    _vpdTarget.enabled = p.getBool   ("vtEn",    false);
-    _vpdTarget.kpa     = p.getFloat  ("vtKpa",   1.0f);
-    _vpdTarget.buffer  = p.getFloat  ("vtBuf",   0.1f);
-    _stageStartEpoch   = p.getLong64 ("stEpoch", 0LL);
+    _vpdTarget.enabled = p.getBool   ("vtEn",      false);
+    _vpdTarget.kpa     = p.getFloat  ("vtKpa",     1.0f);
+    _vpdTarget.buffer  = p.getFloat  ("vtBuf",     0.1f);
+    _acTempLow         = p.getFloat  ("acLow",     0.0f);
+    _acTempHigh        = p.getFloat  ("acHigh",    0.0f);
+    _acHumDelaySec     = p.getUInt   ("acDelay",   600);
+    _stageStartEpoch   = p.getLong64 ("stEpoch",   0LL);
     p.end();
     // Re-apply drying speed after loading (profile starts as slow default)
     if (_mode == GROW_DRYING && _dryingFast) setDryingFast(true);
