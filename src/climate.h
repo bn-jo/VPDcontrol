@@ -76,11 +76,15 @@ class ClimateController {
 public:
     ClimateController();
     void begin();
-    void update(const SensorData& sd);  // Call every CONTROL_INTERVAL_MS
+    void update(const SensorData& sd);          // Call every CONTROL_INTERVAL_MS (Core 0)
+    void checkAutoTransition();                  // Call from loop() on Core 1 — stage transitions
 
     GrowMode              getMode()        const { return _mode; }
-    const GrowProfile&    getProfile()     const { return _profiles[_mode]; }
+    const GrowProfile&    getProfile()          const { return _profiles[_mode]; }
+    const GrowProfile&    getProfileByMode(GrowMode m) const { return _profiles[m]; }
     void                  setMode(GrowMode m);
+    void                  setProfile(GrowMode mode, const DayNightRange& day, const DayNightRange& night);
+    void                  resetProfile(GrowMode mode);
     void                  setDryingFast(bool fast);  // switch slow↔fast without resetting day counter
     bool                  isDryingFast()   const { return _dryingFast;  }
 
@@ -92,10 +96,12 @@ public:
     void                  setVpdTarget(bool enabled, float kpa, float buffer);
     const VpdTargetCfg&   vpdTarget()      const { return _vpdTarget; }
 
-    // A/C temp overrides — 0 = use active profile value
-    void                  setAcTemps(float low, float high);
-    float                 acTempLow()      const { return _acTempLow; }
-    float                 acTempHigh()     const { return _acTempHigh; }
+    // A/C temp overrides — 0 = use active profile value; separate day / night thresholds
+    void                  setAcTemps(float low, float high, bool night = false);
+    float                 acDayLow()       const { return _acDayLow; }
+    float                 acDayHigh()      const { return _acDayHigh; }
+    float                 acNightLow()     const { return _acNightLow; }
+    float                 acNightHigh()    const { return _acNightHigh; }
 
     // Post-A/C stabilisation delay — humidifier and heat mat are suppressed for
     // this many seconds after the A/C turns off, letting the environment settle.
@@ -103,9 +109,14 @@ public:
     uint32_t              acHumDelaySec()  const { return _acHumDelaySec; }
     // Days elapsed since current stage was set (0 if NTP not yet synced)
     uint32_t              stageDay()        const;
+    void                  setStageDay(uint32_t day);  // manual correction
 
     void savePrefs();
     void loadPrefs();
+    void saveProfilePrefs();
+    void loadProfilePrefs();
+    void flushPrefsIfDirty();         // call from Core 1 loop — deferred NVS write
+    void flushProfilePrefsIfDirty();  // call from Core 1 loop — deferred NVS write
 
 private:
     GrowMode      _mode;
@@ -113,11 +124,16 @@ private:
     GrowProfile   _profiles[NUM_GROW_MODES];
     LightSchedule _sched;
     VpdTargetCfg    _vpdTarget;
-    float           _acTempLow    = 0.0f;   // 0 = follow profile tempMin
-    float           _acTempHigh   = 0.0f;   // 0 = follow profile tempMax
+    float           _acDayLow     = 0.0f;   // 0 = follow day profile tempMin
+    float           _acDayHigh    = 0.0f;   // 0 = follow day profile tempMax
+    float           _acNightLow   = 0.0f;   // 0 = follow night profile tempMin
+    float           _acNightHigh  = 0.0f;   // 0 = follow night profile tempMax
     uint32_t        _acHumDelaySec = 600;   // seconds humidifier/heat-mat stay suppressed after A/C turns off
     unsigned long   _acLastOffMs   = 0;     // millis() when A/C last turned off (0 = never)
     int64_t         _stageStartEpoch;   // Unix epoch when current stage was last set
+    bool            _userModeLocked     = false;  // set when user explicitly picks any non-flower stage
+    volatile bool   _prefsDirty         = false;  // deferred climate NVS write
+    volatile bool   _profilePrefsDirty = false;  // deferred profile NVS write — flushed from Core 1
 
     // Hysteresis state (persist between control ticks)
     bool _humidifierOn;

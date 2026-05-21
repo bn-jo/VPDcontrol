@@ -4,93 +4,158 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Guetos Systems</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+/* ═══════════════════════════════════════════════════════════════
+   GUETOS SYSTEMS · VPD Controller  —  Face-scratch redesign
+   Theme: Zinc-950 dark · Emerald accent · Pro dashboard
+   ═══════════════════════════════════════════════════════════════ */
 :root {
-  --bg:      #07111d;
-  --surface: #0d1c2b;
-  --surface2:#12243a;
-  --border:  #1c3048;
-  --text:    #ddeeff;
-  --muted:   #5d7e9a;
-  --green:   #00e676;
-  --yellow:  #ffc107;
-  --red:     #ff5252;
-  --blue:    #40c4ff;
-  --accent:  #6d28d9;
-  --radius:  12px;
+  /* ── Backgrounds (zinc) ───────────────────────────── */
+  --bg:      #09090b;
+  --surface: #111113;
+  --surface2:#18181b;
+  --surface3:#27272a;
+  --border:  #2e2e35;
+  --border2: #3f3f46;
+
+  /* ── Text ─────────────────────────────────────────── */
+  --text:  #fafafa;
+  --text2: #d4d4d8;
+  --muted: #71717a;
+  --muted2:#52525b;
+
+  /* ── Status ───────────────────────────────────────── */
+  --green:  #22c55e;
+  --yellow: #eab308;
+  --red:    #ef4444;
+  --blue:   #60a5fa;
+
+  /* ── Accent — emerald (replaces old purple) ───────── */
+  --accent:    #10b981;
+  --accent-hi: #34d399;
+  --accent-lo: #059669;
+
+  /* ── Radius ───────────────────────────────────────── */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius:    12px;
+  --radius-lg: 16px;
+
+  /* ── Elevation ────────────────────────────────────── */
+  --shadow-xs:    0 1px 2px rgba(0,0,0,.7);
+  --shadow-card:  0 2px 8px rgba(0,0,0,.6), 0 1px 2px rgba(0,0,0,.5);
+  --shadow-hover: 0 6px 22px rgba(0,0,0,.65), 0 2px 6px rgba(0,0,0,.45);
+  --shadow-float: 0 24px 64px rgba(0,0,0,.85), 0 8px 20px rgba(0,0,0,.55);
+
+  /* ── Glow ─────────────────────────────────────────── */
+  --glow-green:  0 0 22px rgba(34,197,94,.2);
+  --glow-accent: 0 0 28px rgba(16,185,129,.25);
+  --glow-red:    0 0 18px rgba(239,68,68,.2);
+  --glow-blue:   0 0 18px rgba(96,165,250,.18);
+
+  /* ── Form / motion ────────────────────────────────── */
+  --input-bg: #0d0d10;
+  --ring: rgba(16,185,129,.55);
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ── Easing alias ─────────────────────────────────────── */
+  --easing: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* ── Animations ─────────────────────────────────────────────────────────── */
 @keyframes pulse-relay {
-  0%,100%{ box-shadow:0 0 0 0 rgba(0,230,118,.5); }
-  50%    { box-shadow:0 0 0 7px rgba(0,230,118,0); }
+  0%,100%{ box-shadow:0 0 0 0 rgba(34,197,94,.55); }
+  50%    { box-shadow:0 0 0 8px rgba(34,197,94,0); }
 }
 @keyframes pulse-blue {
-  0%,100%{ box-shadow:0 0 0 0 rgba(64,196,255,.5); }
-  50%    { box-shadow:0 0 0 7px rgba(64,196,255,0); }
+  0%,100%{ box-shadow:0 0 0 0 rgba(96,165,250,.5); }
+  50%    { box-shadow:0 0 0 8px rgba(96,165,250,0); }
 }
 @keyframes pulse-dot {
-  0%,100%{ transform:scale(1); }
-  50%    { transform:scale(1.8); opacity:.55; }
+  0%,100%{ transform:scale(1); opacity:1; }
+  50%    { transform:scale(1.9); opacity:.5; }
 }
 @keyframes float-plant {
-  0%,100%{ transform:translateY(0) rotate(-4deg); }
-  50%    { transform:translateY(-5px) rotate(4deg); }
+  0%,100%{ transform:translateY(0) rotate(-3deg); }
+  50%    { transform:translateY(-4px) rotate(3deg); }
 }
 @keyframes card-in {
-  from{ opacity:0; transform:translateY(7px); }
-  to  { opacity:1; transform:translateY(0);   }
+  from{ opacity:0; transform:translateY(10px) scale(.98); }
+  to  { opacity:1; transform:translateY(0) scale(1); }
 }
 @keyframes spin{ to{ transform:rotate(360deg); } }
+@keyframes fade-in {
+  from{ opacity:0; } to{ opacity:1; }
+}
+@keyframes shimmer {
+  0%  { background-position: -200% 0; }
+  100%{ background-position:  200% 0; }
+}
 *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
 html { font-size:16px; }
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-feature-settings: 'cv02','cv03','cv04','cv11';
+  -webkit-font-smoothing: antialiased;
   min-height: 100vh;
   background-image:
-    radial-gradient(ellipse at 15% 0%, rgba(0,230,118,.04) 0%, transparent 55%),
-    radial-gradient(ellipse at 85% 100%, rgba(109,40,217,.05) 0%, transparent 55%);
+    radial-gradient(ellipse at 20% 0%, rgba(16,185,129,.055) 0%, transparent 45%),
+    radial-gradient(ellipse at 80% 100%, rgba(16,185,129,.03) 0%, transparent 45%);
 }
+::-webkit-scrollbar { width:5px; height:5px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--surface3); border-radius:99px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border2); }
+::selection { background: rgba(16,185,129,.25); color: var(--text); }
 
 /* ─── Header ──────────────────────────────────────────────────────────────── */
 header {
-  background: rgba(13,28,43,.96);
-  backdrop-filter: blur(14px);
+  background: rgba(9,9,11,.92);
+  backdrop-filter: blur(18px) saturate(1.5);
   border-bottom: 1px solid var(--border);
-  padding: .6rem 1rem;
+  box-shadow: 0 1px 0 rgba(255,255,255,.04), 0 4px 16px rgba(0,0,0,.4);
+  padding: .55rem 1rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
   position: sticky; top:0; z-index:10;
+  gap: .75rem;
 }
-.logo { font-size:1.1rem; font-weight:700; letter-spacing:-.02em; display:flex; align-items:center; gap:.3rem; }
-.logo-plant { display:inline-block; animation:float-plant 3.5s ease-in-out infinite; transform-origin:bottom center; }
-.logo span { color:var(--green); }
+header::after {
+  content:'';
+  position:absolute; bottom:0; left:0; right:0; height:1px;
+  background: linear-gradient(90deg, transparent, rgba(16,185,129,.35) 30%, rgba(16,185,129,.35) 70%, transparent);
+  pointer-events:none;
+}
+.logo { font-size:1.05rem; font-weight:700; letter-spacing:-.02em; display:flex; align-items:center; gap:.35rem; }
+.logo-plant { display:inline-block; animation:float-plant 4s ease-in-out infinite; transform-origin:bottom center; font-size:1.15rem; }
+.logo span { color:var(--accent); }
+.logo-brand { color:var(--text); }
 select.grow-mode {
   background: var(--surface2);
   border: 1px solid var(--border);
   color: var(--text);
-  padding: .3rem .65rem;
-  border-radius: 8px;
-  font-size: .82rem;
+  padding: .3rem .7rem;
+  border-radius: var(--radius-sm);
+  font-size: .82rem; font-weight:500;
+  font-family: inherit;
   cursor: pointer;
-  transition: border-color .2s;
+  transition: border-color .2s var(--ease), box-shadow .2s var(--ease);
 }
-select.grow-mode:hover { border-color:var(--green); }
-.dry-toggle { display:flex; border:1px solid var(--border); border-radius:8px; overflow:hidden; font-size:.78rem; }
-.dry-toggle button { background:transparent; color:var(--muted); border:none; padding:.28rem .65rem; cursor:pointer; transition:background .2s,color .2s; }
-.dry-toggle button.active { background:var(--green); color:#000; font-weight:700; }
+select.grow-mode:hover { border-color: var(--accent); }
+select.grow-mode:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(16,185,129,.2); }
+.dry-toggle { display:flex; border:1px solid var(--border); border-radius:var(--radius-sm); overflow:hidden; font-size:.76rem; }
+.dry-toggle button { background:transparent; color:var(--muted); border:none; padding:.28rem .65rem; cursor:pointer; transition:background .2s var(--ease),color .2s var(--ease); font-family:inherit; }
+.dry-toggle button.active { background:var(--accent); color:#fff; font-weight:600; }
 
 /* ─── Layout ──────────────────────────────────────────────────────────────── */
 main { max-width:880px; margin:auto; padding:.85rem 1rem; }
 section { margin-bottom:1rem; }
-.section-title {
-  font-size:.68rem; font-weight:700;
-  text-transform:uppercase; letter-spacing:.09em;
-  color:var(--muted); margin-bottom:.52rem;
-}
 
 /* ─── Metric cards ────────────────────────────────────────────────────────── */
 .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: .75rem; }
@@ -113,47 +178,47 @@ section { margin-bottom:1rem; }
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: .85rem;
+  padding: 1rem 1rem .85rem;
   position: relative;
   overflow: hidden;
-  transition: border-color .3s, box-shadow .3s;
+  box-shadow: var(--shadow-card);
+  transition: border-color .25s var(--ease), box-shadow .25s var(--ease), transform .2s var(--ease);
 }
+.metric:hover { transform: translateY(-2px); box-shadow: var(--shadow-hover); }
 .metric::before {
   content:'';
-  position:absolute; left:0; top:0; bottom:0; width:3px;
-  background:var(--c, var(--muted));
-  border-radius:var(--radius) 0 0 var(--radius);
+  position:absolute; left:0; right:0; top:0; height:2px;
+  background: linear-gradient(90deg, var(--c, transparent), var(--c, transparent));
+  border-radius: var(--radius) var(--radius) 0 0;
 }
 .metric::after {
   content:'';
   position:absolute; inset:0;
-  background:linear-gradient(135deg,rgba(255,255,255,.025) 0%,transparent 55%);
+  background: linear-gradient(145deg, rgba(255,255,255,.03) 0%, transparent 60%);
   pointer-events:none;
 }
-.metric.green  { --c:var(--green);  border-color:rgba(0,230,118,.2);  box-shadow:0 0 18px rgba(0,230,118,.06); }
-.metric.yellow { --c:var(--yellow); border-color:rgba(255,193,7,.18); }
-.metric.red    { --c:var(--red);    border-color:rgba(255,82,82,.2);   box-shadow:0 0 14px rgba(255,82,82,.07); }
-.metric.blue   { --c:var(--blue);   border-color:rgba(64,196,255,.18); }
-.metric-label { font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: .35rem; }
-.metric-value { font-size: 2rem; font-weight: 700; line-height: 1; margin-bottom: .4rem; }
-.metric-value.green { color: var(--green); }
+.metric.green  { --c:var(--green);  border-color:rgba(34,197,94,.25);  box-shadow:var(--shadow-card),var(--glow-green); }
+.metric.yellow { --c:var(--yellow); border-color:rgba(234,179,8,.22); }
+.metric.red    { --c:var(--red);    border-color:rgba(239,68,68,.25);  box-shadow:var(--shadow-card),var(--glow-red); }
+.metric.blue   { --c:var(--blue);   border-color:rgba(96,165,250,.22); }
+.metric-label { font-size: .67rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-weight: 600; margin-bottom: .45rem; }
+.metric-value { font-size: 2.2rem; font-weight: 700; line-height: 1; margin-bottom: .4rem; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.metric-value.green  { color: var(--green); }
 .metric-value.yellow { color: var(--yellow); }
-.metric-value.red { color: var(--red); }
-.metric-value.blue { color: var(--blue); }
+.metric-value.red    { color: var(--red); }
+.metric-value.blue   { color: var(--blue); }
 .metric-badge {
-  display: inline-block;
-  font-size: .65rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .05em;
-  padding: .15rem .45rem;
-  border-radius: 20px;
+  display: inline-flex; align-items: center;
+  font-size: .63rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .06em;
+  padding: .18rem .55rem; border-radius: 99px;
+  border: 1px solid transparent;
 }
-.metric-badge.green  { background:rgba(0,230,118,.12);  color:var(--green); }
-.metric-badge.yellow { background:rgba(255,193,7,.12);  color:var(--yellow); }
-.metric-badge.red    { background:rgba(255,82,82,.12);  color:var(--red); }
-.metric-badge.blue   { background:rgba(64,196,255,.12); color:var(--blue); }
-.metric-range { display: block; font-size: .65rem; color: var(--muted); margin: .1rem 0 .2rem; }
+.metric-badge.green  { background:rgba(34,197,94,.12);  color:var(--green);  border-color:rgba(34,197,94,.2); }
+.metric-badge.yellow { background:rgba(234,179,8,.12);  color:var(--yellow); border-color:rgba(234,179,8,.2); }
+.metric-badge.red    { background:rgba(239,68,68,.12);  color:var(--red);    border-color:rgba(239,68,68,.2); }
+.metric-badge.blue   { background:rgba(96,165,250,.12); color:var(--blue);   border-color:rgba(96,165,250,.2); }
+.metric-range { display: block; font-size: .64rem; color: var(--muted2); margin: .1rem 0 .25rem; }
 
 /* ─── Relay mini-status strip ────────────────────────────────────────────── */
 .relay-mini-bar {
@@ -174,46 +239,58 @@ section { margin-bottom:1rem; }
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: .75rem;
+  padding: .85rem .9rem;
   display: flex;
   flex-direction: column;
-  gap: .55rem;
-  transition: border-color .3s;
+  gap: .6rem;
+  box-shadow: var(--shadow-card);
+  transition: border-color .25s var(--ease), box-shadow .25s var(--ease), transform .2s var(--ease);
+  position: relative; overflow: hidden;
 }
+.relay-card::before {
+  content:''; position:absolute; left:0; top:0; bottom:0; width:2px;
+  background: var(--border2); border-radius:var(--radius) 0 0 var(--radius);
+  transition: background .3s var(--ease);
+}
+.relay-card.relay-on::before { background: var(--green); }
+.relay-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-hover); }
 .relay-head { display: flex; align-items: center; justify-content: space-between; }
-.relay-name { font-weight: 600; font-size: .88rem; }
+.relay-name { font-weight: 600; font-size: .875rem; letter-spacing: -.01em; }
 .relay-status {
-  font-size:.65rem; font-weight:700; letter-spacing:.05em;
-  padding:.16rem .5rem; border-radius:20px;
-  background:var(--surface2); color:var(--muted);
-  border:1px solid var(--border);
-  transition:all .3s;
+  font-size:.6rem; font-weight:700; letter-spacing:.07em;
+  padding:.2rem .6rem; border-radius:99px;
+  background:var(--surface3); color:var(--muted);
+  border:1px solid var(--border2);
+  transition:all .3s var(--ease);
+  text-transform: uppercase;
 }
 .relay-status.on {
-  background:rgba(0,60,26,.7); color:var(--green); border-color:rgba(0,230,118,.35);
-  animation:pulse-relay 2s ease-in-out infinite;
+  background:rgba(22,101,52,.6); color:var(--green); border-color:rgba(34,197,94,.4);
+  animation:pulse-relay 2.2s ease-in-out infinite;
 }
 
-/* Mode tabs */
+/* Mode tabs — segmented control */
 .tabs {
   display: flex;
-  background: var(--bg);
+  background: var(--input-bg);
   border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 2px;
+  border-radius: var(--radius-sm);
+  padding: 3px;
   gap: 2px;
 }
 .tab {
-  flex: 1; padding: .26rem .1rem;
-  border: none; border-radius: 4px;
+  flex: 1; padding: .28rem .1rem;
+  border: none; border-radius: 5px;
   background: transparent;
   color: var(--muted);
-  font-size: .72rem; font-weight: 600;
+  font-size: .7rem; font-weight: 600;
+  font-family: inherit;
   cursor: pointer; text-align: center;
-  transition: all .15s;
+  transition: all .18s var(--ease);
+  letter-spacing: .02em; text-transform: uppercase;
 }
-.tab:hover { color: var(--text); }
-.tab.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px #0004; }
+.tab:hover { color: var(--text2); background: rgba(255,255,255,.05); }
+.tab.active { background: var(--surface2); color: var(--text); box-shadow: 0 1px 4px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.06); }
 .tab.active.pending { color: var(--yellow); }
 
 /* Active control body */
@@ -223,28 +300,33 @@ section { margin-bottom:1rem; }
 .manual-btns { display: flex; gap: .5rem; }
 .btn {
   flex: 1; padding: .45rem;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   background: transparent;
   color: var(--muted);
   font-size: .85rem; font-weight: 700;
-  cursor: pointer; transition: all .15s;
+  font-family: inherit;
+  cursor: pointer; transition: all .18s var(--easing);
 }
+.btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(16,185,129,.3); }
 .btn-on  { border-color:var(--green); color:var(--green); }
-.btn-on:hover, .btn-on.active  { background:var(--green); color:#000; box-shadow:0 0 14px rgba(0,230,118,.35); }
+.btn-on:hover, .btn-on.active  { background:var(--green); color:#000; box-shadow:0 0 16px rgba(0,230,118,.4); transform: translateY(-1px); }
 .btn-off { border-color:var(--red);   color:var(--red); }
-.btn-off:hover, .btn-off.active { background:var(--red); color:#fff; }
+.btn-off:hover, .btn-off.active { background:var(--red); color:#fff; transform: translateY(-1px); }
 
 /* Timer inputs */
 .timer-body { display: flex; flex-direction: column; gap: .4rem; }
 .timer-row { display: flex; align-items: center; gap: .5rem; font-size: .8rem; }
 .timer-row label { color: var(--muted); min-width: 46px; }
 .timer-row input[type=number] {
-  background: var(--bg); border: 1px solid var(--border);
+  background: var(--input-bg); border: 1px solid var(--border);
   color: var(--text); padding: .28rem .45rem;
-  border-radius: 5px; width: 64px; font-size: .82rem;
+  border-radius: var(--radius-sm); width: 64px; font-size: .82rem;
+  font-family: inherit; font-variant-numeric: tabular-nums;
+  transition: border-color .2s var(--easing), box-shadow .2s var(--easing);
   -moz-appearance: textfield;
 }
+.timer-row input[type=number]:focus { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px rgba(16,185,129,.25); }
 .timer-row input[type=number]::-webkit-outer-spin-button,
 .timer-row input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
 .timer-row span { color: var(--muted); font-size: .74rem; }
@@ -252,19 +334,24 @@ section { margin-bottom:1rem; }
 .btn-apply {
   align-self:flex-start;
   background:var(--accent); border:none; color:#fff;
-  padding:.28rem .82rem; border-radius:6px;
-  font-size:.76rem; font-weight:600; cursor:pointer;
-  transition:all .2s;
+  padding:.3rem .88rem; border-radius:var(--radius-sm);
+  font-size:.76rem; font-weight:600; font-family:inherit; cursor:pointer;
+  transition:all .2s var(--easing);
+  letter-spacing: .01em;
 }
-.btn-apply:hover  { background:#7c3aed; box-shadow:0 0 12px rgba(109,40,217,.4); }
+.btn-apply:hover  { background:var(--accent-hi); box-shadow:0 0 16px rgba(16,185,129,.45); transform: translateY(-1px); }
+.btn-apply:active { transform: translateY(0); }
+.btn-apply:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(16,185,129,.35); }
 .btn-apply.saved  { background:var(--green) !important; color:#000; }
 .btn-secondary {
   align-self: flex-start;
-  background: transparent; border: 1px solid var(--muted); color: var(--muted);
-  padding: .35rem .9rem; border-radius: 6px; cursor: pointer; font-size: .82rem;
-  transition: border-color .2s, color .2s;
+  background: transparent; border: 1px solid var(--border); color: var(--muted);
+  padding: .35rem .9rem; border-radius: var(--radius-sm); cursor: pointer; font-size: .82rem;
+  font-family: inherit;
+  transition: border-color .2s var(--easing), color .2s var(--easing);
 }
 .btn-secondary:hover { border-color: var(--text); color: var(--text); }
+.btn-secondary:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(16,185,129,.25); }
 
 
 .auto-note { color: var(--muted); font-size: .78rem; line-height: 1.5; }
@@ -288,19 +375,13 @@ section { margin-bottom:1rem; }
 .auto-tuning { display: flex; flex-direction: column; gap: .35rem; margin-top: .35rem; padding-top: .35rem; border-top: 1px solid var(--border); }
 .tuning-row { display: flex; align-items: center; gap: .4rem; font-size: .78rem; }
 .tuning-row label { color: var(--muted); min-width: 52px; }
-.tuning-row input[type=number] { width: 56px; background: #111827; border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: .2rem .35rem; font-size: .78rem; text-align: center; }
+.tuning-row input[type=number] { width: 56px; background: var(--input-bg); border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: .2rem .35rem; font-size: .78rem; text-align: center; }
 .tuning-row span { color: var(--muted); font-size: .72rem; }
 .tuning-sep { color: var(--muted); font-weight: 700; margin: 0 .1rem; }
 
 /* Schedule section */
 .sched-body { display: flex; flex-direction: column; gap: .4rem; }
 .sched-slot { display: flex; align-items: center; gap: .28rem; }
-.sched-slot input[type=number] {
-  background: var(--bg); border: 1px solid var(--border);
-  color: var(--text); padding: .28rem .3rem;
-  border-radius: 5px; width: 44px; font-size: .82rem;
-  text-align: center; -moz-appearance: textfield;
-}
 .sched-slot input[type=number]::-webkit-outer-spin-button,
 .sched-slot input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
 .sched-sep  { color: var(--muted); font-size: .8rem; line-height: 1; }
@@ -334,19 +415,11 @@ section { margin-bottom:1rem; }
 /* ─── Grow-stage confirmation modal ──────────────────────────────────────── */
 .modal-overlay {
   display: none; position: fixed; inset: 0; z-index: 200;
-  background: rgba(0,0,0,.82);
-  backdrop-filter: blur(4px);
+  background: rgba(0,0,0,.84);
+  backdrop-filter: blur(6px);
   align-items: center; justify-content: center;
 }
 .modal-overlay.visible { display: flex; }
-.modal {
-  background: var(--surface); border: 1px solid #92400e;
-  border-radius: 16px; padding: 1.5rem;
-  max-width: 340px; width: 92%;
-  display: flex; flex-direction: column; gap: .85rem;
-  box-shadow: 0 32px 80px rgba(0,0,0,.7);
-  animation: card-in .2s ease;
-}
 .modal-warn { font-size: 1.8rem; text-align: center; }
 .modal-title { font-size: 1rem; font-weight: 700; text-align: center; color: var(--yellow); }
 .modal-body  { font-size: .83rem; color: var(--muted); line-height: 1.6; text-align: center; }
@@ -371,6 +444,7 @@ section { margin-bottom:1rem; }
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 1rem;
+  box-shadow: var(--shadow-card);
 }
 .chart-header {
   display: flex;
@@ -386,27 +460,29 @@ section { margin-bottom:1rem; }
   background: var(--bg);
   border: 1px solid var(--border);
   color: var(--muted);
-  padding: .28rem .6rem;
-  border-radius: 5px;
+  padding: .3rem .65rem;
+  border-radius: var(--radius-sm);
   font-size: .75rem;
+  font-family: inherit;
   cursor: pointer;
-  transition: all .15s;
+  transition: all .18s var(--easing);
 }
-.range-btn:hover { border-color: var(--blue); color: var(--text); }
-.range-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.range-btn:hover { border-color: var(--blue); color: var(--text); background: oklch(1 0 0 / .04); }
+.range-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: 0 0 12px rgba(16,185,129,.3); }
 .chart-ctrl-btn {
   background: var(--bg);
   border: 1px solid var(--border);
   color: var(--muted);
-  padding: .28rem .55rem;
-  border-radius: 5px;
+  padding: .3rem .6rem;
+  border-radius: var(--radius-sm);
   font-size: .78rem;
+  font-family: inherit;
   cursor: pointer;
   line-height: 1;
-  transition: all .15s;
+  transition: all .18s var(--easing);
 }
 .chart-ctrl-btn:hover { border-color: var(--blue); color: var(--text); }
-.chart-ctrl-btn.warn { border-color: #f59e0b55; color: #f59e0b; }
+.chart-ctrl-btn.warn { border-color: rgba(234,179,8,.4); color: #eab308; }
 .chart-wrap { position: relative; height: 300px; }
 .chart-wrap canvas { cursor: crosshair; }
 canvas { width: 100% !important; height: 100% !important; }
@@ -430,22 +506,7 @@ canvas { width: 100% !important; height: 100% !important; }
 }
 body.chart-fs-lock { overflow: hidden; }
 
-/* ─── Irrigation chart fullscreen ──────────────────────────────────────────── */
-#irrigSoilChartCard.chart-card-fs {
-  position: fixed;
-  inset: 0;
-  z-index: 9000;
-  border-radius: 0;
-  border: none;
-  display: flex;
-  flex-direction: column;
-  padding: 1rem 1.25rem;
-}
-#irrigSoilChartCard.chart-card-fs .chart-wrap {
-  flex: 1;
-  height: auto !important;
-  min-height: 0;
-}
+
 
 /* ─── Status bar ──────────────────────────────────────────────────────────── */
 .status-bar { text-align:center; font-size:.7rem; color:var(--muted); padding:.5rem 0 .18rem; }
@@ -453,8 +514,8 @@ body.chart-fs-lock { overflow: hidden; }
 .dot-conn.ok { background:var(--green); animation:pulse-dot 2.2s ease-in-out infinite; }
 
 /* ─── VPD Target card ────────────────────────────────────────────────────── */
-.vpdt-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:.78rem .95rem; transition:border-color .3s,box-shadow .3s; }
-.vpdt-card.active { border-color:var(--accent); box-shadow:0 0 22px rgba(109,40,217,.15); }
+.vpdt-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:.82rem 1rem; box-shadow:var(--shadow-card); transition:border-color .3s var(--easing),box-shadow .3s var(--easing); }
+.vpdt-card.active { border-color:var(--accent); box-shadow:var(--shadow-card), 0 0 24px rgba(16,185,129,.18); }
 .vpdt-header { display:flex; align-items:center; justify-content:space-between; }
 .vpdt-title  { font-weight:700; font-size:.92rem; }
 .vpdt-sub    { font-size:.72rem; color:var(--muted); margin-top:.15rem; }
@@ -462,14 +523,18 @@ body.chart-fs-lock { overflow: hidden; }
 .vpdt-kpa-row { display:flex; align-items:center; justify-content:center; gap:1rem; }
 .vpdt-kpa-val { font-size:1.6rem; font-weight:700; min-width:110px; text-align:center; }
 .vpdt-btn { background:var(--bg); border:1px solid var(--border); color:var(--text);
-            width:2.2rem; height:2.2rem; border-radius:50%; font-size:1.2rem;
-            cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .2s; }
-.vpdt-btn:hover { background:var(--accent); border-color:var(--accent); box-shadow:0 0 12px rgba(109,40,217,.4); }
+            width:2.3rem; height:2.3rem; border-radius:50%; font-size:1.2rem;
+            font-family:inherit;
+            cursor:pointer; display:flex; align-items:center; justify-content:center;
+            transition:all .2s var(--easing); }
+.vpdt-btn:hover { background:var(--accent); border-color:var(--accent); box-shadow:0 0 14px rgba(16,185,129,.45); transform: scale(1.08); }
+.vpdt-btn:active { transform: scale(0.96); }
+.vpdt-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(16,185,129,.3); }
 .vpdt-detail-row { display:flex; align-items:center; justify-content:center; gap:.5rem; }
 /* Toggle switch */
 .toggle-wrap { position:relative; display:inline-block; width:44px; height:24px; cursor:pointer; }
 .toggle-wrap input { opacity:0; width:0; height:0; }
-.toggle-slider { position:absolute; inset:0; background:#1a2f45; border-radius:24px; transition:.3s; border:1px solid var(--border); }
+.toggle-slider { position:absolute; inset:0; background:var(--surface3); border-radius:24px; transition:.3s; border:1px solid var(--border); }
 .toggle-slider::before { content:''; position:absolute; width:18px; height:18px;
   left:2px; bottom:2px; background:var(--muted); border-radius:50%; transition:.3s; }
 .toggle-wrap input:checked + .toggle-slider { background:var(--accent); border-color:var(--accent); }
@@ -512,14 +577,6 @@ body.chart-fs-lock { overflow: hidden; }
 .sched-bar.night { background: #818cf8; }
 
 /* ─── Auto-Tune panel ─────────────────────────────────────────────────────── */
-.at-panel {
-  background: var(--surface);
-  border: 1px solid var(--accent);
-  border-radius: var(--radius);
-  padding: .85rem 1rem;
-  margin-bottom: .75rem;
-  display: none;
-}
 .at-panel.visible { display: block; }
 .at-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: .6rem; }
 .at-title  { font-weight: 700; font-size: .95rem; }
@@ -544,7 +601,7 @@ body.chart-fs-lock { overflow: hidden; }
   background: var(--accent); border: none; color: #fff;
   padding: .28rem .7rem; border-radius: 5px; cursor: pointer;
 }
-.btn-at:hover { background: #2563eb; }
+.btn-at:hover { background: var(--accent-lo); }
 .btn-at-cancel {
   background: var(--bg); border: 1px solid var(--red); color: var(--red);
   padding: .26rem .65rem; border-radius: 5px;
@@ -570,24 +627,29 @@ body.chart-fs-lock { overflow: hidden; }
 .page-tabs {
   background: var(--surface);
   border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 0 oklch(1 0 0 / .03);
   padding: 0 1rem;
   display: flex;
   gap: 0;
 }
 .page-tab {
-  padding: .55rem 1.05rem;
+  padding: .58rem 1.1rem;
   border: none;
   border-bottom: 2px solid transparent;
   background: transparent;
   color: var(--muted);
   font-size: .83rem;
   font-weight: 600;
+  font-family: inherit;
   cursor: pointer;
-  transition: all .18s;
+  transition: color .18s var(--easing), border-color .18s var(--easing), background .15s var(--easing);
   letter-spacing: .01em;
+  min-height: 44px;
+  display: flex; align-items: center;
 }
-.page-tab:hover  { color: var(--text); }
+.page-tab:hover  { color: var(--text); background: oklch(1 0 0 / .03); }
 .page-tab.active { color: var(--green); border-bottom-color: var(--green); }
+.page-tab:focus-visible { outline: none; background: oklch(1 0 0 / .06); }
 
 /* ─── Irrigation tab ───────────────────────────────────────────────────────── */
 .irrig-card {
@@ -595,15 +657,17 @@ body.chart-fs-lock { overflow: hidden; }
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: .85rem .95rem;
+  box-shadow: var(--shadow-card);
 }
 .irrig-header-card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: .85rem .95rem;
-  transition: border-color .3s, box-shadow .3s;
+  box-shadow: var(--shadow-card);
+  transition: border-color .3s var(--easing), box-shadow .3s var(--easing);
 }
-.irrig-header-card.active { border-color:var(--blue); box-shadow:0 0 16px rgba(64,196,255,.08); }
+.irrig-header-card.active { border-color:var(--blue); box-shadow:var(--shadow-card), 0 0 18px rgba(64,196,255,.1); }
 .irrig-stat-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: .5rem; margin-top: .75rem; }
 .irrig-stat {
   background: var(--bg);
@@ -614,22 +678,73 @@ body.chart-fs-lock { overflow: hidden; }
 }
 .irrig-stat-label { font-size: .62rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: .2rem; }
 .irrig-stat-val   { font-size: .95rem; font-weight: 700; }
-.irrig-tbl th { text-align: left; padding: .3rem .4rem; color: var(--muted); font-weight: 600; font-size: .75rem; }
-.irrig-tbl td { padding: .35rem .4rem; border-top: 1px solid var(--border); }
 .irrig-tbl .irrig-row-dis td { opacity: .45; }
 .irrig-tbl input[type=number] {
-  width: 50px; background: #111827; border: 1px solid var(--border); color: var(--text);
+  width: 50px; background: var(--input-bg); border: 1px solid var(--border); color: var(--text);
   border-radius: 4px; padding: .18rem .3rem; font-size: .78rem; text-align: center;
+  font-family: inherit; font-variant-numeric: tabular-nums;
+  transition: border-color .2s var(--easing), box-shadow .2s var(--easing);
   -moz-appearance: textfield;
 }
+.irrig-tbl input[type=number]:focus { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px rgba(16,185,129,.25); }
 .irrig-tbl input[type=number]::-webkit-outer-spin-button,
 .irrig-tbl input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
 .irrig-pot-row { display: flex; flex-direction: column; gap: .45rem; margin-bottom: .65rem; }
 .pot-input-row { display: flex; align-items: center; gap: .4rem; font-size: .8rem; }
 .pot-input-row span.pot-lbl { color: var(--muted); flex: 1; }
 .pot-input-row span.pot-unit { color: var(--muted); min-width: 1.8rem; }
-.pot-input-row input { width: 58px; background: #111827; border: 1px solid var(--border); color: var(--text);
-  border-radius: 4px; padding: .2rem .3rem; font-size: .82rem; text-align: center; }
+.pot-input-row input { width: 58px; background: var(--input-bg); border: 1px solid var(--border); color: var(--text);
+  border-radius: 4px; padding: .2rem .3rem; font-size: .82rem; text-align: center;
+  font-family: inherit; font-variant-numeric: tabular-nums;
+  transition: border-color .2s var(--easing), box-shadow .2s var(--easing); }
+.pot-input-row input:focus { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px rgba(16,185,129,.25); }
+
+/* ─── Section title ──────────────────────────────────────────────────────────────── */
+.section-title {
+  font-size:.67rem; font-weight:700;
+  text-transform:uppercase; letter-spacing:.09em;
+  color:var(--muted); margin-bottom:.55rem;
+}
+
+/* ─── Irrig table improvement ─────────────────────────────────────────────── */
+.irrig-tbl { border-collapse: collapse; width: 100%; }
+.irrig-tbl tr:nth-child(even) td { background: oklch(1 0 0 / .015); }
+.irrig-tbl th { text-align: left; padding: .32rem .4rem; color: var(--muted); font-weight: 600; font-size: .73rem; letter-spacing:.04em; text-transform:uppercase; }
+.irrig-tbl td { padding: .38rem .4rem; border-top: 1px solid oklch(1 0 0 / .04); }
+
+/* ─── Schedule slots ──────────────────────────────────────────────────────── */
+.sched-slot input[type=number] {
+  background: var(--input-bg); border: 1px solid var(--border);
+  color: var(--text); padding: .28rem .3rem;
+  border-radius: var(--radius-sm); width: 44px; font-size: .82rem;
+  text-align: center; font-family: inherit;
+  transition: border-color .2s var(--easing), box-shadow .2s var(--easing);
+  -moz-appearance: textfield;
+}
+.sched-slot input[type=number]:focus { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px rgba(16,185,129,.25); }
+
+/* ─── Auto-Tune panel ─────────────────────────────────────────────────────── */
+.at-panel {
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: .9rem 1rem;
+  margin-bottom: .75rem;
+  box-shadow: var(--shadow-card);
+  display: none;
+}
+
+/* ─── Modal refinement ────────────────────────────────────────────────────── */
+.modal {
+  background: var(--surface); border: 1px solid #92400e;
+  border-radius: var(--radius-lg); padding: 1.5rem;
+  max-width: 340px; width: 92%;
+  display: flex; flex-direction: column; gap: .85rem;
+  box-shadow: var(--shadow-float);
+  animation: card-in .22s var(--easing);
+}
+.modal-cancel { font-family: inherit; }
+.modal-confirm { font-family: inherit; }
 
 /* ─── Responsive ──────────────────────────────────────────────────────────── */
 /* ─── Relay visibility toggles ───────────────────────────────────────────────── */
@@ -643,17 +758,145 @@ body.chart-fs-lock { overflow: hidden; }
 }
 .extra-toggle input[type=checkbox] { cursor: pointer; accent-color: var(--blue); }
 
+/* ─── Tablet (≤780 px) ────────────────────────────────────────────────────── */
 @media (max-width: 780px) {
   .metrics { grid-template-columns: repeat(2, 1fr); }
   .metric-mood { grid-column: span 2; }
+  .irrig-stat-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ─── Mobile (≤620 px) ────────────────────────────────────────────────────── */
 @media (max-width: 620px) {
-  .relay-grid { grid-template-columns: 1fr; }
+  /* Header: tighter, hide mood text */
+  header { padding: .42rem .75rem; gap: .5rem; }
+  .logo { font-size: .92rem; }
+  #headerMood { display: none; }
+
+  /* Page tabs: scroll instead of wrap */
+  .page-tabs { overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding: 0 .5rem; }
+  .page-tabs::-webkit-scrollbar { display: none; }
+  .page-tab { flex-shrink: 0; padding: .5rem .9rem; font-size: .78rem; min-height: 40px; }
+
+  /* Main layout */
+  main { padding: .65rem .75rem; }
+
+  /* Metrics */
   .metrics { grid-template-columns: repeat(2, 1fr); gap: .5rem; }
-  .metric-value { font-size: 1.6rem; }
+  .metric { padding: .75rem .75rem .6rem; }
+  .metric-value { font-size: 1.55rem; }
+  .metric-sm .metric-value { font-size: 1.1rem; }
+  .metric-sm { padding: .55rem .65rem; }
+
+  /* Relay grid: single column */
+  .relay-grid { grid-template-columns: 1fr; }
+
+  /* Chart: shorter height on mobile */
+  .chart-wrap { height: 220px; }
+
+  /* VPD target: center the kPa row */
+  .vpdt-kpa-row { gap: .6rem; }
+  .vpdt-kpa-val { font-size: 1.35rem; min-width: 90px; }
+
+  /* Modal: full-width on small screens */
+  .modal { max-width: 100%; width: 94%; padding: 1.1rem; }
+
+  /* Irrigation stat grid */
+  .irrig-stat-grid { grid-template-columns: repeat(2, 1fr); }
+
+  /* Section margin */
+  section { margin-bottom: .75rem; }
 }
+
+/* ─── Small mobile (≤400 px) ──────────────────────────────────────────────── */
+@media (max-width: 400px) {
+  header { flex-wrap: wrap; }
+  /* Clock box and grow-mode select stack below logo on very small screens */
+  .logo { font-size: .88rem; }
+  .metric-value { font-size: 1.35rem; }
+  .metric-label { font-size: .6rem; }
+  main { padding: .5rem .6rem; }
+  .page-tab { padding: .48rem .7rem; font-size: .72rem; }
+  .relay-name { font-size: .82rem; }
+  /* Mode tabs: keep all 4 in one row */
+  .tab { font-size: .62rem; padding: .28rem .05rem; }
+  .chart-wrap { height: 180px; }
+}
+
+/* ─── Tiny (≤340 px) ──────────────────────────────────────────────────────── */
 @media (max-width: 340px) {
   .metrics { grid-template-columns: 1fr; }
+  .metric-value { font-size: 1.45rem; }
+}
+
+/* ─── Grow progress strip ────────────────────────────────────────────────── */
+.grow-strip {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: .65rem .9rem;
+  box-shadow: var(--shadow-card);
+  display: flex; flex-direction: column; gap: .38rem;
+}
+.grow-strip-top { display:flex; align-items:center; justify-content:space-between; gap:.5rem; flex-wrap:wrap; }
+.grow-strip-label { font-size: .82rem; font-weight: 600; }
+.grow-strip-pill {
+  font-size: .67rem; font-weight: 700; letter-spacing: .03em;
+  padding: .17rem .6rem; border-radius: 99px;
+  background: rgba(16,185,129,.12); color: var(--accent-hi);
+  border: 1px solid rgba(16,185,129,.28); white-space: nowrap;
+}
+.grow-strip-pill.warn { background:rgba(234,179,8,.1); color:var(--yellow); border-color:rgba(234,179,8,.28); }
+.grow-strip-bar-wrap { background:var(--surface3); border-radius:99px; height:3px; overflow:hidden; }
+.grow-strip-bar {
+  height:100%; border-radius:99px;
+  background: linear-gradient(90deg, var(--accent-lo), var(--accent-hi));
+  transition: width .6s var(--ease);
+}
+.grow-strip-meta { display:flex; gap:.9rem; font-size:.68rem; color:var(--muted); flex-wrap:wrap; align-items:center; }
+.grow-strip-meta strong { color:var(--text2); font-weight:600; }
+.grow-strip-sep { color:var(--border2); }
+
+/* ─── Time-in-range badge ────────────────────────────────────────────────── */
+.tir-badge {
+  font-size: .67rem; font-weight: 600; letter-spacing: .02em;
+  padding: .17rem .6rem; border-radius: 99px; border: 1px solid transparent;
+}
+.tir-badge.good { background:rgba(34,197,94,.1);  color:var(--green);  border-color:rgba(34,197,94,.2); }
+.tir-badge.ok   { background:rgba(234,179,8,.1);  color:var(--yellow); border-color:rgba(234,179,8,.2); }
+.tir-badge.poor { background:rgba(239,68,68,.1);  color:var(--red);    border-color:rgba(239,68,68,.2); }
+
+/* ─── General card (sensors / syslog / camera tabs) ─────────────────────── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+}
+
+/* ─── Small utility button ────────────────────────────────────────────────── */
+.btn-sm {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: .28rem .75rem;
+  border-radius: var(--radius-sm);
+  font-size: .8rem; font-weight: 600;
+  font-family: inherit; cursor: pointer;
+  transition: border-color .18s var(--ease), color .18s var(--ease), background .18s var(--ease);
+}
+.btn-sm:hover { border-color: var(--accent); color: var(--accent); background: rgba(16,185,129,.07); }
+.btn-sm:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(16,185,129,.3); }
+
+/* ─── Global font inheritance ─────────────────────────────────────────────── */
+button, input, select, textarea { font-family: inherit; }
+
+/* ─── Prefers reduced motion ──────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
 }
 
 </style>
@@ -724,6 +967,7 @@ body.chart-fs-lock { overflow: hidden; }
         <button id="drySlowBtn" class="active" onclick="sendDryMode(false)">🍂 Slow</button>
         <button id="dryFastBtn"                onclick="sendDryMode(true)">💨 Fast</button>
       </div>
+      <div id="dryEstimate" style="font-size:.65rem;color:var(--muted);text-align:center;margin-top:.25rem;line-height:1.3"></div>
     </div>
   </div>
 </header>
@@ -734,7 +978,8 @@ body.chart-fs-lock { overflow: hidden; }
   <button class="page-tab"        id="ptab-irrig"  onclick="showPageTab('irrigation')">💧 Irrigation</button>
   <button class="page-tab"        id="ptab-sensors" onclick="showPageTab('sensors')">📡 Sensors</button>
   <button class="page-tab"        id="ptab-syslog"  onclick="showPageTab('syslog')">🔍 Syslog</button>
-  <button class="page-tab"        id="ptab-camera"  onclick="showPageTab('camera')">📷 Camera</button>
+  <button class="page-tab"        id="ptab-camera"   onclick="showPageTab('camera')">📷 Camera</button>
+  <button class="page-tab"        id="ptab-profiles" onclick="showPageTab('profiles')">🌿 Profiles</button>
 </nav>
 <div class="alert-banner" id="alertBanner">
   <span class="alert-icon">⚠️</span>
@@ -789,6 +1034,7 @@ body.chart-fs-lock { overflow: hidden; }
         <div class="metric-label" id="label-stageday">Grow Day</div>
         <div class="metric-value" id="val-stageday">--</div>
         <span class="metric-badge" id="badge-stageday">--</span>
+        <span id="stageWeekBadge" style="font-size:.6rem;color:var(--muted);display:block;margin-top:.15rem;letter-spacing:.03em"></span>
       </div>
       <div class="metric metric-mood" id="card-mood">
         <div class="metric-label">Plant Status</div>
@@ -816,11 +1062,28 @@ body.chart-fs-lock { overflow: hidden; }
     <div class="relay-mini-bar" id="relayMiniBar"></div>
   </section>
 
+  <!-- ─── Grow progress strip ──────────────────────────────────────────────── -->
+  <section id="growProgressSection" style="display:none">
+    <div class="grow-strip">
+      <div class="grow-strip-top">
+        <span class="grow-strip-label" id="growStripLabel">—</span>
+        <span class="grow-strip-pill" id="growStripPill" style="display:none"></span>
+      </div>
+      <div class="grow-strip-bar-wrap">
+        <div class="grow-strip-bar" id="growStripBar" style="width:0%"></div>
+      </div>
+      <div class="grow-strip-meta" id="growStripMeta"></div>
+    </div>
+  </section>
+
   <!-- ─── History chart ───────────────────────────────────────────────────── -->
   <section>
     <div class="chart-card" id="histChartCard">
       <div class="chart-header">
-        <span class="chart-title">History</span>
+        <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
+          <span class="chart-title">History</span>
+          <span class="tir-badge" id="tirBadge" title="VPD time-in-range across this chart window" style="display:none"></span>
+        </div>
         <div class="range-group">
           <button class="range-btn" onclick="loadChart(1)"   id="rbtn-1">1h</button>
           <button class="range-btn" onclick="loadChart(6)"   id="rbtn-6">6h</button>
@@ -861,7 +1124,7 @@ body.chart-fs-lock { overflow: hidden; }
         <div class="vpdt-detail-row">
           <span style="color:var(--muted);font-size:.78rem">Buffer ±</span>
           <input type="number" id="vpdtBuf" value="0.10" min="0.01" max="1" step="0.01"
-                 style="width:56px;background:#111827;border:1px solid var(--border);color:var(--text);
+                 style="width:56px;background:var(--input-bg);border:1px solid var(--border);color:var(--text);
                         border-radius:4px;padding:.2rem .35rem;font-size:.78rem;text-align:center"
                  onchange="sendVpdTarget()">
           <span style="color:var(--muted);font-size:.78rem">kPa</span>
@@ -966,14 +1229,14 @@ body.chart-fs-lock { overflow: hidden; }
         <span style="font-size:.8rem;color:var(--muted);flex:1">Dripper flow rate</span>
         <input type="number" id="irrigFlowML" value="500" min="1" max="9999" step="1"
                oninput="updateIrrigWaterEst()"
-               style="width:58px;background:#111827;border:1px solid var(--border);color:var(--text);
+               style="width:58px;background:var(--input-bg);border:1px solid var(--border);color:var(--text);
                       border-radius:4px;padding:.2rem .3rem;font-size:.82rem;text-align:center">
         <span style="font-size:.78rem;color:var(--muted)">ml/min</span>
         <button class="btn-apply" style="padding:.3rem .75rem;font-size:.8rem"
                 onclick="saveFlowRate(this)">Set</button>
       </div>
 
-      <!-- Cycle duration: Auto (adaptive) / Manual (fixed) -->
+      <!-- Cycle duration: Auto (adaptive) / Manual (fixed) + Water Now -->
       <div style="margin-top:.7rem;border-top:1px solid var(--border);padding-top:.65rem">
         <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.45rem">
           <span style="font-size:.8rem;color:var(--muted);flex:1">Cycle Duration</span>
@@ -986,53 +1249,40 @@ body.chart-fs-lock { overflow: hidden; }
                  style="flex:1;accent-color:var(--blue)">
           <span id="durSliderLabel" style="font-size:.82rem;font-weight:700;color:var(--blue);min-width:5.5rem;text-align:right">1.0 min</span>
         </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:.25rem">
+        <div style="margin-top:.25rem;margin-bottom:.45rem">
           <span id="durSliderNote" style="font-size:.7rem;color:var(--muted)">Auto-adjusted — no history yet</span>
-          <button id="durApplyBtn" class="btn-apply" onclick="applyIrrigDurMode(this)"
-                  style="padding:.25rem .65rem;font-size:.76rem;display:none">Apply</button>
+        </div>
+        <!-- Confirm button — only shown in Manual mode -->
+        <div id="durConfirmRow" style="display:none;margin-bottom:.55rem">
+          <button class="btn-apply" id="durConfirmBtn" onclick="confirmDurSlider(this)"
+                  style="background:var(--surface2);border:1px solid var(--border);padding:.28rem .75rem;font-size:.82rem;transition:background .15s,border-color .15s">
+            Set Duration
+          </button>
+        </div>
+        <!-- Water Now combined here -->
+        <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;border-top:1px solid var(--border);padding-top:.55rem">
+          <button class="btn-apply" style="background:var(--blue);border:none;padding:.35rem .9rem;font-size:.88rem"
+                  onclick="waterNowFromIrrig()">💧 Water Now</button>
+          <span id="irrigWaterEst" style="font-size:.78rem;color:var(--blue);margin-left:auto;font-weight:600"></span>
         </div>
       </div>
 
     </div>
   </section>
 
-  <!-- Water Now ────────────────────────────────────────────────────────────── -->
+  <!-- Soil Moisture Chart ──────────────────────────────────────────────────── -->
   <section>
-    <div class="irrig-card" style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
-      <button class="btn-apply" style="background:var(--blue);border:none;padding:.45rem 1rem;font-size:.9rem"
-              onclick="waterNowFromIrrig()">💧 Water Now</button>
-      <input type="number" id="irrigWaterMin" value="3" min="0.5" max="60" step="0.5"
-             oninput="updateIrrigWaterEst()"
-             style="width:54px;background:#111827;border:1px solid var(--border);color:var(--text);
-                    border-radius:4px;padding:.3rem .35rem;font-size:.85rem;text-align:center">
-      <span style="font-size:.8rem;color:var(--muted)">min</span>
-      <span id="irrigWaterEst" style="font-size:.8rem;color:var(--blue);margin-left:auto;font-weight:600"></span>
-    </div>
-  </section>
-
-  <!-- Plant Setup ──────────────────────────────────────────────────────────── -->
-  <section>
-    <div class="section-title">Plant Setup</div>
-    <div class="irrig-card">
-      <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.6rem">
-        <span style="color:var(--muted);font-size:.8rem;flex:1">Plants</span>
-        <div style="display:flex;align-items:center;gap:.35rem" id="plantCountBtns">
-          <button class="dur-btn" onclick="adjustPlantCount(-1)" style="padding:.2rem .6rem;font-size:1rem;line-height:1">−</button>
-          <span id="plantCountVal" style="min-width:1.6rem;text-align:center;font-weight:700;font-size:.9rem">1</span>
-          <button class="dur-btn" onclick="adjustPlantCount(1)"  style="padding:.2rem .6rem;font-size:1rem;line-height:1">+</button>
+    <div class="chart-card" id="soilHistChartCard">
+      <div class="chart-header">
+        <span class="chart-title" style="color:#f59e0b">Soil Moisture</span>
+        <div class="range-group">
+          <button class="range-btn" onclick="loadSoilChart(6)"   id="srbtn-6">6h</button>
+          <button class="range-btn active" onclick="loadSoilChart(24)"  id="srbtn-24">24h</button>
+          <button class="range-btn" onclick="loadSoilChart(168)" id="srbtn-168">7d</button>
+          <button class="range-btn" onclick="loadSoilChart(720)" id="srbtn-720">30d</button>
         </div>
       </div>
-      <div id="potSizesRow" class="irrig-pot-row"></div>
-      <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.65rem">
-        <span style="color:var(--muted);font-size:.8rem;flex:1">Substrate</span>
-        <div style="display:flex;gap:.25rem" id="substrateBtns">
-          <button class="dur-btn" onclick="setIrrigSubstrate(0)">Soil</button>
-          <button class="dur-btn" onclick="setIrrigSubstrate(1)">Coco</button>
-          <button class="dur-btn" onclick="setIrrigSubstrate(2)">Perlite</button>
-        </div>
-      </div>
-      <div id="irrigHints" style="font-size:.75rem;color:var(--muted);display:flex;flex-direction:column;gap:.3rem;margin-bottom:.6rem"></div>
-      <button class="btn-apply" id="plantApplyBtn" onclick="applyPlantConfig(this)">Apply Setup</button>
+      <div class="chart-wrap" style="height:200px"><canvas id="soilHistChart"></canvas></div>
     </div>
   </section>
 
@@ -1059,31 +1309,6 @@ body.chart-fs-lock { overflow: hidden; }
     </div>
   </section>
 
-  <!-- History ──────────────────────────────────────────────────────────────── -->
-  <section>
-    <div class="section-title">History</div>
-    <div class="chart-card" id="irrigSoilChartCard" style="margin-bottom:.75rem">
-      <div class="chart-header">
-        <span class="chart-title">Soil Moisture + Watering Events</span>
-        <div class="range-group" style="display:flex;align-items:center;gap:.3rem;flex-wrap:wrap">
-          <button class="range-btn active" id="irrigBtn-24"  onclick="loadIrrigChart(24)">24h</button>
-          <button class="range-btn"        id="irrigBtn-72"  onclick="loadIrrigChart(72)">3d</button>
-          <button class="range-btn"        id="irrigBtn-168" onclick="loadIrrigChart(168)">7d</button>
-          <button class="chart-ctrl-btn warn" id="irrigResetZoom"
-                  onclick="resetIrrigZoom()" style="display:none" title="Reset zoom">↺ Reset</button>
-          <button class="chart-ctrl-btn" id="irrigFsBtn"
-                  onclick="toggleIrrigFullscreen()" title="Fullscreen">⤢</button>
-        </div>
-      </div>
-      <div class="chart-wrap">
-        <canvas id="irrigSoilChart"></canvas>
-      </div>
-    </div>
-    <div class="chart-card" style="margin-bottom:.75rem">
-      <div class="chart-header"><span class="chart-title">Daily Water Volume</span></div>
-      <div class="chart-wrap" style="height:180px"><canvas id="irrigDayChart"></canvas></div>
-    </div>
-  </section>
 
   <!-- Sensor Calibration ───────────────────────────────────────────────────── -->
   <section>
@@ -1115,7 +1340,7 @@ body.chart-fs-lock { overflow: hidden; }
       <!-- Calibration buttons -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-bottom:.85rem">
         <button class="btn-apply"
-                style="background:#6b7280;border:none;padding:.6rem;font-size:.88rem"
+                style="background:var(--muted2);border:none;padding:.6rem;font-size:.88rem"
                 onclick="calibrateSoil('dry')">
           Set 0% &nbsp;(dry)
         </button>
@@ -1136,7 +1361,10 @@ body.chart-fs-lock { overflow: hidden; }
 
   <!-- Event log ────────────────────────────────────────────────────────────── -->
   <section>
-    <div class="section-title">Event Log</div>
+    <div class="section-title" style="display:flex;align-items:center;justify-content:space-between">
+      <span>Event Log</span>
+      <span id="irrigStopCount" style="font-size:.78rem;color:var(--muted);font-weight:400">— cycles</span>
+    </div>
     <div class="irrig-card" style="overflow-x:auto">
       <table class="irrig-tbl" style="width:100%;border-collapse:collapse">
         <thead>
@@ -1149,6 +1377,32 @@ body.chart-fs-lock { overflow: hidden; }
           <tr><td colspan="6" style="text-align:center;padding:.75rem;color:var(--muted)">No events yet</td></tr>
         </tbody>
       </table>
+    </div>
+  </section>
+
+  <!-- Plant Setup ──────────────────────────────────────────────────────────── -->
+  <section>
+    <div class="section-title">Plant Setup</div>
+    <div class="irrig-card">
+      <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.6rem">
+        <span style="color:var(--muted);font-size:.8rem;flex:1">Plants</span>
+        <div style="display:flex;align-items:center;gap:.35rem" id="plantCountBtns">
+          <button class="dur-btn" onclick="adjustPlantCount(-1)" style="padding:.2rem .6rem;font-size:1rem;line-height:1">−</button>
+          <span id="plantCountVal" style="min-width:1.6rem;text-align:center;font-weight:700;font-size:.9rem">1</span>
+          <button class="dur-btn" onclick="adjustPlantCount(1)"  style="padding:.2rem .6rem;font-size:1rem;line-height:1">+</button>
+        </div>
+      </div>
+      <div id="potSizesRow" class="irrig-pot-row"></div>
+      <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.65rem">
+        <span style="color:var(--muted);font-size:.8rem;flex:1">Substrate</span>
+        <div style="display:flex;gap:.25rem" id="substrateBtns">
+          <button class="dur-btn" onclick="setIrrigSubstrate(0)">Soil</button>
+          <button class="dur-btn" onclick="setIrrigSubstrate(1)">Coco</button>
+          <button class="dur-btn" onclick="setIrrigSubstrate(2)">Perlite</button>
+        </div>
+      </div>
+      <div id="irrigHints" style="font-size:.75rem;color:var(--muted);display:flex;flex-direction:column;gap:.3rem;margin-bottom:.6rem"></div>
+      <button class="btn-apply" id="plantApplyBtn" onclick="applyPlantConfig(this)">Apply Setup</button>
     </div>
   </section>
 
@@ -1243,6 +1497,12 @@ body.chart-fs-lock { overflow: hidden; }
 
 </div><!-- end #tab-camera -->
 
+<!-- ─── Profiles tab ──────────────────────────────────────────────────────────── -->
+<div id="tab-profiles" style="display:none;padding:.5rem 0">
+  <div class="section-title" style="margin:.2rem 0 .75rem">Grow Stage Profiles — edit targets, save to persist</div>
+  <div id="profileGrid" style="display:grid;gap:.75rem"></div>
+</div><!-- end #tab-profiles -->
+
 </main>
 
 <!-- Chart.js + date adapter + zoom plugin (requires internet) -->
@@ -1259,11 +1519,17 @@ let ws         = null;
 let chart      = null;
 let chartHours = 24;
 let lastState  = null;
+
+// VPD reference band (updated from profile on each state push)
+let _vpdBandMin    = 0;
+let _vpdBandMax    = 0;
+let _vpdTargetOn   = false;
 const _cache       = {};   // relay id → last known relay state for instant UI updates
 const _displayMode = {};   // relay id → pending tab mode (Timer/Sched shown but not yet applied)
 let _confirmedStage = 0;   // grow stage — matches HTML default (Seedling); overridden by localStorage/server
 let _chartLastTs    = 0;   // epoch of newest data point currently in the chart (for incremental fetch)
 let _wsWasConnected = false; // true after first successful WS connect — used to detect reconnects
+let _waterManDurMin = 5;   // last used manual watering duration in minutes (saved to localStorage)
 
 // ─── WebSocket ────────────────────────────────────────────────────────────────
 function connect() {
@@ -1322,9 +1588,18 @@ function handleState(s) {
   updateAutoTune(s.autoTune);
   updateIntakeSensor(s.intake);
   updatePlantMood(s);
+  updateProfilesTab(s.allProfiles, s.growMode);
   if (s.rssi != null) {
     const el = document.getElementById('rssiText');
-    if (el) el.textContent = s.rssi + ' dBm';
+    if (el) {
+      const r      = s.rssi;
+      const filled = r >= -65 ? 4 : r >= -75 ? 3 : r >= -85 ? 2 : 1;
+      const col    = r >= -65 ? 'var(--green)' : r >= -75 ? 'var(--yellow)' : 'var(--red)';
+      const barHtml = [4, 7, 10, 13].map((h, i) =>
+        `<span style="width:3px;height:${h}px;border-radius:1px;background:${i < filled ? col : 'rgba(255,255,255,.15)'};flex-shrink:0"></span>`
+      ).join('');
+      el.innerHTML = `<span style="display:inline-flex;align-items:flex-end;gap:1.5px;vertical-align:middle;margin-right:3px">${barHtml}</span><span style="color:var(--muted)">${r}&thinsp;dBm</span>`;
+    }
   }
   _confirmedStage = s.growMode;
   document.getElementById('growMode').value = String(s.growMode);
@@ -1335,6 +1610,116 @@ function handleState(s) {
   applyDryToggle(s.growMode === 4, dryFast);
 
   updateIrrigationTab(s);
+
+  // ── Grow-assist features ──────────────────────────────────────────────────
+  if (s.profile) {
+    _vpdBandMin = s.profile.vpdMin || 0;
+    _vpdBandMax = s.profile.vpdMax || 0;
+  }
+  if (s.vpdTarget && s.vpdTarget.enabled && s.vpdTarget.kpa) {
+    _vpdTargetOn  = true;
+    _vpdTargetKpa = s.vpdTarget.kpa;
+    _vpdBandMin   = s.vpdTarget.kpa - (s.vpdTarget.buffer || 0.1);
+    _vpdBandMax   = s.vpdTarget.kpa + (s.vpdTarget.buffer || 0.1);
+  } else {
+    _vpdTargetOn  = false;
+    _vpdTargetKpa = 0;
+  }
+  if (chart) chart.update('none');
+  updateGrowProgress(s);
+}
+
+// ─── Grow-assist: stage progress + watering ETA ───────────────────────────────
+const _STAGE_NAMES     = ['Seedling','Vegetative','Early Flower','Late Flower','Drying'];
+const _STAGE_AUTO_DAYS = [0, 0, 21, 0, 0];   // auto-transition trigger day per stage (0 = manual only)
+const _STAGE_NEXT_NAME = ['','','Late Flower','',''];
+
+function updateGrowProgress(s) {
+  const sec = document.getElementById('growProgressSection');
+  if (!sec) return;
+
+  const mode    = s.growMode;
+  const day     = s.stageDay || 0;
+  const name    = _STAGE_NAMES[mode] || '—';
+  const autoDay = _STAGE_AUTO_DAYS[mode] || 0;
+  const nextName = _STAGE_NEXT_NAME[mode] || '';
+  const daysLeft = autoDay > 0 ? Math.max(0, autoDay - day) : -1;
+
+  document.getElementById('growStripLabel').textContent = `${name} · Day ${day}`;
+
+  const pill = document.getElementById('growStripPill');
+  if (daysLeft >= 0 && nextName) {
+    if (daysLeft === 0) {
+      pill.textContent = `→ ${nextName} now`;
+      pill.className = 'grow-strip-pill warn';
+    } else {
+      pill.textContent = `→ ${nextName} in ${daysLeft}d`;
+      pill.className = daysLeft <= 3 ? 'grow-strip-pill warn' : 'grow-strip-pill';
+    }
+    pill.style.display = '';
+  } else {
+    pill.style.display = 'none';
+  }
+
+  const pct = autoDay > 0
+    ? Math.min(100, (day / autoDay) * 100)
+    : Math.min(100, (day / 56) * 100);
+  document.getElementById('growStripBar').style.width = pct.toFixed(1) + '%';
+
+  // Meta row: dry-back + next-watering ETA
+  const meta = [];
+  const irrig = s.irrigation;
+  if (irrig && s.soilValid) {
+    const dryBack  = irrig.stats?.dryBack;
+    const peakSoil = irrig.stats?.peakSoil;
+    const trigger  = irrig.activeProfile?.trigger;
+    const lastTs   = irrig.stats?.lastWaterTs;
+    const now      = Math.floor(Date.now() / 1000);
+
+    if (dryBack != null && peakSoil > 0)
+      meta.push(`Dry-back <strong>${dryBack.toFixed(1)}%</strong>`);
+
+    if (irrig.precisionEnabled && trigger != null && lastTs > 0) {
+      if (s.soil <= trigger) {
+        meta.push(`<strong style="color:var(--blue)">Watering soon</strong>`);
+      } else {
+        const elapsed  = now - lastTs;
+        const dropped  = Math.max(0, (peakSoil || 0) - s.soil);
+        const rate     = elapsed > 60 ? dropped / elapsed : 0;   // %/s
+        if (rate > 0) {
+          const remaining = s.soil - trigger;
+          const etaSec    = remaining / rate;
+          if (etaSec > 0 && etaSec < 86400) {
+            const h = Math.floor(etaSec / 3600);
+            const m = Math.floor((etaSec % 3600) / 60);
+            const etaStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
+            meta.push(`Next water ~<strong>${etaStr}</strong>`);
+          }
+        }
+      }
+    }
+  }
+
+  document.getElementById('growStripMeta').innerHTML =
+    meta.join('<span class="grow-strip-sep"> · </span>');
+  sec.style.display = '';
+}
+
+// ─── Grow-assist: VPD time-in-range across current chart window ───────────────
+function updateTimeInRange() {
+  const badge = document.getElementById('tirBadge');
+  if (!badge || !chart) return;
+  const vData = chart.data.datasets[2]?.data;
+  if (!vData || !vData.length || !_vpdBandMin || !_vpdBandMax) {
+    badge.style.display = 'none'; return;
+  }
+  let inRange = 0, total = 0;
+  vData.forEach(v => { if (v == null) return; total++; if (v >= _vpdBandMin && v <= _vpdBandMax) inRange++; });
+  if (!total) { badge.style.display = 'none'; return; }
+  const pct = Math.round(inRange / total * 100);
+  badge.textContent = `VPD ${pct}% on target`;
+  badge.className = `tir-badge ${pct >= 75 ? 'good' : pct >= 50 ? 'ok' : 'poor'}`;
+  badge.style.display = '';
 }
 
 // ─── Metrics ──────────────────────────────────────────────────────────────────
@@ -1389,23 +1774,63 @@ function updateMetrics(s) {
   const day = s.stageDay || 0;
   const stageName = STAGE_NAMES[s.growMode] || '';
   const labelEl = document.getElementById('label-stageday');
+  const weekEl = document.getElementById('stageWeekBadge');
   if (day > 0) {
-    if (labelEl) labelEl.textContent = 'Grow Day ' + stageName;
-    setMetric('stageday', 'Day ' + day, 'green', stageName);
+    // Late Flower: add the 21 Early Flower days so counter shows total flower days
+    const dispDay = (s.growMode === 3) ? day + 21 : day;
+    if (labelEl) labelEl.textContent = (s.growMode === 3) ? 'Flower Day' : ('Grow Day ' + stageName);
+    setMetric('stageday', 'Day ' + dispDay, 'green', stageName);
+    // Week counter — shown for both flowering stages
+    if (weekEl) {
+      if (s.growMode === 2 || s.growMode === 3) {
+        weekEl.textContent = 'Week ' + Math.ceil(dispDay / 7);
+      } else {
+        weekEl.textContent = '';
+      }
+    }
     const badge = document.getElementById('stageDayBadge');
     if (badge) {
-      // Early Flower: show how many days until Late Flower auto-transition
+      let badgeText = '';
       if (s.growMode === 2 && day <= 21) {
-        badge.textContent = 'Day ' + day + ' (→Late at 22)';
+        badgeText = 'Day ' + day + ' (→Late at 22)';
+      } else if (s.growMode === 3) {
+        badgeText = 'Flowering day ' + dispDay + ' late flower';
+      } else if (s.growMode === 4) {
+        const fast = !!s.dryingFast;
+        const totMin = fast ? 5 : 10;
+        const totMax = fast ? 8 : 14;
+        const remMin = Math.max(0, totMin - day);
+        const remMax = Math.max(0, totMax - day);
+        let est;
+        if (remMax <= 0)      est = '· ready to cure 🎉';
+        else if (remMin <= 0) est = '· ~' + remMax + 'd left';
+        else                  est = '· ~' + remMin + '–' + remMax + 'd left';
+        badgeText = 'Dry Day ' + day + ' ' + est;
+        // Update the dryEstimate panel (under slow/fast buttons)
+        const de = document.getElementById('dryEstimate');
+        if (de) {
+          if (remMax <= 0) {
+            de.innerHTML = '🎉 Ready to cure!';
+          } else {
+            const label = fast ? 'Fast dry' : 'Slow dry';
+            const range = fast ? '5–8' : '10–14';
+            de.innerHTML = label + ' · ' + range + ' days total<br>'
+              + 'Day ' + day + ' · '
+              + (remMin <= 0 ? '~' + remMax + ' day' + (remMax === 1 ? '' : 's') + ' left'
+                             : '~' + remMin + '–' + remMax + ' days left');
+          }
+        }
       } else {
-        badge.textContent = 'Day ' + day;
+        badgeText = 'Day ' + day;
       }
+      badge.innerHTML = badgeText + ' <button onclick="_editStageDay(' + dispDay + ')" style="font-size:.6rem;padding:.1rem .35rem;background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:4px;cursor:pointer;margin-left:.25rem" title="Correct day counter">✏️</button>';
     }
   } else {
     if (labelEl) labelEl.textContent = 'Grow Day';
     setMetric('stageday', '--', 'muted', 'NTP needed');
     const badge = document.getElementById('stageDayBadge');
     if (badge) badge.textContent = '';
+    if (weekEl) weekEl.textContent = '';
   }
 }
 
@@ -1543,13 +1968,17 @@ function dismissAlert() {
 
 // ─── Relay cards ─────────────────────────────────────────────────────────────
 let _lightSched  = null;
-let _acTemps     = { low: 0, high: 0 };
-let _acProfTemps = { low: 20, high: 25 };
+let _acTemps     = { dayLow: 0, dayHigh: 0, nightLow: 0, nightHigh: 0 };
+let _acProfTemps = { dayLow: 20, dayHigh: 25, nightLow: 18, nightHigh: 22 };
 
 function updateRelays(relayArr, lightSched, acTemps, profile) {
   _lightSched  = lightSched || null;
-  _acTemps     = acTemps   || { low: 0, high: 0 };
-  _acProfTemps = { low: profile?.tempMin ?? 20, high: profile?.tempMax ?? 25 };
+  _acTemps     = acTemps   || { dayLow: 0, dayHigh: 0, nightLow: 0, nightHigh: 0 };
+  if (acTemps) try { localStorage.setItem('acTemps', JSON.stringify(_acTemps)); } catch(_) {}
+  _acProfTemps = {
+    dayLow:   profile?.dayTempMin   ?? 20, dayHigh:   profile?.dayTempMax   ?? 25,
+    nightLow: profile?.nightTempMin ?? 18, nightHigh: profile?.nightTempMax ?? 22
+  };
   const grid = document.getElementById('relayGrid');
 
   relayArr.forEach(r => {
@@ -1577,8 +2006,7 @@ const WATERING_ID = 6;
 function renderRelayCard(card, r, force) {
   if (!force) {
     const focused = document.activeElement;
-    const tag = focused && focused.tagName;
-    if ((tag === 'INPUT' || tag === 'TEXTAREA') && focused.closest('#rcard-' + r.id)) return;
+    if (focused && focused !== document.body && focused.closest && focused.closest('#rcard-' + r.id)) return;
   }
 
   const dispMode = _displayMode[r.id] ?? r.mode;
@@ -1629,11 +2057,11 @@ function renderRelayCard(card, r, force) {
             Day starts at
           </label>
           <input type="number" id="lsh_${r.id}" value="${dsHStr}" min="0" max="23"
-            style="width:38px;background:#111827;border:1px solid var(--border);color:var(--text);
+            style="width:38px;background:var(--input-bg);border:1px solid var(--border);color:var(--text);
                    border-radius:4px;padding:.2rem .3rem;font-size:.78rem;text-align:center;${dsOpaque}">
           <span style="color:var(--muted)">:</span>
           <input type="number" id="lsm_${r.id}" value="${dsMStr}" min="0" max="59"
-            style="width:38px;background:#111827;border:1px solid var(--border);color:var(--text);
+            style="width:38px;background:var(--input-bg);border:1px solid var(--border);color:var(--text);
                    border-radius:4px;padding:.2rem .3rem;font-size:.78rem;text-align:center;${dsOpaque}">
           <button class="btn-apply" onclick="applyDayStart(${r.id},this)">Set</button>
         </div>`;
@@ -1695,7 +2123,7 @@ function renderRelayCard(card, r, force) {
         <div class="soil-water-row" style="margin-top:.5rem;align-items:center;gap:.4rem">
           <label style="flex:1">Cycle duration</label>
           <input type="number" id="wdur_${r.id}" value="${wdurMin}" min="0.5" max="60" step="0.5"
-                 style="width:58px;background:#111827;border:1px solid var(--border);color:var(--text);
+                 style="width:58px;background:var(--input-bg);border:1px solid var(--border);color:var(--text);
                         border-radius:4px;padding:.2rem .35rem;font-size:.82rem;text-align:right"
                  oninput="onWaterDurInput(${r.id},this.value,${flowML})">
           <span style="font-size:.75rem;color:var(--muted)">min</span>
@@ -1711,7 +2139,7 @@ function renderRelayCard(card, r, force) {
         <div class="soil-water-row" style="margin-top:.35rem;align-items:center">
           <label style="flex:1">Flow rate</label>
           <input type="number" id="wflow_${r.id}" value="${flowML}" min="1" max="9999"
-                 style="width:64px;background:#111827;border:1px solid var(--border);color:var(--text);
+                 style="width:64px;background:var(--input-bg);border:1px solid var(--border);color:var(--text);
                         border-radius:4px;padding:.2rem .35rem;font-size:.82rem;text-align:right"
                  oninput="onWaterFlowInput(${r.id},this.value)">
           <span style="font-size:.75rem;color:var(--muted);margin-left:.25rem">ml/min</span>
@@ -1725,31 +2153,53 @@ function renderRelayCard(card, r, force) {
       } // end else (precision off)
     } else if (r.id === AC_RELAY_ID) {
       // ── A/C relay AUTO body ────────────────────────────────────────────────
-      const acHigh  = _acTemps.high  > 0 ? _acTemps.high  : '';
-      const acLow   = _acTemps.low   > 0 ? _acTemps.low   : '';
-      const acDelay = Math.round((_acTemps.delay ?? 600) / 60);  // display in minutes
+      const acDayHigh   = _acTemps.dayHigh   > 0 ? _acTemps.dayHigh   : '';
+      const acDayLow    = _acTemps.dayLow    > 0 ? _acTemps.dayLow    : '';
+      const acNightHigh = _acTemps.nightHigh > 0 ? _acTemps.nightHigh : '';
+      const acNightLow  = _acTemps.nightLow  > 0 ? _acTemps.nightLow  : '';
+      const acDelay     = Math.round((_acTemps.delay ?? 600) / 60);
       body = `<span class="auto-note">Climate-driven — ON at ceiling, OFF at floor</span>
         <div class="auto-tuning">
-          <div class="tuning-row">
-            <label title="A/C turns ON when temp reaches this value">Start at</label>
-            <input type="number" id="ac_high_${r.id}" value="${acHigh}"
-                   placeholder="${_acProfTemps.high}" min="15" max="45" step="0.5">
-            <span>°C</span>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem">
+            <div>
+              <div style="font-size:.72rem;font-weight:600;color:var(--muted);padding:.15rem 0 .3rem 0">☀ Day (lights ON)</div>
+              <div class="tuning-row" style="flex-wrap:nowrap">
+                <label title="A/C ON when temp reaches this (day)" style="flex:0 0 auto">Start</label>
+                <input type="number" id="ac_day_high_${r.id}" value="${acDayHigh}"
+                       placeholder="${_acProfTemps.dayHigh}" min="15" max="45" step="0.5" style="width:4.5rem">
+                <span>°C</span>
+              </div>
+              <div class="tuning-row" style="flex-wrap:nowrap">
+                <label title="A/C OFF when temp drops to this (day)" style="flex:0 0 auto">Stop</label>
+                <input type="number" id="ac_day_low_${r.id}" value="${acDayLow}"
+                       placeholder="${_acProfTemps.dayLow}" min="10" max="40" step="0.5" style="width:4.5rem">
+                <span>°C</span>
+              </div>
+            </div>
+            <div>
+              <div style="font-size:.72rem;font-weight:600;color:var(--muted);padding:.15rem 0 .3rem 0">🌙 Night (lights OFF)</div>
+              <div class="tuning-row" style="flex-wrap:nowrap">
+                <label title="A/C ON when temp reaches this (night)" style="flex:0 0 auto">Start</label>
+                <input type="number" id="ac_night_high_${r.id}" value="${acNightHigh}"
+                       placeholder="${_acProfTemps.nightHigh}" min="15" max="45" step="0.5" style="width:4.5rem">
+                <span>°C</span>
+              </div>
+              <div class="tuning-row" style="flex-wrap:nowrap">
+                <label title="A/C OFF when temp drops to this (night)" style="flex:0 0 auto">Stop</label>
+                <input type="number" id="ac_night_low_${r.id}" value="${acNightLow}"
+                       placeholder="${_acProfTemps.nightLow}" min="10" max="40" step="0.5" style="width:4.5rem">
+                <span>°C</span>
+              </div>
+            </div>
           </div>
-          <div class="tuning-row">
-            <label title="A/C turns OFF when temp drops to this value">Stop at</label>
-            <input type="number" id="ac_low_${r.id}" value="${acLow}"
-                   placeholder="${_acProfTemps.low}" min="10" max="40" step="0.5">
-            <span>°C</span>
-          </div>
-          <div class="tuning-row">
+          <div class="tuning-row" style="margin-top:.45rem;padding-top:.35rem;border-top:1px solid var(--border)">
             <label title="How long after A/C stops before humidifier and heater are allowed to run again">Settle delay</label>
             <input type="number" id="ac_delay_${r.id}" value="${acDelay}"
                    min="0" max="60" step="1">
             <span>min</span>
           </div>
           <div style="font-size:.68rem;color:var(--muted);padding:.1rem 0 .35rem 0;line-height:1.4">
-            Blank temps = use profile (${_acProfTemps.high}°C / ${_acProfTemps.low}°C). Settle delay blocks humidifier &amp; heater after A/C stops.
+            Blank = profile default (Day: ${_acProfTemps.dayHigh}/${_acProfTemps.dayLow}°C · Night: ${_acProfTemps.nightHigh}/${_acProfTemps.nightLow}°C).
           </div>
           <button class="btn-apply" onclick="applyAcTemps(${r.id},this)">Apply</button>
         </div>`;
@@ -1812,7 +2262,7 @@ function renderRelayCard(card, r, force) {
       : '';
     if (r.id === WATERING_ID) {
       // ── Watering manual: slider-based timed run ──────────────────────────────
-      const defMin  = 5;
+      const defMin  = _waterManDurMin;
       const defML   = _flowML > 0 ? Math.round(_flowML * defMin) : 0;
       const defEst  = defML >= 1000 ? `≈ ${(defML/1000).toFixed(1).replace(/\.0$/,'')} L` : defML > 0 ? `≈ ${defML} ml` : '';
       body = `<div class="manual-btns">
@@ -1823,7 +2273,7 @@ function renderRelayCard(card, r, force) {
         <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.25rem">
           <span style="font-size:.72rem;color:var(--muted);flex:1">Timed run</span>
           <input type="number" id="wman_dur_${r.id}" value="${defMin}" min="0.5" max="60" step="0.5"
-                 style="width:52px;background:#111827;border:1px solid var(--border);color:var(--text);
+                 style="width:52px;background:var(--input-bg);border:1px solid var(--border);color:var(--text);
                         border-radius:4px;padding:.2rem .35rem;font-size:.82rem;text-align:right"
                  oninput="onWaterManDur(${r.id},this.value,${_flowML})">
           <span style="font-size:.75rem;color:var(--muted)">min</span>
@@ -1904,7 +2354,7 @@ function renderRelayCard(card, r, force) {
         <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.2rem">
           <label style="flex:1;font-size:.78rem;color:var(--muted)">ON for</label>
           <input type="number" id="ton_${r.id}" value="${onSliderMin}" min="0.5" max="60" step="0.5"
-                 style="width:52px;background:#111827;border:1px solid var(--border);color:var(--text);
+                 style="width:52px;background:var(--input-bg);border:1px solid var(--border);color:var(--text);
                         border-radius:4px;padding:.2rem .35rem;font-size:.82rem;text-align:right"
                  oninput="onTimerOnSlider(${r.id},this.value,${_flowML})">
           <span style="font-size:.75rem;color:var(--muted)">min</span>
@@ -1964,15 +2414,15 @@ function renderRelayCard(card, r, force) {
           <div style="display:flex;align-items:center;gap:.35rem">
             <span style="font-size:.72rem;color:var(--muted);width:32px">Start</span>
             <input type="number" id="wsch_sh_${r.id}_${si}" value="${sl.sh}" min="0" max="23"
-                   style="width:38px;background:#111827;border:1px solid var(--border);color:var(--text);
+                   style="width:38px;background:var(--input-bg);border:1px solid var(--border);color:var(--text);
                           border-radius:4px;padding:.2rem .3rem;font-size:.82rem;text-align:center">
             <span class="sched-sep">:</span>
             <input type="number" id="wsch_sm_${r.id}_${si}" value="${String(sl.sm).padStart(2,'0')}" min="0" max="59"
-                   style="width:38px;background:#111827;border:1px solid var(--border);color:var(--text);
+                   style="width:38px;background:var(--input-bg);border:1px solid var(--border);color:var(--text);
                           border-radius:4px;padding:.2rem .3rem;font-size:.82rem;text-align:center">
             <span style="font-size:.72rem;color:var(--muted);margin-left:.3rem;flex:1">Duration</span>
             <input type="number" id="wsch_dur_${r.id}_${si}" value="${durMin}" min="0.5" max="60" step="0.5"
-                   style="width:48px;background:#111827;border:1px solid var(--border);color:var(--text);
+                   style="width:48px;background:var(--input-bg);border:1px solid var(--border);color:var(--text);
                           border-radius:4px;padding:.2rem .3rem;font-size:.82rem;text-align:right"
                    oninput="onSchedDurInput(${r.id},${si},this.value,${_flowML})">
             <span style="font-size:.75rem;color:var(--muted)">min</span>
@@ -2028,7 +2478,7 @@ function renderRelayCard(card, r, force) {
     </div>`;
 
   const lastTouch = parseInt(card.dataset.touch || '0');
-  const touched   = (Date.now() - lastTouch) < 5000;
+  const touched   = (Date.now() - lastTouch) < 30000;
   if (card.innerHTML !== html && !touched) card.innerHTML = html;
 }
 
@@ -2090,6 +2540,33 @@ function applyDryToggle(isDrying, fast) {
     document.getElementById('drySlowBtn').classList.toggle('active', !fast);
     document.getElementById('dryFastBtn').classList.toggle('active',  fast);
   }
+  // Plants are harvested in drying — hide soil/irrigation info
+  const soilCard  = document.getElementById('card-soil');
+  const soilChart = document.getElementById('soilHistChartCard');
+  const irrigTab  = document.getElementById('ptab-irrig');
+  if (soilCard)  soilCard.style.display  = isDrying ? 'none' : '';
+  if (soilChart) soilChart.style.display = isDrying ? 'none' : '';
+  if (irrigTab)  irrigTab.style.display  = isDrying ? 'none' : '';
+
+  // Watering relay — deactivated in drying, no plants to water
+  const waterCard = document.getElementById('rcard-6');
+  if (waterCard) {
+    waterCard.style.opacity       = isDrying ? '0.35' : '';
+    waterCard.style.pointerEvents = isDrying ? 'none'  : '';
+    let badge = waterCard.querySelector('.relay-dry-badge');
+    if (isDrying) {
+      if (!badge) {
+        badge = document.createElement('div');
+        badge.className = 'relay-dry-badge';
+        badge.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:.75rem;color:var(--muted);font-weight:600;pointer-events:none;';
+        badge.textContent = 'Disabled — drying stage';
+        waterCard.style.position = 'relative';
+        waterCard.appendChild(badge);
+      }
+    } else {
+      if (badge) badge.remove();
+    }
+  }
 }
 
 function sendDryMode(fast) {
@@ -2108,6 +2585,7 @@ function saveRelayModesToLocal() {
 
 // ─── VPD Target ───────────────────────────────────────────────────────────────
 let _vpdTargetKpa = 1.0;
+let _vpdTouchAt   = 0;   // timestamp of last user interaction
 
 function updateVpdTargetUI(vt) {
   if (!vt) return;
@@ -2116,11 +2594,12 @@ function updateVpdTargetUI(vt) {
   const bufEl = document.getElementById('vpdtBuf');
   const card  = document.getElementById('vpdTargetCard');
   const sub   = document.getElementById('vpdtSub');
+  const guarded = (Date.now() - _vpdTouchAt) < 30000;
   // Only sync from server when the user is not actively editing these fields
-  if (document.activeElement !== enEl)  { if (enEl) enEl.checked = !!vt.enabled; }
+  if (!guarded && document.activeElement !== enEl)  { if (enEl) enEl.checked = !!vt.enabled; }
   if (document.activeElement !== bufEl) { if (bufEl) bufEl.value = (vt.buffer || 0.1).toFixed(2); }
-  // Always accept the server kpa (stepVpdTarget sends immediately; server echoes back)
-  _vpdTargetKpa = vt.kpa || 1.0;
+  // Accept server kpa only when not in guarded window (avoids stale echo overwriting user's click)
+  if (!guarded) _vpdTargetKpa = vt.kpa || 1.0;
   if (kpaEl) kpaEl.textContent = _vpdTargetKpa.toFixed(2) + ' kPa';
   if (card)  card.classList.toggle('active', !!vt.enabled);
   if (sub)   sub.textContent = vt.enabled
@@ -2131,6 +2610,7 @@ function updateVpdTargetUI(vt) {
 }
 
 function stepVpdTarget(delta) {
+  _vpdTouchAt = Date.now();
   _vpdTargetKpa = Math.max(0.1, Math.round((_vpdTargetKpa + delta) * 100) / 100);
   const kpaEl = document.getElementById('vpdtKpa');
   if (kpaEl) kpaEl.textContent = _vpdTargetKpa.toFixed(2) + ' kPa';
@@ -2138,6 +2618,7 @@ function stepVpdTarget(delta) {
 }
 
 function sendVpdTarget() {
+  _vpdTouchAt = Date.now();
   const en  = document.getElementById('vpdtEnabled')?.checked || false;
   const buf = parseFloat(document.getElementById('vpdtBuf')?.value) || 0.1;
   const card = document.getElementById('vpdTargetCard');
@@ -2169,7 +2650,8 @@ function setRelayMode(id, mode) {
     _cache[id] = { ..._cache[id], mode };
     const card = document.getElementById('rcard-' + id);
     if (card) {
-      renderRelayCard(card, _cache[id]);
+      card.dataset.touch = '0';
+      renderRelayCard(card, _cache[id], true);
       card.dataset.touch = Date.now();
     }
     saveRelayModesToLocal();
@@ -2270,7 +2752,15 @@ function applySchedule(id, btn) {
     if (b.classList.contains('active')) days |= (1 << i);
   });
   delete _displayMode[id];
-  if (_cache[id]) { _cache[id] = { ..._cache[id], mode: 3 }; saveRelayModesToLocal(); }
+  if (_cache[id]) {
+    _cache[id] = { ..._cache[id], mode: 3 };
+    saveRelayModesToLocal();
+    if (card) {
+      card.dataset.touch = '0';
+      renderRelayCard(card, _cache[id], true);
+      card.dataset.touch = Date.now();
+    }
+  }
   send({ type: 'relay', id, action: 'mode',     value: 3 });
   send({ type: 'relay', id, action: 'schedule', slots, days });
   flashApply(btn);
@@ -2281,30 +2771,167 @@ function setFanDirection(id, intake, btn) {
   if (_cache[id]) {
     _cache[id] = { ..._cache[id], fanIntake: intake };
     const card = document.getElementById('rcard-' + id);
-    if (card) renderRelayCard(card, _cache[id]);
+    if (card) {
+      card.dataset.touch = '0';
+      renderRelayCard(card, _cache[id], true);
+      card.dataset.touch = Date.now();
+    }
   }
 }
 
-// ─── Irrigation cycle duration slider ────────────────────────────────────────
-let _durFixedMode  = false;
-let _durFixedSec   = 60;
+// ─── Soil moisture chart (irrigation tab) ────────────────────────────────────
+let soilChart     = null;
+let soilChartHours = 24;
+const SOIL_RANGE_BTNS = { 6: 'srbtn-6', 24: 'srbtn-24', 168: 'srbtn-168', 720: 'srbtn-720' };
 
-function onDurSlider(val) {
+function loadSoilChart(hours) {
+  soilChartHours = hours || soilChartHours;
+  Object.keys(SOIL_RANGE_BTNS).forEach(h => {
+    const el = document.getElementById(SOIL_RANGE_BTNS[h]);
+    if (el) el.className = 'range-btn' + (Number(h) === soilChartHours ? ' active' : '');
+  });
+  const wrap = document.getElementById('soilHistChartCard')?.querySelector('.chart-wrap');
+  if (wrap) wrap.style.opacity = '0.45';
+  const done = (data) => { if (wrap) wrap.style.opacity = '1'; _renderSoilChart(data); };
+  const fail = ()     => { if (wrap) wrap.style.opacity = '1'; };
+  const step = soilChartHours <= 24 ? 1 : 4;
+  if (soilChartHours <= 168) {
+    fetch('/api/logs?hours=' + soilChartHours + '&step=' + step)
+      .then(r => r.ok ? r.json() : []).then(done).catch(fail);
+  } else {
+    // 30d — merge remote server (older) + local ESP (last 7d)
+    const ctrl = new AbortController();
+    const tmo  = setTimeout(() => ctrl.abort(), 5000);
+    Promise.allSettled([
+      fetch(REMOTE_LOG_BASE + '/vpd/history?hours=' + soilChartHours, { signal: ctrl.signal })
+        .then(r => { clearTimeout(tmo); return r.ok ? r.json() : []; })
+        .catch(() => { clearTimeout(tmo); return []; }),
+      fetch('/api/logs?hours=168&step=' + step).then(r => r.ok ? r.json() : []).catch(() => [])
+    ]).then(([remRes, locRes]) => {
+      const remote = remRes.status === 'fulfilled' ? remRes.value : [];
+      const local  = locRes.status  === 'fulfilled' ? locRes.value  : [];
+      const seen = new Set();
+      const merged = [...remote, ...local]
+        .filter(d => { if (seen.has(d.t)) return false; seen.add(d.t); return true; })
+        .sort((a, b) => a.t - b.t);
+      done(merged.length ? merged : local);
+    });
+  }
+}
+
+function _renderSoilChart(data) {
+  const rows   = Array.isArray(data) ? data : [];
+  const labels = rows.map(d => new Date(d.t * 1000));
+  const S      = rows.map(d => (d.S != null && d.S >= 0) ? d.S : null);
+  const tOpts  = chartTimeOpts(soilChartHours);
+  const ctx    = document.getElementById('soilHistChart')?.getContext('2d');
+  if (!ctx) return;
+
+  if (soilChart) {
+    soilChart.data.labels           = labels;
+    soilChart.data.datasets[0].data = S;
+    Object.assign(soilChart.options.scales.x.time, {
+      unit: tOpts.unit, stepSize: tOpts.stepSize,
+      tooltipFormat: tOpts.tooltipFormat, displayFormats: tOpts.displayFormats
+    });
+    soilChart.options.scales.x.ticks.maxTicksLimit = tOpts.maxTicksLimit;
+    soilChart.update('none');
+    return;
+  }
+
+  soilChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Soil %', data: S,
+        borderColor: '#f59e0b', backgroundColor: '#f59e0b18',
+        yAxisID: 'yS', tension: 0.35,
+        pointRadius: 0, pointHoverRadius: 4,
+        pointHoverBackgroundColor: '#f59e0b',
+        borderWidth: 2, fill: true, spanGaps: false
+      }]
+    },
+    plugins: [_crosshairPlugin],
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { labels: { color: '#a1a1aa', boxWidth: 12, boxHeight: 2, padding: 14, font: { size: 11, family: "'Inter', sans-serif" } } },
+        tooltip: {
+          backgroundColor: '#18181b', borderColor: '#3f3f46', borderWidth: 1, cornerRadius: 8,
+          callbacks: { label: ctx => ' ' + (ctx.parsed.y != null ? ctx.parsed.y.toFixed(1) + '%' : '—') }
+        }
+      },
+      scales: {
+        x: {
+          type: 'time',
+          time: { unit: tOpts.unit, stepSize: tOpts.stepSize,
+                  tooltipFormat: tOpts.tooltipFormat, displayFormats: tOpts.displayFormats },
+          ticks: { color: '#71717a', maxRotation: 0, maxTicksLimit: tOpts.maxTicksLimit, font: { size: 10 } },
+          grid: { color: 'rgba(63,63,70,0.6)' }
+        },
+        yS: {
+          position: 'left',
+          min: 0, max: 100,
+          ticks: { color: '#f59e0b', font: { size: 10 }, callback: v => v + '%' },
+          grid: { color: 'rgba(63,63,70,0.6)' },
+          title: { display: true, text: 'Soil %', color: '#f59e0b', font: { size: 10 } }
+        }
+      }
+    }
+  });
+}
+
+// ─── Irrigation cycle duration slider ────────────────────────────────────────
+let _durFixedMode      = false;
+let _durFixedSec       = 60;
+let _durModeSetAt      = 0;
+let _irrigProfsTouchedAt = 0;
+let _lastStopCount     = -1;
+let _durConfirmPending = false;
+let _durConfirmedAt    = 0;   // timestamp of last Confirm click — brief post-confirm hold
+
+function onDurSlider(val, fromWS) {
   val = parseInt(val);
   const min = (val / 60).toFixed(1);
   const flow = parseInt(document.getElementById('irrigFlowML')?.value || '500');
   const ml = flow > 0 ? Math.round(flow * val / 60) : 0;
   const mlStr = ml >= 1000 ? (ml/1000).toFixed(1)+'L' : ml+'ml';
   document.getElementById('durSliderLabel').textContent = min + ' min' + (flow > 0 ? ' / ~' + mlStr : '');
-  if (_durFixedMode) {
+  if (_durFixedMode && !fromWS) {
     _durFixedSec = val;
-    const btn = document.getElementById('durApplyBtn');
-    if (btn) btn.style.display = '';
+    _setDurConfirmPending(true);
   }
+  updateIrrigWaterEst();
+}
+
+function _setDurConfirmPending(pending) {
+  _durConfirmPending = pending;
+  const btn = document.getElementById('durConfirmBtn');
+  if (!btn) return;
+  if (pending) {
+    btn.style.background    = 'var(--blue)';
+    btn.style.borderColor   = 'var(--blue)';
+    btn.style.color         = '#fff';
+  } else {
+    btn.style.background    = 'var(--surface2)';
+    btn.style.borderColor   = 'var(--border)';
+    btn.style.color         = '';
+  }
+}
+
+function confirmDurSlider(btn) {
+  send({ type: 'relay', id: WATERING_ID, action: 'waterDurMode', fixed: true, sec: _durFixedSec });
+  _durConfirmedAt = Date.now();  // hold off WS sync for 3s so stale echo doesn't revert slider
+  _setDurConfirmPending(false);
+  flashApply(btn);
 }
 
 function setIrrigDurMode(isFixed) {
   _durFixedMode = isFixed;
+  _durModeSetAt = Date.now();
+  try { localStorage.setItem('irrigDurMode', isFixed ? '1' : '0'); } catch(_) {}
   document.getElementById('durModeAutoBtn')?.classList.toggle('active', !isFixed);
   document.getElementById('durModeFixedBtn')?.classList.toggle('active', isFixed);
   const slider = document.getElementById('durSlider');
@@ -2312,16 +2939,14 @@ function setIrrigDurMode(isFixed) {
     slider.disabled = !isFixed;
     slider.style.opacity = isFixed ? '1' : '0.5';
   }
-  const applyBtn = document.getElementById('durApplyBtn');
-  if (applyBtn) applyBtn.style.display = isFixed ? '' : 'none';
-  // Send immediately — prevents 2s state push from flipping the UI back
-  send({ type: 'relay', id: WATERING_ID, action: 'waterDurMode', fixed: isFixed, sec: _durFixedSec });
+  const confirmRow = document.getElementById('durConfirmRow');
+  if (confirmRow) confirmRow.style.display = isFixed ? 'block' : 'none';
+  if (!isFixed) {
+    // Switching to Auto: send immediately (no slider value to confirm)
+    send({ type: 'relay', id: WATERING_ID, action: 'waterDurMode', fixed: false, sec: _durFixedSec });
+    _setDurConfirmPending(false);
+  }
   _updateDurNote();
-}
-
-function applyIrrigDurMode(btn) {
-  send({ type: 'relay', id: WATERING_ID, action: 'waterDurMode', fixed: true, sec: _durFixedSec });
-  flashApply(btn);
 }
 
 function _updateDurNote() {
@@ -2342,7 +2967,11 @@ function setRelayInstalled(id, installed) {
   if (_cache[id]) {
     _cache[id] = { ..._cache[id], installed };
     const card = document.getElementById('rcard-' + id);
-    if (card) renderRelayCard(card, _cache[id], true);
+    if (card) {
+      card.dataset.touch = '0';
+      renderRelayCard(card, _cache[id], true);
+      card.dataset.touch = Date.now();
+    }
   }
 }
 
@@ -2353,10 +2982,17 @@ function onMaxOnChange(id) {
 }
 
 function applyAcTemps(id, btn) {
-  const high  = parseFloat(document.getElementById('ac_high_'  + id).value) || 0;
-  const low   = parseFloat(document.getElementById('ac_low_'   + id).value) || 0;
-  const delay = Math.round((parseFloat(document.getElementById('ac_delay_' + id).value) || 10) * 60);
-  send({ type: 'setAcTemps', low, high, delay });
+  const dayHigh   = parseFloat(document.getElementById('ac_day_high_'   + id).value) || 0;
+  const dayLow    = parseFloat(document.getElementById('ac_day_low_'    + id).value) || 0;
+  const nightHigh = parseFloat(document.getElementById('ac_night_high_' + id).value) || 0;
+  const nightLow  = parseFloat(document.getElementById('ac_night_low_'  + id).value) || 0;
+  const delay     = Math.round((parseFloat(document.getElementById('ac_delay_' + id).value) || 10) * 60);
+  send({ type: 'setAcTemps', low: dayLow,   high: dayHigh,   night: false, delay });
+  send({ type: 'setAcTemps', low: nightLow, high: nightHigh, night: true });
+  _acTemps = { dayLow, dayHigh, nightLow, nightHigh, delay };
+  try { localStorage.setItem('acTemps', JSON.stringify(_acTemps)); } catch(_) {}
+  const card = document.getElementById('rcard-' + id);
+  if (card) card.dataset.touch = Date.now();
   btn.textContent = '✓ Saved';
   setTimeout(() => { btn.textContent = 'Apply'; }, 1500);
 }
@@ -2434,6 +3070,8 @@ function onWaterManDur(id, minVal, flowML) {
   if (sl) sl.value = minVal;
   const el = document.getElementById('wman_est_' + id);
   if (el && flowML) el.textContent = _fmtVolEst(flowML, parseFloat(minVal) * 60);
+  _waterManDurMin = parseFloat(minVal) || 5;
+  try { localStorage.setItem('waterManDurMin', String(_waterManDurMin)); } catch(_) {}
 }
 
 function onWaterManSlider(id, minVal, flowML) {
@@ -2441,6 +3079,8 @@ function onWaterManSlider(id, minVal, flowML) {
   if (inp) inp.value = minVal;
   const el = document.getElementById('wman_est_' + id);
   if (el && flowML) el.textContent = _fmtVolEst(flowML, parseFloat(minVal) * 60);
+  _waterManDurMin = parseFloat(minVal) || 5;
+  try { localStorage.setItem('waterManDurMin', String(_waterManDurMin)); } catch(_) {}
 }
 
 function onSchedDurInput(id, si, val, flowML) {
@@ -2487,7 +3127,16 @@ function applyTimer(id, btn) {
   const on  = Math.max(30, Math.round(onVal  * 60));
   const off = Math.max(60, Math.round(offVal * 60));
   delete _displayMode[id];
-  if (_cache[id]) { _cache[id] = { ..._cache[id], mode: 2, timer: { on, off } }; saveRelayModesToLocal(); }
+  if (_cache[id]) {
+    _cache[id] = { ..._cache[id], mode: 2, timer: { on, off } };
+    saveRelayModesToLocal();
+    const timerCard = document.getElementById('rcard-' + id);
+    if (timerCard) {
+      timerCard.dataset.touch = '0';
+      renderRelayCard(timerCard, _cache[id], true);
+      timerCard.dataset.touch = Date.now();
+    }
+  }
   send({ type: 'relay', id, action: 'mode',  value: 2 });
   send({ type: 'relay', id, action: 'timer', on, off });
   flashApply(btn);
@@ -2530,6 +3179,11 @@ function setChartLoading(on) {
   if (wrap) wrap.style.opacity = on ? '0.45' : '1';
 }
 
+// Returns decimation step for initial full load: 1 = every point, 4 = every 4th (20-min res)
+function chartStep(hours) {
+  return hours <= 24 ? 1 : 4;
+}
+
 function loadChart(hours) {
   chartHours = hours;
   _chartLastTs = 0;
@@ -2539,19 +3193,26 @@ function loadChart(hours) {
   });
   setChartLoading(true);
 
+  const step = chartStep(hours);
+
   if (hours <= 168) {
     // Local ESP — fast path
-    fetch('/api/logs?hours=' + hours)
+    fetch('/api/logs?hours=' + hours + '&step=' + step)
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then(data => { setChartLoading(false); renderChart(data); })
       .catch(e  => { setChartLoading(false); console.warn('[Chart] Load failed:', e); });
   } else {
     // 30d — merge remote server (older history) + local ESP (last 7d, most recent)
     const remoteUrl = REMOTE_LOG_BASE + '/vpd/history?hours=' + hours;
-    const localUrl  = '/api/logs?hours=168';
+    const localUrl  = '/api/logs?hours=168&step=' + step;
+    // Abort remote fetch after 5 s so a slow/offline server doesn't block the chart
+    const ctrl = new AbortController();
+    const tmo  = setTimeout(() => ctrl.abort(), 5000);
     Promise.allSettled([
-      fetch(remoteUrl).then(r => r.ok ? r.json() : []),
-      fetch(localUrl).then(r  => r.ok ? r.json() : [])
+      fetch(remoteUrl, { signal: ctrl.signal })
+        .then(r => { clearTimeout(tmo); return r.ok ? r.json() : []; })
+        .catch(() => { clearTimeout(tmo); return []; }),
+      fetch(localUrl).then(r => r.ok ? r.json() : []).catch(() => [])
     ]).then(([remoteRes, localRes]) => {
       setChartLoading(false);
       const remote = remoteRes.status === 'fulfilled' ? remoteRes.value : [];
@@ -2601,6 +3262,35 @@ function _chartEscHandler(e) {
   if (e.key === 'Escape' && _chartFsActive) toggleChartFullscreen();
 }
 
+// ── VPD target band: shaded region + optional target line ────────────────────
+const _vpdBandPlugin = {
+  id: 'vpdBand',
+  beforeDraw(ch) {
+    const yV = ch.scales['yV'];
+    if (!yV || !_vpdBandMin || !_vpdBandMax) return;
+    const { ctx, chartArea: { left, right } } = ch;
+    const yTop = yV.getPixelForValue(_vpdBandMax);
+    const yBot = yV.getPixelForValue(_vpdBandMin);
+    if (yTop >= yBot) return;
+    ctx.save();
+    ctx.fillStyle = 'rgba(16,185,129,0.07)';
+    ctx.fillRect(left, yTop, right - left, yBot - yTop);
+    ctx.strokeStyle = 'rgba(16,185,129,0.28)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath(); ctx.moveTo(left, yTop); ctx.lineTo(right, yTop); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(left, yBot); ctx.lineTo(right, yBot); ctx.stroke();
+    if (_vpdTargetOn && _vpdTargetKpa > 0) {
+      const yT = yV.getPixelForValue(_vpdTargetKpa);
+      ctx.strokeStyle = 'rgba(16,185,129,0.75)';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([]);
+      ctx.beginPath(); ctx.moveTo(left, yT); ctx.lineTo(right, yT); ctx.stroke();
+    }
+    ctx.restore();
+  }
+};
+
 // ── Crosshair: vertical line drawn at the active tooltip position ─────────────
 const _crosshairPlugin = {
   id: 'crosshair',
@@ -2616,7 +3306,7 @@ const _crosshairPlugin = {
     ctx.moveTo(x, yTop);
     ctx.lineTo(x, yBot);
     ctx.lineWidth   = 1;
-    ctx.strokeStyle = 'rgba(148,163,184,0.25)';
+    ctx.strokeStyle = 'rgba(161,161,170,0.28)';
     ctx.setLineDash([4, 4]);
     ctx.stroke();
     ctx.restore();
@@ -2657,6 +3347,7 @@ function renderChart(data) {
     if (_chartZoomed) { chart.resetZoom(); _chartZoomed = false;
       const rb = document.getElementById('chartResetZoom'); if (rb) rb.style.display = 'none'; }
     chart.update('none');
+    updateTimeInRange();
     return;
   }
 
@@ -2664,22 +3355,22 @@ function renderChart(data) {
   function _soilDataset(s) {
     return {
       label: 'Soil %', data: s, borderColor: '#f59e0b',
-      backgroundColor: '#f59e0b12', yAxisID: 'yH', tension: 0.3,
-      pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: '#f59e0b',
+      backgroundColor: 'rgba(245,158,11,0.07)', yAxisID: 'yH', tension: 0.4,
+      pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: '#f59e0b',
       borderWidth: 1.5, borderDash: [5, 3], spanGaps: false
     };
   }
 
   const datasets = [
-    { label: 'Temp °C',  data: T, borderColor: '#f87171', backgroundColor: '#f8717115',
-      yAxisID: 'yT', tension: 0.35, pointRadius: 0, pointHoverRadius: 4,
+    { label: 'Temp °C',  data: T, borderColor: '#f87171', backgroundColor: 'rgba(248,113,113,0.08)',
+      yAxisID: 'yT', tension: 0.4, pointRadius: 0, pointHoverRadius: 5,
       pointHoverBackgroundColor: '#f87171', borderWidth: 2, fill: true },
-    { label: 'Hum %',   data: H, borderColor: '#60a5fa', backgroundColor: '#60a5fa10',
-      yAxisID: 'yH', tension: 0.35, pointRadius: 0, pointHoverRadius: 4,
+    { label: 'Hum %',   data: H, borderColor: '#60a5fa', backgroundColor: 'rgba(96,165,250,0.07)',
+      yAxisID: 'yH', tension: 0.4, pointRadius: 0, pointHoverRadius: 5,
       pointHoverBackgroundColor: '#60a5fa', borderWidth: 2, fill: false },
-    { label: 'VPD kPa', data: V, borderColor: '#4ade80', backgroundColor: '#4ade8015',
-      yAxisID: 'yV', tension: 0.35, pointRadius: 0, pointHoverRadius: 4,
-      pointHoverBackgroundColor: '#4ade80', borderWidth: 2, fill: true },
+    { label: 'VPD kPa', data: V, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.10)',
+      yAxisID: 'yV', tension: 0.4, pointRadius: 0, pointHoverRadius: 5,
+      pointHoverBackgroundColor: '#10b981', borderWidth: 2.5, fill: true },
   ];
   if (hasSoil) datasets.push(_soilDataset(S));
 
@@ -2687,7 +3378,7 @@ function renderChart(data) {
   chart = new Chart(ctx, {
     type: 'line',
     data: { labels, datasets },
-    plugins: [_crosshairPlugin],
+    plugins: [_crosshairPlugin, _vpdBandPlugin],
     options: {
       responsive: true,
       maintainAspectRatio: false,
@@ -2695,17 +3386,17 @@ function renderChart(data) {
       interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: {
-          labels: { color: '#9ca3af', boxWidth: 14, boxHeight: 2, padding: 16,
-                    font: { size: 11 }, usePointStyle: false },
+          labels: { color: '#a1a1aa', boxWidth: 12, boxHeight: 2, padding: 18,
+                    font: { size: 11, family: "'Inter', sans-serif" }, usePointStyle: false },
           onClick(e, legendItem, legend) {
-            // default toggle + reset zoom so hidden series don't confuse the view
             Chart.defaults.plugins.legend.onClick.call(this, e, legendItem, legend);
           }
         },
         tooltip: {
-          backgroundColor: '#0f172a', borderColor: '#334155', borderWidth: 1,
-          titleColor: '#e2e8f0', bodyColor: '#94a3b8',
-          padding: { x: 12, y: 10 },
+          backgroundColor: '#18181b', borderColor: '#3f3f46', borderWidth: 1,
+          titleColor: '#fafafa', bodyColor: '#a1a1aa',
+          cornerRadius: 8,
+          padding: { x: 14, y: 10 },
           callbacks: {
             title: items => {
               if (!items.length) return '';
@@ -2744,14 +3435,14 @@ function renderChart(data) {
           type: 'time',
           time: { unit: tOpts.unit, stepSize: tOpts.stepSize,
                   tooltipFormat: tOpts.tooltipFormat, displayFormats: tOpts.displayFormats },
-          ticks: { color: '#6b7280', maxRotation: 0, maxTicksLimit: tOpts.maxTicksLimit,
-                   font: { size: 10 } },
-          grid: { color: '#1f2937' }
+          ticks: { color: '#71717a', maxRotation: 0, maxTicksLimit: tOpts.maxTicksLimit,
+                   font: { size: 10, family: "'Inter', sans-serif" } },
+          grid: { color: 'rgba(63,63,70,0.6)' }
         },
         yT: {
           position: 'left',
           ticks: { color: '#f87171', font: { size: 10 }, callback: v => v.toFixed(1) + '°' },
-          grid: { color: '#1f2937' },
+          grid: { color: 'rgba(63,63,70,0.6)' },
           title: { display: true, text: 'Temp °C', color: '#f87171', font: { size: 10 } }
         },
         yH: {
@@ -2765,14 +3456,15 @@ function renderChart(data) {
           position: 'right',
           min: 0,
           offset: true,
-          ticks: { color: '#4ade80', font: { size: 10 },
+          ticks: { color: '#10b981', font: { size: 10 },
                    callback: v => v.toFixed(1) },
           grid: { display: false },
-          title: { display: true, text: 'VPD kPa', color: '#4ade80', font: { size: 10 } }
+          title: { display: true, text: 'VPD kPa', color: '#10b981', font: { size: 10 } }
         }
       }
     }
   });
+  updateTimeInRange();
 }
 
 // ── Incremental chart update — append only new rows since last fetch ──────────
@@ -2805,6 +3497,7 @@ function appendToChart(newRows) {
     }
   }
   chart.update('none');
+  updateTimeInRange();
 }
 
 function loadChartIncremental() {
@@ -2818,6 +3511,14 @@ function loadChartIncremental() {
 
 // Auto-refresh — incremental when possible; skip when tab is hidden
 setInterval(() => { if (!document.hidden) loadChartIncremental(); }, 2 * 60 * 1000);
+
+function _editStageDay(current) {
+  const v = prompt('Correct grow day counter — enter the actual current day number:', current);
+  if (v === null) return;
+  const d = parseInt(v, 10);
+  if (!d || d < 1 || d > 365) return alert('Invalid day number');
+  send({ type: 'setStageDay', day: d });
+}
 
 function rebootESP() {
   if (!confirm('Restart the ESP32?\nThe system will be offline for ~5 seconds.')) return;
@@ -2903,8 +3604,9 @@ function updatePlantMood(s) {
     const hHigh = hum  > hCritThr ? 2 : hum > hWarnThr ? 1 : 0;
 
     // Soil — wide healthy zone; only flag when clearly outside normal range
+    // Skip in drying mode — plants are harvested, soil sensor is irrelevant
     let sDry = 0, sWet = 0;
-    if (soil !== null) {
+    if (soil !== null && s.growMode !== 4) {
       const irr = s.irrigation;
       if (irr && irr.precisionEnabled && irr.activeProfile) {
         const trig = irr.activeProfile.trigger || 45;
@@ -2927,7 +3629,8 @@ function updatePlantMood(s) {
     if (sev === 0) {
       // ── All good ──────────────────────────────────────────────────────────────
       if (!lights) {
-        emoji='💤'; msg='"lights out — resting"'; cardCls='';
+        if (s.growMode === 4) { emoji='🌬️'; msg='"drying"'; cardCls=''; }
+        else                  { emoji='💤'; msg='"lights out — resting"'; cardCls=''; }
       } else if (isWatering) {
         emoji='💧'; msg='"drinking — roots getting fed"'; cardCls='green';
       } else if (soil === null || soil >= 50) {
@@ -2940,7 +3643,8 @@ function updatePlantMood(s) {
       // ── Only minor notices (score=1) — calm, no colour ───────────────────────
       // Night: plants resting, drift is expected
       if (!lights) {
-        emoji='💤'; msg='"resting"'; cardCls='';
+        if (s.growMode === 4) { emoji='🌬️'; msg='"drying"'; cardCls=''; }
+        else                  { emoji='💤'; msg='"resting"'; cardCls=''; }
       } else if (nAny >= 2) {
         const parts = [];
         if (tHot)     parts.push('slightly warm');
@@ -3178,14 +3882,14 @@ function updateAutoTune(at) {
 
 // ─── Page tab switching ───────────────────────────────────────────────────────
 function showPageTab(name) {
-  ['dashboard', 'irrigation', 'sensors', 'syslog', 'camera'].forEach(t => {
+  ['dashboard', 'irrigation', 'sensors', 'syslog', 'camera', 'profiles'].forEach(t => {
     const el  = document.getElementById('tab-' + t);
     const btn = document.getElementById('ptab-' + t);
     if (el)  el.style.display = (t === name) ? '' : 'none';
     if (btn) btn.classList.toggle('active', t === name);
   });
   try { localStorage.setItem('pageTab', name); } catch(_) {}
-  if (name === 'irrigation') loadIrrigHistory();
+  if (name === 'irrigation') { loadIrrigHistory(); loadSoilChart(); }
   if (name === 'syslog')     loadSyslog();
   if (name === 'camera')     cameraAutoConnect();
 }
@@ -3250,6 +3954,12 @@ function updateIrrigationTab(s) {
     _irrigPlantCfg.pots      = (irr.plants.pots || [15]).map(v => Math.round(v));
     _irrigPlantCfg.substrate = irr.plants.substrate != null ? irr.plants.substrate : 1;
     _irrigPlantCfg.enabled   = !!irr.precisionEnabled;
+    try {
+      localStorage.setItem('plantSetup', JSON.stringify({
+        count: _irrigPlantCfg.count, pots: _irrigPlantCfg.pots,
+        substrate: _irrigPlantCfg.substrate, enabled: _irrigPlantCfg.enabled
+      }));
+    } catch(_) {}
     renderPlantSetup();
     _showPlantEditBtn();   // config already on device — show Edit mode
   }
@@ -3264,23 +3974,48 @@ function updateIrrigationTab(s) {
     const adaptSec = irr.stats.adaptiveDurSec || 0;
     const fixedMode = !!irr.stats.fixedDurMode;
     const fixedSec  = irr.stats.fixedDurSec  || 60;
-    _durFixedMode = fixedMode;
-    _durFixedSec  = fixedSec;
 
     const slider = document.getElementById('durSlider');
-    if (slider && document.activeElement !== slider) {
-      const dispSec = fixedMode ? fixedSec : (adaptSec > 0 ? adaptSec : 60);
-      slider.value = dispSec;
-      slider.dataset.adaptive = adaptSec;
-      slider.disabled = !fixedMode;
-      slider.style.opacity = fixedMode ? '1' : '0.5';
-      onDurSlider(dispSec);
+    const modeGuarded = (Date.now() - _durModeSetAt) < 30000;
+    if (!modeGuarded) {
+      _durFixedMode = fixedMode;
+      document.getElementById('durModeAutoBtn')?.classList.toggle('active', !fixedMode);
+      document.getElementById('durModeFixedBtn')?.classList.toggle('active', fixedMode);
+      if (slider) {
+        slider.disabled = !fixedMode;
+        slider.style.opacity = fixedMode ? '1' : '0.5';
+      }
+      const confirmRow = document.getElementById('durConfirmRow');
+      if (confirmRow) confirmRow.style.display = fixedMode ? 'block' : 'none';
     }
-    document.getElementById('durModeAutoBtn')?.classList.toggle('active', !fixedMode);
-    document.getElementById('durModeFixedBtn')?.classList.toggle('active', fixedMode);
-    const applyBtn = document.getElementById('durApplyBtn');
-    if (applyBtn) applyBtn.style.display = fixedMode ? '' : 'none';
+    // Only sync _durFixedSec and slider when no unconfirmed change is pending and
+    // the post-confirm hold (3 s) has elapsed so a stale echo can't revert the value.
+    if (!_durConfirmPending && (Date.now() - _durConfirmedAt) > 3000) {
+      _durFixedSec = fixedSec;
+      if (slider && document.activeElement !== slider) {
+        const curMode = _durFixedMode;
+        const dispSec = curMode ? fixedSec : (adaptSec > 0 ? adaptSec : 60);
+        slider.value = dispSec;
+        slider.dataset.adaptive = adaptSec;
+        onDurSlider(dispSec, true);  // fromWS — don't mark confirm pending
+      }
+    } else if (slider) {
+      slider.dataset.adaptive = adaptSec;  // keep adaptive hint fresh even while pending
+    }
     _updateDurNote();
+
+    const sc = irr.stats.stopCount;
+    const countEl = document.getElementById('irrigStopCount');
+    if (countEl && sc != null) {
+      countEl.textContent = sc + (sc === 1 ? ' cycle' : ' cycles');
+      countEl.style.color = sc > 0 ? 'var(--blue)' : 'var(--muted)';
+    }
+    // Auto-refresh the event log table whenever a new cycle completes
+    if (sc != null && sc !== _lastStopCount) {
+      _lastStopCount = sc;
+      const irrigTab = document.getElementById('tab-irrigation');
+      if (irrigTab && irrigTab.style.display !== 'none') { loadIrrigHistory(); loadSoilChart(); }
+    }
   }
 }
 
@@ -3298,14 +4033,14 @@ function fmtAgo(ts) {
 }
 
 function updateIrrigWaterEst() {
-  const minEl  = document.getElementById('irrigWaterMin');
   const estEl  = document.getElementById('irrigWaterEst');
-  if (!minEl || !estEl) return;
-  const min    = parseFloat(minEl.value) || 3;
+  if (!estEl) return;
+  const slider = document.getElementById('durSlider');
+  const sec    = slider ? Math.max(1, parseInt(slider.value, 10)) : 60;
   const flowEl = document.getElementById('irrigFlowML');
   const flow   = flowEl ? (parseFloat(flowEl.value) || 500)
-                        : (_cache[6] ? (_cache[6].waterFlow || 500) : 500);
-  const ml     = Math.round(flow * min);
+                        : (_cache[WATERING_ID] ? (_cache[WATERING_ID].waterFlow || 500) : 500);
+  const ml     = Math.round(flow * sec / 60);
   estEl.textContent = ml >= 1000 ? `≈ ${(ml/1000).toFixed(1)}L` : `≈ ${ml}ml`;
 }
 
@@ -3336,9 +4071,9 @@ function setPrecisionEnabled(en) {
 }
 
 function waterNowFromIrrig() {
-  const minEl = document.getElementById('irrigWaterMin');
-  const min = minEl ? parseFloat(minEl.value) || 3 : 3;
-  setOnFor(6, Math.max(30, Math.round(min * 60)));
+  const slider = document.getElementById('durSlider');
+  const sec = slider ? Math.max(30, parseInt(slider.value, 10)) : 60;
+  setOnFor(WATERING_ID, sec);
 }
 
 // ─── Plant setup ──────────────────────────────────────────────────────────────
@@ -3492,6 +4227,12 @@ function _sendPlantConfig() {
     const el = document.getElementById('potL_' + i);
     return Math.max(1, Math.round(el ? parseFloat(el.value) || 15 : (_irrigPlantCfg.pots[i] || 15)));
   });
+  _irrigPlantCfg.pots = pots;
+  try {
+    localStorage.setItem('plantSetup', JSON.stringify({
+      count: n, pots, substrate: _irrigPlantCfg.substrate, enabled: _irrigPlantCfg.enabled
+    }));
+  } catch(_) {}
   send({ type: 'setPlantConfig', enabled: _irrigPlantCfg.enabled,
          count: n, pots, substrate: _irrigPlantCfg.substrate });
 }
@@ -3523,6 +4264,7 @@ function renderIrrigProfiles(profiles, activeStage, flowML) {
   const tbody = document.getElementById('irrigProfileRows');
   if (!tbody) return;
   if (tbody.contains(document.activeElement)) return;
+  if ((Date.now() - _irrigProfsTouchedAt) < 10000) return;
   tbody.innerHTML = profiles.map((p, i) => {
     const dot = i === activeStage ? '<span style="color:var(--green)">● </span>' : '';
     if (!p.enabled) return `<tr class="irrig-row-dis"><td style="font-weight:600">${dot}${IRRIG_STAGE_NAMES[i]}</td>
@@ -3543,6 +4285,7 @@ function renderIrrigProfiles(profiles, activeStage, flowML) {
 }
 
 function applyAllProfiles(btn) {
+  _irrigProfsTouchedAt = Date.now();
   for (let i = 0; i < 4; i++) {
     const tr = document.getElementById('ip_tr_' + i);
     const tg = document.getElementById('ip_tg_' + i);
@@ -3578,45 +4321,9 @@ function resetIrrigProfilesToDefault(btn) {
 }
 
 // ─── History charts ────────────────────────────────────────────────────────────
-let _irrigChartHours  = 24;
-let _irrigSoilChart   = null;
-let _irrigDayChart    = null;
-let _irrigZoomed      = false;
-let _irrigFsActive    = false;
-
-function loadIrrigHistory() { loadIrrigChart(_irrigChartHours); }
-
-function resetIrrigZoom() {
-  if (_irrigSoilChart) _irrigSoilChart.resetZoom();
-  _irrigZoomed = false;
-  const btn = document.getElementById('irrigResetZoom');
-  if (btn) btn.style.display = 'none';
-}
-
-function _onIrrigZoom() {
-  _irrigZoomed = true;
-  const btn = document.getElementById('irrigResetZoom');
-  if (btn) btn.style.display = 'inline';
-}
-
-function toggleIrrigFullscreen() {
-  const card = document.getElementById('irrigSoilChartCard');
-  const btn  = document.getElementById('irrigFsBtn');
-  if (!card) return;
-  _irrigFsActive = !_irrigFsActive;
-  card.classList.toggle('chart-card-fs', _irrigFsActive);
-  document.body.classList.toggle('chart-fs-lock', _irrigFsActive);
-  btn.textContent = _irrigFsActive ? '✕' : '⤢';
-  btn.title = _irrigFsActive ? 'Exit fullscreen' : 'Fullscreen';
-  setTimeout(() => { if (_irrigSoilChart) _irrigSoilChart.resize(); }, 60);
-  if (_irrigFsActive) {
-    document.addEventListener('keydown', _irrigEscHandler);
-  } else {
-    document.removeEventListener('keydown', _irrigEscHandler);
-  }
-}
-function _irrigEscHandler(e) {
-  if (e.key === 'Escape' && _irrigFsActive) toggleIrrigFullscreen();
+function loadIrrigHistory() {
+  fetch('/api/irrigation').then(r => r.ok ? r.json() : []).catch(() => [])
+    .then(events => _renderIrrigLog(events));
 }
 
 // ─── Syslog loader ─────────────────────────────────────────────────────────────
@@ -3862,195 +4569,6 @@ function cameraAutoConnect() {
 function cameraFromSensor(id) { showPageTab('camera'); }
 function cameraReload() { cameraAutoConnect(); }
 
-function loadIrrigChart(hours) {
-  _irrigChartHours = hours;
-  ['24','72','168'].forEach(h => {
-    const b = document.getElementById('irrigBtn-' + h);
-    if (b) b.className = 'range-btn' + (Number(h) === hours ? ' active' : '');
-  });
-  Promise.all([
-    fetch('/api/logs?hours=' + hours).then(r => r.ok ? r.json() : []).catch(() => []),
-    fetch('/api/irrigation').then(r => r.ok ? r.json() : []).catch(() => [])
-  ]).then(([soilData, events]) => {
-    _renderIrrigCharts(soilData, events, hours);
-    _renderIrrigLog(events);
-  });
-}
-
-function _renderIrrigCharts(soilData, events, hours) {
-  const rows     = Array.isArray(soilData) ? soilData : [];
-  const soilRows = rows.filter(d => d.S != null && d.S >= 0);
-  const labels   = soilRows.map(d => new Date(d.t * 1000));
-  const soilVals = soilRows.map(d => d.S);
-
-  // Build event points — store ml on the raw data object so tooltip can use it
-  const filteredEvts = (events || []).filter(e => e.b != null);
-  const evPts = filteredEvts.map(e => ({ x: new Date(e.t * 1000), y: e.b, ml: e.ml || 0 }));
-
-  const tOpts = chartTimeOpts(hours);
-
-  // ── Soil + event markers chart ──────────────────────────────────────────────
-  if (!_irrigSoilChart) {
-    const ctx = document.getElementById('irrigSoilChart')?.getContext('2d');
-    if (!ctx) return;
-    _irrigSoilChart = new Chart(ctx, {
-      data: {
-        labels,
-        datasets: [
-          { type: 'line', label: 'Soil %', data: soilVals,
-            borderColor: '#f59e0b', backgroundColor: '#f59e0b18',
-            yAxisID: 'y', tension: 0.35, pointRadius: 0,
-            pointHoverRadius: 4, pointHoverBackgroundColor: '#f59e0b',
-            borderWidth: 2, fill: true, spanGaps: true },
-          { type: 'scatter', label: 'Watered', data: evPts,
-            backgroundColor: '#3b82f6cc', borderColor: '#3b82f6',
-            borderWidth: 1.5, pointRadius: 7, pointStyle: 'triangle',
-            pointHoverRadius: 10, yAxisID: 'y' }
-        ]
-      },
-      plugins: [_crosshairPlugin],
-      options: {
-        responsive: true, maintainAspectRatio: false, animation: false,
-        interaction: { mode: 'index', intersect: false },
-        plugins: {
-          legend: { labels: { color: '#9ca3af', boxWidth: 12, font: { size: 11 },
-                              usePointStyle: false } },
-          tooltip: {
-            backgroundColor: '#0f172a', borderColor: '#334155', borderWidth: 1,
-            titleColor: '#e2e8f0', bodyColor: '#94a3b8',
-            padding: { x: 12, y: 10 },
-            callbacks: {
-              title: items => {
-                if (!items.length) return '';
-                const d = new Date(items[0].parsed.x);
-                const hh = String(d.getHours()).padStart(2,'0');
-                const mm = String(d.getMinutes()).padStart(2,'0');
-                const day = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];
-                return `${day} ${hh}:${mm}`;
-              },
-              label: item => {
-                if (item.datasetIndex === 1) {
-                  const raw = item.raw;
-                  const mlStr = raw.ml >= 1000
-                    ? (raw.ml / 1000).toFixed(2).replace(/\.?0+$/, '') + ' L'
-                    : raw.ml > 0 ? raw.ml + ' ml' : '';
-                  return ` 💧 Watered at ${item.parsed.y.toFixed(0)}%` + (mlStr ? `  (${mlStr})` : '');
-                }
-                return ` Soil: ${item.parsed.y != null ? item.parsed.y.toFixed(0) : '--'}%`;
-              }
-            }
-          },
-          zoom: {
-            zoom: {
-              wheel: { enabled: true, speed: 0.08 },
-              pinch: { enabled: true },
-              mode: 'x',
-              onZoomComplete: _onIrrigZoom
-            },
-            pan: {
-              enabled: true,
-              mode: 'x',
-              onPanComplete: _onIrrigZoom
-            }
-          }
-        },
-        scales: {
-          x: { type: 'time', time: { unit: tOpts.unit, stepSize: tOpts.stepSize,
-                 tooltipFormat: tOpts.tooltipFormat, displayFormats: tOpts.displayFormats },
-               ticks: { color: '#6b7280', maxRotation: 0, maxTicksLimit: tOpts.maxTicksLimit, font: { size: 10 } },
-               grid: { color: '#1f2937' } },
-          y: { min: 0, max: 100,
-               ticks: { color: '#f59e0b', font: { size: 10 }, callback: v => v + '%' },
-               grid: { color: '#1f2937' },
-               title: { display: true, text: 'Moisture %', color: '#f59e0b88', font: { size: 10 } } }
-        }
-      }
-    });
-  } else {
-    _irrigSoilChart.data.labels = labels;
-    _irrigSoilChart.data.datasets[0].data = soilVals;
-    _irrigSoilChart.data.datasets[1].data = evPts;
-    Object.assign(_irrigSoilChart.options.scales.x.time, {
-      unit: tOpts.unit, stepSize: tOpts.stepSize,
-      tooltipFormat: tOpts.tooltipFormat, displayFormats: tOpts.displayFormats
-    });
-    _irrigSoilChart.options.scales.x.ticks.maxTicksLimit = tOpts.maxTicksLimit;
-    // Reset zoom when range button changes
-    if (_irrigZoomed) {
-      _irrigSoilChart.resetZoom();
-      _irrigZoomed = false;
-      const rb = document.getElementById('irrigResetZoom');
-      if (rb) rb.style.display = 'none';
-    }
-    _irrigSoilChart.update('none');
-  }
-
-  // ── Daily volume bar chart ──────────────────────────────────────────────────
-  const now = Date.now() / 1000;
-  const days = {};
-  (events || []).forEach(e => {
-    if (!e.t || e.t < now - hours * 3600) return;
-    const key = new Date(e.t * 1000).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' });
-    days[key] = (days[key] || 0) + (e.ml || 0);
-  });
-  const dayLabels = Object.keys(days);
-  const dayVals   = dayLabels.map(k => days[k]);
-
-  if (!_irrigDayChart) {
-    const ctx2 = document.getElementById('irrigDayChart')?.getContext('2d');
-    if (!ctx2) return;
-    _irrigDayChart = new Chart(ctx2, {
-      type: 'bar',
-      data: {
-        labels: dayLabels,
-        datasets: [{ label: 'Water', data: dayVals,
-                     backgroundColor: '#3b82f655', borderColor: '#3b82f6',
-                     borderWidth: 1.5, borderRadius: 5 }]
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false, animation: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            backgroundColor: '#0f172a', borderColor: '#334155', borderWidth: 1,
-            titleColor: '#e2e8f0', bodyColor: '#94a3b8',
-            padding: { x: 12, y: 10 },
-            callbacks: {
-              label: ctx => {
-                const v = ctx.parsed.y;
-                const str = v >= 1000
-                  ? (v / 1000).toFixed(2).replace(/\.?0+$/, '') + ' L'
-                  : v + ' ml';
-                return ` Total: ${str}`;
-              },
-              afterLabel: ctx => {
-                // count events for this day
-                const key = ctx.label;
-                const count = (events || []).filter(e => {
-                  const k = new Date(e.t * 1000).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' });
-                  return k === key;
-                }).length;
-                return count > 0 ? ` ${count} watering event${count > 1 ? 's' : ''}` : null;
-              }
-            }
-          }
-        },
-        scales: {
-          x: { ticks: { color: '#6b7280', font: { size: 10 } }, grid: { color: '#1f2937' } },
-          y: { beginAtZero: true, grid: { color: '#1f2937' },
-               ticks: { color: '#3b82f6', font: { size: 10 },
-                        callback: v => v >= 1000 ? (v/1000).toFixed(1)+'L' : v+'ml' },
-               title: { display: true, text: 'Volume', color: '#3b82f688', font: { size: 10 } } }
-        }
-      }
-    });
-  } else {
-    _irrigDayChart.data.labels = dayLabels;
-    _irrigDayChart.data.datasets[0].data = dayVals;
-    _irrigDayChart.update('none');
-  }
-}
-
 // ─── Event log table ──────────────────────────────────────────────────────────
 function _renderIrrigLog(events) {
   const tbody = document.getElementById('irrigEventRows');
@@ -4088,7 +4606,7 @@ function _renderIrrigLog(events) {
 // Auto-refresh irrigation history every 2 minutes when tab is visible
 setInterval(() => {
   const irrig = document.getElementById('tab-irrigation');
-  if (irrig && irrig.style.display !== 'none') loadIrrigHistory();
+  if (irrig && irrig.style.display !== 'none') { loadIrrigHistory(); loadSoilChart(); }
 }, 2 * 60 * 1000);
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
@@ -4103,6 +4621,152 @@ function mockSchedForMode(mode) {
   const durSec = on === 24 ? 86400 : (on + off) * 3600;
   return { isOn: true, remSec: Math.round(on * 3600 * 0.5), durSec,
            onHours: on, offHours: off, ntpOk: false };
+}
+
+// ─── Profile editor ───────────────────────────────────────────────────────────
+const PROF_ICONS  = ['🌱','🍃','🌸','🌺','🍂'];
+const PROF_NAMES  = ['Seedling','Vegetative','Early Flower','Late Flower','Drying'];
+let _dirtyProfileCards = new Set();  // cards with unsaved edits — skip auto-refresh
+
+// Mirrors PROFILE_DEFAULTS in climate.cpp — used to highlight customised values
+const PROF_DEFS = [
+  { d:{tMin:22,tMax:28,hMin:65,hMax:80,vMin:0.40,vMax:0.80}, n:{tMin:20,tMax:26,hMin:70,hMax:85,vMin:0.30,vMax:0.60} },
+  { d:{tMin:20,tMax:26,hMin:50,hMax:70,vMin:0.80,vMax:1.20}, n:{tMin:18,tMax:22,hMin:50,hMax:68,vMin:0.50,vMax:0.90} },
+  { d:{tMin:22,tMax:26,hMin:45,hMax:55,vMin:1.00,vMax:1.40}, n:{tMin:18,tMax:22,hMin:45,hMax:55,vMin:0.80,vMax:1.10} },
+  { d:{tMin:20,tMax:25,hMin:35,hMax:45,vMin:1.30,vMax:1.80}, n:{tMin:16,tMax:21,hMin:35,hMax:45,vMin:1.00,vMax:1.40} },
+  { d:{tMin:15,tMax:18,hMin:55,hMax:62,vMin:0.50,vMax:0.80}, n:{tMin:15,tMax:18,hMin:55,hMax:62,vMin:0.50,vMax:0.80} },
+];
+
+function updateProfilesTab(allProfiles, activeMode) {
+  if (!Array.isArray(allProfiles) || allProfiles.length < 5) return;
+  const grid = document.getElementById('profileGrid');
+  if (!grid) return;
+  if (!document.getElementById('profcard-0')) {
+    grid.innerHTML = allProfiles.map((p, i) => _renderProfileCard(i, p, i === activeMode)).join('');
+    return;
+  }
+  allProfiles.forEach((p, i) => {
+    if (_dirtyProfileCards.has(i)) return;  // preserve unsaved edits
+    const card = document.getElementById(`profcard-${i}`);
+    if (card) card.outerHTML = _renderProfileCard(i, p, i === activeMode);
+  });
+}
+
+function _renderProfileCard(mode, prof, isActive) {
+  const def   = PROF_DEFS[mode];
+  const isDrying = (mode === 4);
+
+  function inp(id, val, defVal, min, max, step) {
+    const mod = Math.abs(val - defVal) > 0.005;
+    return `<input type="number" id="${id}" value="${val}" min="${min}" max="${max}" step="${step}"
+      title="Default: ${defVal}"
+      style="width:46px;background:var(--input-bg);border:1px solid ${mod?'var(--yellow)':'var(--border)'};
+             color:${mod?'var(--yellow)':'var(--text)'};border-radius:4px;
+             padding:.18rem .28rem;font-size:.8rem;text-align:center"
+      oninput="_profMarkModified(this,${defVal},${mode})">`;
+  }
+
+  function row(label, dMin, dMax, nMin, nMax, dDefMin, dDefMax, nDefMin, nDefMax, min, max, step) {
+    return `<div style="display:grid;grid-template-columns:58px 1fr 1fr;gap:.3rem .5rem;align-items:center;margin-bottom:.32rem">
+      <span style="font-size:.72rem;color:var(--muted)">${label}</span>
+      <div style="display:flex;align-items:center;gap:.2rem">
+        ${inp(`p${mode}_d_${label.slice(0,1).toLowerCase()}min`,dMin,dDefMin,min,max,step)}
+        <span style="color:var(--muted);font-size:.8rem">–</span>
+        ${inp(`p${mode}_d_${label.slice(0,1).toLowerCase()}max`,dMax,dDefMax,min,max,step)}
+      </div>
+      <div style="display:flex;align-items:center;gap:.2rem">
+        ${inp(`p${mode}_n_${label.slice(0,1).toLowerCase()}min`,nMin,nDefMin,min,max,step)}
+        <span style="color:var(--muted);font-size:.8rem">–</span>
+        ${inp(`p${mode}_n_${label.slice(0,1).toLowerCase()}max`,nMax,nDefMax,min,max,step)}
+      </div>
+    </div>`;
+  }
+
+  const activeBadge = isActive
+    ? `<span style="background:var(--green);color:#000;font-size:.6rem;font-weight:700;
+                   padding:.08rem .42rem;border-radius:3px;margin-left:.4rem">ACTIVE</span>` : '';
+  const dirtyBadge = `<span id="profcard-dirty-${mode}" style="display:none;font-size:.6rem;
+    color:var(--yellow);margin-left:.4rem">● unsaved</span>`;
+  const dryNote = isDrying
+    ? `<div style="font-size:.68rem;color:var(--muted);margin-top:.4rem;padding:.25rem .35rem;
+                  background:rgba(255,255,255,.04);border-radius:5px">
+        ⚠ Fast Dry toggle (header) overrides these values at runtime</div>` : '';
+
+  return `<div id="profcard-${mode}" class="card" style="padding:0">
+    <div style="padding:.55rem .9rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.4rem">
+      <span style="font-size:1rem">${PROF_ICONS[mode]}</span>
+      <strong style="font-size:.88rem">${PROF_NAMES[mode]}</strong>
+      ${activeBadge}${dirtyBadge}
+    </div>
+    <div style="padding:.6rem .9rem">
+      <div style="display:grid;grid-template-columns:58px 1fr 1fr;gap:.3rem .5rem;margin-bottom:.4rem">
+        <span></span>
+        <span style="font-size:.68rem;color:var(--muted);text-align:center">☀ Day (lights ON)</span>
+        <span style="font-size:.68rem;color:var(--muted);text-align:center">🌙 Night (lights OFF)</span>
+      </div>
+      ${row('Temp °C', prof.dtMin,prof.dtMax, prof.ntMin,prof.ntMax,
+                       def.d.tMin,def.d.tMax, def.n.tMin,def.n.tMax, 10,45,0.5)}
+      ${row('Hum %',   prof.dhMin,prof.dhMax, prof.nhMin,prof.nhMax,
+                       def.d.hMin,def.d.hMax, def.n.hMin,def.n.hMax, 10,99,1)}
+      ${row('VPD kPa', prof.dvMin,prof.dvMax, prof.nvMin,prof.nvMax,
+                       def.d.vMin,def.d.vMax, def.n.vMin,def.n.vMax, 0.1,3.5,0.05)}
+      ${dryNote}
+      <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:.55rem;padding-top:.4rem;border-top:1px solid var(--border)">
+        <button onclick="resetProfile(${mode},this)"
+          style="font-size:.78rem;padding:.28rem .7rem;background:transparent;
+                 border:1px solid var(--border);color:var(--muted);border-radius:6px;cursor:pointer">
+          ↺ Reset</button>
+        <button class="btn-apply" onclick="saveProfile(${mode},this)">Save</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function _profMarkModified(el, defVal, mode) {
+  const mod = Math.abs(parseFloat(el.value) - defVal) > 0.005;
+  el.style.borderColor = mod ? 'var(--yellow)' : 'var(--border)';
+  el.style.color       = mod ? 'var(--yellow)' : 'var(--text)';
+  if (mode != null) {
+    _dirtyProfileCards.add(mode);
+    const badge = document.getElementById(`profcard-dirty-${mode}`);
+    if (badge) badge.style.display = 'inline';
+  }
+}
+
+function _profVal(mode, dn, field) {
+  const el = document.getElementById(`p${mode}_${dn}_${field}`);
+  return el ? parseFloat(el.value) : 0;
+}
+
+function saveProfile(mode, btn) {
+  const msg = {
+    type: 'setProfile', mode,
+    dtMin: _profVal(mode,'d','tmin'), dtMax: _profVal(mode,'d','tmax'),
+    dhMin: _profVal(mode,'d','hmin'), dhMax: _profVal(mode,'d','hmax'),
+    dvMin: _profVal(mode,'d','vmin'), dvMax: _profVal(mode,'d','vmax'),
+    ntMin: _profVal(mode,'n','tmin'), ntMax: _profVal(mode,'n','tmax'),
+    nhMin: _profVal(mode,'n','hmin'), nhMax: _profVal(mode,'n','hmax'),
+    nvMin: _profVal(mode,'n','vmin'), nvMax: _profVal(mode,'n','vmax'),
+  };
+  // Basic validation
+  if (msg.dtMin >= msg.dtMax || msg.dhMin >= msg.dhMax || msg.dvMin >= msg.dvMax ||
+      msg.ntMin >= msg.ntMax || msg.nhMin >= msg.nhMax || msg.nvMin >= msg.nvMax) {
+    btn.textContent = '⚠ min ≥ max'; btn.style.background='var(--red)';
+    setTimeout(() => { btn.textContent='Save'; btn.style.background=''; }, 2000);
+    return;
+  }
+  send(msg);
+  _dirtyProfileCards.delete(mode);
+  const saveBadge = document.getElementById(`profcard-dirty-${mode}`);
+  if (saveBadge) saveBadge.style.display = 'none';
+  flashApply(btn);
+}
+
+function resetProfile(mode, btn) {
+  send({ type: 'resetProfile', mode });
+  _dirtyProfileCards.delete(mode);
+  btn.textContent = '✓';
+  setTimeout(() => { btn.textContent = '↺ Reset'; }, 1500);
 }
 
 // Populate UI with placeholder data so layout is visible before ESP32 connects
@@ -4148,6 +4812,16 @@ function mockSchedForMode(mode) {
     }
   } catch(_) {}
 
+  // Restore last-known AC temps so inputs show correctly before WS connects
+  try {
+    const savedAc = JSON.parse(localStorage.getItem('acTemps') || 'null');
+    if (savedAc) {
+      _acTemps = savedAc;
+      const acCard = document.getElementById('rcard-' + AC_RELAY_ID);
+      if (acCard && _cache[AC_RELAY_ID]) renderRelayCard(acCard, _cache[AC_RELAY_ID]);
+    }
+  } catch(_) {}
+
   // Restore last-known grow stage
   try {
     const saved = localStorage.getItem('growStage');
@@ -4162,7 +4836,7 @@ function mockSchedForMode(mode) {
   // Restore last active page tab
   try {
     const tab = localStorage.getItem('pageTab');
-    if (tab === 'irrigation' || tab === 'sensors' || tab === 'syslog' || tab === 'camera') showPageTab(tab);
+    if (['irrigation','sensors','syslog','camera','profiles'].includes(tab)) showPageTab(tab);
   } catch(_) {}
 
   // Restore VPD target so it shows instantly before WebSocket connects
@@ -4175,6 +4849,37 @@ function mockSchedForMode(mode) {
   try {
     const cached = JSON.parse(localStorage.getItem('wifiSensors') || 'null');
     if (Array.isArray(cached) && cached.length) updateWifiSensors(cached);
+  } catch(_) {}
+
+  // Restore last manual watering duration
+  try {
+    const saved = parseFloat(localStorage.getItem('waterManDurMin'));
+    if (saved >= 0.5 && saved <= 60) _waterManDurMin = saved;
+  } catch(_) {}
+
+  // Restore irrigation duration mode (Auto/Manual) before first WS push
+  try {
+    const savedMode = localStorage.getItem('irrigDurMode');
+    if (savedMode !== null) {
+      _durFixedMode = savedMode === '1';
+      _durModeSetAt = Date.now();  // hold guard so first WS push doesn't override
+      document.getElementById('durModeAutoBtn')?.classList.toggle('active', !_durFixedMode);
+      document.getElementById('durModeFixedBtn')?.classList.toggle('active', _durFixedMode);
+      const confirmRow = document.getElementById('durConfirmRow');
+      if (confirmRow) confirmRow.style.display = _durFixedMode ? 'block' : 'none';
+      const slider = document.getElementById('durSlider');
+      if (slider) { slider.disabled = !_durFixedMode; slider.style.opacity = _durFixedMode ? '1' : '0.5'; }
+    }
+  } catch(_) {}
+
+  // Restore plant setup so it shows before first WS push
+  try {
+    const ps = JSON.parse(localStorage.getItem('plantSetup') || 'null');
+    if (ps && ps.count >= 1) {
+      _irrigPlantCfg = { count: ps.count, pots: ps.pots || [15], substrate: ps.substrate ?? 1, enabled: ps.enabled ?? false };
+      renderPlantSetup();
+      _showPlantEditBtn();
+    }
   } catch(_) {}
 })();
 
@@ -4192,8 +4897,11 @@ connect();
   const g = document.getElementById('relayGrid');
   if (g) {
     g.addEventListener('input', stamp);
+    g.addEventListener('click', stamp);
   }
 })();
 </script>
+<!-- Dev mock data — file is gitignored; only loads on file:// previews -->
+<script src="mock.js" onerror=""></script>
 </body>
 </html>

@@ -17,7 +17,9 @@ public:
 
 private:
     IntakeData    _d;
-    unsigned long _lastMs = 0;
+    unsigned long _lastMs      = 0;
+    unsigned long _lastValidMs = 0;  // millis() of last successful read
+    uint8_t       _failCount   = 0;  // consecutive failures (drives faster retry)
 };
 
 extern IntakeSensor intakeSensor;

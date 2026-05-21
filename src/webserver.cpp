@@ -81,8 +81,10 @@ static void buildStateJson(String& out) {
     vtObj["buffer"]         = vt.buffer;
 
     JsonObject acObj        = doc["acTemps"].to<JsonObject>();
-    acObj["low"]            = climate.acTempLow();
-    acObj["high"]           = climate.acTempHigh();
+    acObj["dayLow"]         = climate.acDayLow();
+    acObj["dayHigh"]        = climate.acDayHigh();
+    acObj["nightLow"]       = climate.acNightLow();
+    acObj["nightHigh"]      = climate.acNightHigh();
     acObj["delay"]          = climate.acHumDelaySec();
 
     // Intake air sensor (DHT11 outside grow tent)
@@ -98,14 +100,18 @@ static void buildStateJson(String& out) {
     const DayNightRange& p      = lightsOn ? gp.day : gp.night;
 
     JsonObject prof  = doc["profile"].to<JsonObject>();
-    prof["name"]     = gp.name;
-    prof["isDay"]    = lightsOn;
-    prof["tempMin"]  = p.tempMin;
-    prof["tempMax"]  = p.tempMax;
-    prof["humMin"]   = p.humMin;
-    prof["humMax"]   = p.humMax;
-    prof["vpdMin"]   = p.vpdMin;
-    prof["vpdMax"]   = p.vpdMax;
+    prof["name"]         = gp.name;
+    prof["isDay"]        = lightsOn;
+    prof["tempMin"]      = p.tempMin;
+    prof["tempMax"]      = p.tempMax;
+    prof["humMin"]       = p.humMin;
+    prof["humMax"]       = p.humMax;
+    prof["vpdMin"]       = p.vpdMin;
+    prof["vpdMax"]       = p.vpdMax;
+    prof["dayTempMin"]   = gp.day.tempMin;
+    prof["dayTempMax"]   = gp.day.tempMax;
+    prof["nightTempMin"] = gp.night.tempMin;
+    prof["nightTempMax"] = gp.night.tempMax;
 
     // Light schedule state
     const LightSchedule& sched = climate.lightSchedule();
@@ -262,6 +268,20 @@ static void buildStateJson(String& out) {
         stats["adaptiveDurSec"] = wrSt.adaptiveDurSec;
         stats["fixedDurMode"]   = wrSt.fixedDurMode;
         stats["fixedDurSec"]    = wrSt.fixedDurSec;
+        stats["stopCount"]      = logger.irrigCount();
+    }
+
+    // All grow profiles (for profile editor tab)
+    JsonArray allProf = doc["allProfiles"].to<JsonArray>();
+    for (int i = 0; i < NUM_GROW_MODES; i++) {
+        const GrowProfile& gp = climate.getProfileByMode((GrowMode)i);
+        JsonObject po = allProf.add<JsonObject>();
+        po["dtMin"] = gp.day.tempMin;    po["dtMax"] = gp.day.tempMax;
+        po["dhMin"] = gp.day.humMin;     po["dhMax"] = gp.day.humMax;
+        po["dvMin"] = gp.day.vpdMin;     po["dvMax"] = gp.day.vpdMax;
+        po["ntMin"] = gp.night.tempMin;  po["ntMax"] = gp.night.tempMax;
+        po["nhMin"] = gp.night.humMin;   po["nhMax"] = gp.night.humMax;
+        po["nvMin"] = gp.night.vpdMin;   po["nvMax"] = gp.night.vpdMax;
     }
 
     // Auto-Tune status
@@ -308,9 +328,10 @@ static void onWsEvent(AsyncWebSocket*       server,
     if (type != WS_EVT_DATA) return;
 
     AwsFrameInfo* info = (AwsFrameInfo*)arg;
-    // Only process complete, unfragmented text frames
+    // Only process complete, unfragmented text frames; reject oversized payloads
     if (!info->final || info->index != 0 || info->len != len) return;
     if (info->opcode != WS_TEXT) return;
+    if (len > 4096) { client->close(); return; }
 
     // Parse without modifying the library-owned buffer (avoids out-of-bounds write)
     JsonDocument doc;
@@ -326,9 +347,37 @@ static void onWsEvent(AsyncWebSocket*       server,
     } else if (strcmp(msgType, "setAcTemps") == 0) {
         float    low   = doc["low"]   | 0.0f;
         float    high  = doc["high"]  | 0.0f;
-        uint32_t delay = doc["delay"] | (uint32_t)600;
-        climate.setAcTemps(low, high);
-        climate.setAcHumDelay(delay);
+        bool     night = doc["night"] | false;
+        climate.setAcTemps(low, high, night);
+        if (doc.containsKey("delay")) {
+            uint32_t delay = doc["delay"] | (uint32_t)600;
+            climate.setAcHumDelay(delay);
+        }
+    } else if (strcmp(msgType, "setProfile") == 0) {
+        uint8_t mode = (uint8_t)(doc["mode"] | 0xFF);
+        if (mode < NUM_GROW_MODES) {
+            const GrowProfile& cur = climate.getProfileByMode((GrowMode)mode);
+            DayNightRange day   = cur.day;
+            DayNightRange night = cur.night;
+            day.tempMin  = doc["dtMin"] | cur.day.tempMin;
+            day.tempMax  = doc["dtMax"] | cur.day.tempMax;
+            day.humMin   = doc["dhMin"] | cur.day.humMin;
+            day.humMax   = doc["dhMax"] | cur.day.humMax;
+            day.vpdMin   = doc["dvMin"] | cur.day.vpdMin;
+            day.vpdMax   = doc["dvMax"] | cur.day.vpdMax;
+            night.tempMin = doc["ntMin"] | cur.night.tempMin;
+            night.tempMax = doc["ntMax"] | cur.night.tempMax;
+            night.humMin  = doc["nhMin"] | cur.night.humMin;
+            night.humMax  = doc["nhMax"] | cur.night.humMax;
+            night.vpdMin  = doc["nvMin"] | cur.night.vpdMin;
+            night.vpdMax  = doc["nvMax"] | cur.night.vpdMax;
+            climate.setProfile((GrowMode)mode, day, night);
+        }
+    } else if (strcmp(msgType, "resetProfile") == 0) {
+        uint8_t mode = (uint8_t)(doc["mode"] | 0xFF);
+        if (mode < NUM_GROW_MODES) {
+            climate.resetProfile((GrowMode)mode);
+        }
     } else if (strcmp(msgType, "setProbePlacement") == 0) {
         relays.setProbePlacement(doc["active"] | false);
     } else if (strcmp(msgType, "setMode") == 0) {
@@ -336,6 +385,9 @@ static void onWsEvent(AsyncWebSocket*       server,
         if (m >= 0 && m < NUM_GROW_MODES) {
             climate.setMode((GrowMode)m);
         }
+    } else if (strcmp(msgType, "setStageDay") == 0) {
+        int d = doc["day"] | 0;
+        if (d >= 1) climate.setStageDay((uint32_t)d);
     } else if (strcmp(msgType, "relay") == 0) {
         int         id     = doc["id"]     | -1;
         const char* action = doc["action"] | "";
@@ -465,7 +517,9 @@ static void onWsEvent(AsyncWebSocket*       server,
         const char* sensorUrl = doc["sensorUrl"] | "";
         const char* streamUrl = doc["streamUrl"] | "";
         // Allow camera-only entries (no sensorUrl) as long as name + streamUrl are set
-        if (name[0] && (sensorUrl[0] || streamUrl[0]))
+        bool urlOk  = !sensorUrl[0] || strncmp(sensorUrl, "http://", 7) == 0;
+        bool strmOk = !streamUrl[0] || strncmp(streamUrl, "http://", 7) == 0;
+        if (name[0] && (sensorUrl[0] || streamUrl[0]) && urlOk && strmOk)
             wifiSensors.add(name, sensorUrl, streamUrl);
     } else if (strcmp(msgType, "removeSensor") == 0) {
         int id = doc["id"] | -1;
@@ -480,10 +534,13 @@ static void onWsEvent(AsyncWebSocket*       server,
         if (id >= 0) wifiSensors.setSensorActive(id, active);
     }
 
-    // Echo updated state back to all clients
+    // Echo updated state back to the requesting client only.
+    // The 2-second webBroadcast() loop notifies all other clients — calling
+    // textAll() here from the async-TCP callback context races with that loop
+    // and can corrupt the WebSocket queue → PANIC-CRASH.
     String out;
     buildStateJson(out);
-    server->textAll(out);
+    client->text(out);
 }
 
 // ─── Log API handler ──────────────────────────────────────────────────────────
@@ -499,7 +556,12 @@ static void handleLogRequest(AsyncWebServerRequest* req) {
     if (req->hasParam("since")) {
         since = req->getParam("since")->value().toInt();
     }
-    logger.getJsonLast(hours, logBuf, sizeof(logBuf), since);
+    int step = 1;
+    if (req->hasParam("step")) {
+        step = req->getParam("step")->value().toInt();
+        step = constrain(step, 1, 60);
+    }
+    logger.getJsonLast(hours, logBuf, sizeof(logBuf), since, step);
 
     AsyncWebServerResponse* resp = req->beginResponse(200, "application/json", logBuf);
     resp->addHeader("Cache-Control", "no-cache");
@@ -508,6 +570,7 @@ static void handleLogRequest(AsyncWebServerRequest* req) {
 
 // ─── Public init ──────────────────────────────────────────────────────────────
 void webBegin() {
+    ws.setAuthentication(WEB_AUTH_USER, WEB_AUTH_PASS);
     ws.onEvent(onWsEvent);
     server.addHandler(&ws);
 
@@ -644,36 +707,6 @@ void webBegin() {
         }
     );
 
-    // ── UI filesystem OTA (raw binary POST — avoids multipart size ambiguity) ──
-    server.on("/update/ui", HTTP_POST,
-        [](AsyncWebServerRequest* req) {
-            if (!checkAuth(req)) return;
-            bool ok = !Update.hasError();
-            AsyncWebServerResponse* resp = req->beginResponse(200, "text/plain", ok ? "OK" : "FAIL");
-            resp->addHeader("Connection", "close");
-            req->send(resp);
-            if (ok) { delay(300); ESP.restart(); }
-        },
-        nullptr,  // no multipart upload handler
-        [](AsyncWebServerRequest* req, uint8_t* data, size_t len, size_t index, size_t total) {
-            if (index == 0) {
-                Serial.printf("[OTA-UI] Start: %u bytes\n", (unsigned)total);
-                LittleFS.end();
-                if (!Update.begin(total > 0 ? total : UPDATE_SIZE_UNKNOWN, U_SPIFFS))
-                    Update.printError(Serial);
-            }
-            if (!Update.hasError()) {
-                if (Update.write(data, len) != len) Update.printError(Serial);
-            }
-            if (index + len >= total) {
-                if (!Update.hasError()) {
-                    if (Update.end(true)) Serial.printf("[OTA-UI] OK: %u bytes\n", (unsigned)total);
-                    else                  Update.printError(Serial);
-                }
-            }
-        }
-    );
-
     // ── WiFi sensor list ──────────────────────────────────────────────────────
     server.on("/api/sensors", HTTP_GET, [](AsyncWebServerRequest* req) {
         if (!checkAuth(req)) return;
@@ -681,7 +714,6 @@ void webBegin() {
         wifiSensors.getJson(sensBuf, sizeof(sensBuf));
         AsyncWebServerResponse* resp = req->beginResponse(200, "application/json", sensBuf);
         resp->addHeader("Cache-Control", "no-cache");
-        resp->addHeader("Access-Control-Allow-Origin", "*");
         req->send(resp);
     });
 
@@ -698,7 +730,7 @@ void webBegin() {
     // ── Irrigation event history ──────────────────────────────────────────────
     server.on("/api/irrigation", HTTP_GET, [](AsyncWebServerRequest* req) {
         if (!checkAuth(req)) return;
-        static char irrigBuf[8192];
+        static char irrigBuf[2500];  // 25 entries * ~90 bytes — ring-buffered in getIrrigationJson
         logger.getIrrigationJson(irrigBuf, sizeof(irrigBuf));
         AsyncWebServerResponse* resp = req->beginResponse(200, "application/json", irrigBuf);
         resp->addHeader("Cache-Control", "no-cache");
@@ -718,6 +750,7 @@ void webBegin() {
     server.on("/index.html", HTTP_GET, serveUI);
 
     server.onNotFound([](AsyncWebServerRequest* req) {
+        if (!checkAuth(req)) return;
         req->send(404, "text/plain", "Not found");
     });
 

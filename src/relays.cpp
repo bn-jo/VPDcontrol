@@ -1,5 +1,6 @@
 #include "relays.h"
 #include "config.h"
+#include "syslog.h"
 #include <Preferences.h>
 #include <time.h>
 
@@ -75,6 +76,7 @@ RelayManager::RelayManager() {
         _r[i].waterDurationSec = 300;
         _r[i].waterFlowML      = (i == WATERING) ? 500 : 0;
         _r[i].fanIntake        = false;
+        _r[i].installed        = true;   // explicit — _r[i]={} zero-inits this to false in C++11
         // Precision irrigation fields
         if (i == WATERING) {
             _r[i].irrigProfile     = IRRIG_DEFAULTS[1][1];  // Veg/coco default until mode is set
@@ -104,6 +106,7 @@ void RelayManager::begin() {
         applyPhysical((RelayIndex)i, false);
     }
     loadPrefs();
+    loadInstalledFlags();   // separate namespace — never lost in big savePrefs() writes
     loadIrrigPrefs();
     // Apply the current irrigation profile (mode will be set by climate after begin)
     _r[WATERING].irrigProfile = _irrigProfiles[_currentMode];
@@ -123,6 +126,13 @@ void RelayManager::setMode(RelayIndex idx, RelayMode mode) {
         _r[idx].timerPhaseStart = millis();
         _r[idx].timerInOnPhase  = true;
         request(idx, true);
+    } else if (mode == RELAY_AUTO) {
+        // Switching back to AUTO: immediately apply autoOn so the relay doesn't stay
+        // in a stale physical state from a previous MANUAL/TIMER/SCHEDULE mode.
+        // WATERING's AUTO update path has custom irrigation logic and never calls
+        // request(autoOn) like other relays do — so this is the only place it gets
+        // applied when transitioning back to AUTO.
+        applyPhysical(idx, _r[idx].autoOn);
     }
     savePrefs();
 }
@@ -162,11 +172,8 @@ void RelayManager::setTimer(RelayIndex idx, uint32_t onSec, uint32_t offSec) {
 
 // ─── Main update (call every loop) ───────────────────────────────────────────
 void RelayManager::update() {
-    // ── Deferred NVS save (avoids deep call stack from applyPhysical) ─────────
-    if (_irrigPrefsDirty) {
-        saveIrrigPrefs();
-        _irrigPrefsDirty = false;
-    }
+    // NVS writes are handled by flushPrefsIfDirty() on Core 1 — never write
+    // flash here on Core 0 as it blocks the control loop and the WDT reset.
 
     // ── Midnight rollover for daily water total (all modes) ───────────────────
     {
@@ -185,6 +192,19 @@ void RelayManager::update() {
 
     for (int i = 0; i < NUM_RELAYS; i++) {
         RelayIndex idx = (RelayIndex)i;
+
+        // Drying stage: watering relay is unconditionally OFF.
+        // Intercept here — before the mode switch — so MANUAL/TIMER/SCHEDULE
+        // states saved in NVS from a previous stage cannot turn the pump on.
+        if (idx == WATERING && _currentMode == 3 /* drying */) {
+            if (_r[i].mode != RELAY_AUTO) {
+                _r[i].mode  = RELAY_AUTO;
+                _prefsDirty = true;   // flush to NVS from Core 1 on next loop
+            }
+            if (_r[i].physicalOn) applyPhysical(idx, false);
+            continue;
+        }
+
         switch (_r[i].mode) {
             case RELAY_AUTO:
                 if (idx == WATERING) {
@@ -316,8 +336,17 @@ void RelayManager::update() {
                                 (unsigned long)_r[i].minOffSec * 1000UL);
                             if (rested) applyPhysical(idx, true);
                         }
+                    } else {
+                        // No irrigation configured (drying stage, or precision+legacy both disabled).
+                        // Abort any in-progress pulse session and cut power immediately —
+                        // autoOn is always false here but the WATERING path never calls
+                        // request(autoOn) like other relays, so we must do it explicitly.
+                        if (_r[i].pulsePhase != RelayState::PULSE_IDLE) {
+                            _r[i].pulsePhase     = RelayState::PULSE_IDLE;
+                            _r[i].totalPulseOnMs = 0;
+                        }
+                        if (_r[i].physicalOn) applyPhysical(idx, false);
                     }
-                    // else: relay stays OFF (no irrigation configured)
                 } else {
                     // Standard AUTO: climate controller drives via setAutoState()
                     if (_r[i].physicalOn && _r[i].maxOnSec > 0 &&
@@ -341,7 +370,7 @@ void RelayManager::update() {
                     _r[i].mode          = RELAY_AUTO;
                     _r[i].manualStartMs = 0;
                     _r[i].onForSec      = 0;
-                    savePrefs();
+                    _prefsDirty = true;  // flushed from Core 1 — avoid flash write on Core 0
                 } else {
                     // One-shot: turn OFF after onForSec seconds
                     if (_r[i].onForSec > 0 && _r[i].manualOn && _r[i].onForStartMs > 0 &&
@@ -378,8 +407,10 @@ void RelayManager::applyPhysical(RelayIndex idx, bool on) {
     } else if (!on && _r[idx].physicalOn) {
         _r[idx].lastOffMs = millis();
         // Non-precision watering session complete: log event + update daily stats.
-        // PULSE_IDLE = not a mid-session pulse→soak boundary (which uses PULSE_SOAK).
-        if (idx == WATERING && _r[idx].pulsePhase == RelayState::PULSE_IDLE) {
+        // Also log for manual mode regardless of pulse state — the user explicitly
+        // opened and closed the valve, so always record it.
+        if (idx == WATERING &&
+            (_r[idx].pulsePhase == RelayState::PULSE_IDLE || _r[idx].mode == RELAY_MANUAL)) {
             unsigned long durMs = _r[idx].lastOffMs - _r[idx].lastOnMs;
             uint32_t durSec = (uint32_t)(durMs / 1000UL);
             if (durSec > 0) {
@@ -517,7 +548,31 @@ void RelayManager::setInstalled(RelayIndex idx, bool installed) {
         _r[idx].autoOn     = false;
         _r[idx].physicalOn = false;
     }
-    savePrefs();
+    saveInstalledFlags();
+}
+
+void RelayManager::saveInstalledFlags() {
+    Preferences p;
+    p.begin("relayInst", false);
+    for (int i = 0; i < NUM_RELAYS; i++) {
+        char k[4]; snprintf(k, sizeof(k), "r%d", i);
+        p.putBool(k, _r[i].installed);
+    }
+    p.end();
+}
+
+void RelayManager::loadInstalledFlags() {
+    Preferences p;
+    p.begin("relayInst", true);
+    for (int i = 0; i < NUM_RELAYS; i++) {
+        char k[4]; snprintf(k, sizeof(k), "r%d", i);
+        _r[i].installed = p.getBool(k, true);
+    }
+    p.end();
+    // Boot log — confirm what was loaded (helps diagnose persistence issues)
+    rlog("[RELAY] Installed flags: %d%d%d%d%d%d%d%d",
+         _r[0].installed, _r[1].installed, _r[2].installed, _r[3].installed,
+         _r[4].installed, _r[5].installed, _r[6].installed, _r[7].installed);
 }
 
 void RelayManager::setProbePlacement(bool m) {
@@ -608,21 +663,10 @@ void RelayManager::saveIrrigPrefs() {
     p.putUChar ("cnt", _plantCfg.count);
     p.putUChar ("sub",      _plantCfg.substrateType);
     p.putUChar ("prof_sub", _plantCfg.substrateType);  // track which substrate profiles were saved for
-    for (int i = 0; i < MAX_PLANTS; i++) {
-        char k[8]; snprintf(k, sizeof(k), "p%d", i);
-        p.putUShort(k, _plantCfg.plants[i].potVolumeL);
-    }
+    p.putBytes("pots", _plantCfg.plants, MAX_PLANTS * sizeof(PlantEntry));
     for (int s = 0; s < 4; s++) {
-        const IrrigationProfile& ip = _irrigProfiles[s];
-        char k[12];
-        snprintf(k, sizeof(k), "s%d_en",  s); p.putBool  (k, ip.enabled);
-        snprintf(k, sizeof(k), "s%d_tr",  s); p.putUChar (k, ip.soilTriggerPct);
-        snprintf(k, sizeof(k), "s%d_tg",  s); p.putUChar (k, ip.soilTargetPct);
-        snprintf(k, sizeof(k), "s%d_mx",  s); p.putUInt  (k, ip.maxWaterSec);
-        snprintf(k, sizeof(k), "s%d_dr",  s); p.putUInt  (k, ip.minRestDaySec);
-        snprintf(k, sizeof(k), "s%d_nr",  s); p.putUInt  (k, ip.minRestNightSec);
-        snprintf(k, sizeof(k), "s%d_po",  s); p.putUInt  (k, ip.pulseOnSec);
-        snprintf(k, sizeof(k), "s%d_ps",  s); p.putUInt  (k, ip.pauseSec);
+        char k[4]; snprintf(k, sizeof(k), "s%d", s);
+        p.putBytes(k, &_irrigProfiles[s], sizeof(IrrigationProfile));
     }
     // ── Watering runtime stats (persist across reboots) ──────────────────────
     p.putUInt  ("lastTs",   (uint32_t)_r[WATERING].lastWaterTs);
@@ -645,29 +689,23 @@ void RelayManager::loadIrrigPrefs() {
     _plantCfg.count             = p.getUChar ("cnt", 1);
     _plantCfg.substrateType     = p.getUChar ("sub", 1);
     if (_plantCfg.count < 1 || _plantCfg.count > MAX_PLANTS) _plantCfg.count = 1;
-    for (int i = 0; i < MAX_PLANTS; i++) {
-        char k[8]; snprintf(k, sizeof(k), "p%d", i);
-        _plantCfg.plants[i].potVolumeL = p.getUShort(k, (i == 0) ? 15 : 0);
+    if (p.getBytesLength("pots") == MAX_PLANTS * sizeof(PlantEntry)) {
+        p.getBytes("pots", _plantCfg.plants, MAX_PLANTS * sizeof(PlantEntry));
+    } else {
+        _plantCfg.plants[0].potVolumeL = 15;  // default: 1 × 15 L pot
     }
-    // If substrate changed since last save (0xFF = never saved), reset all stage
-    // profiles to the new substrate's research-backed defaults instead of loading
-    // stale NVS values tuned for a different medium.
+    // Reset profiles only when the substrate type has explicitly changed.
+    // Default prof_sub to current sub (not 0xFF) so a missing key — e.g. first
+    // boot after OTA — does NOT wipe user-tuned profiles.
     uint8_t sub = _plantCfg.substrateType < 3 ? _plantCfg.substrateType : 1;
-    bool useDefaults = (p.getUChar("prof_sub", 0xFF) != sub);
+    bool useDefaults = (p.getUChar("prof_sub", sub) != sub);
     for (int s = 0; s < 4; s++) {
         const IrrigationProfile& def = IRRIG_DEFAULTS[sub][s];
-        if (useDefaults) {
-            _irrigProfiles[s] = def;
+        char k[4]; snprintf(k, sizeof(k), "s%d", s);
+        if (!useDefaults && p.getBytesLength(k) == sizeof(IrrigationProfile)) {
+            p.getBytes(k, &_irrigProfiles[s], sizeof(IrrigationProfile));
         } else {
-            char k[12];
-            snprintf(k, sizeof(k), "s%d_en", s); _irrigProfiles[s].enabled         = p.getBool  (k, def.enabled);
-            snprintf(k, sizeof(k), "s%d_tr", s); _irrigProfiles[s].soilTriggerPct  = p.getUChar (k, def.soilTriggerPct);
-            snprintf(k, sizeof(k), "s%d_tg", s); _irrigProfiles[s].soilTargetPct   = p.getUChar (k, def.soilTargetPct);
-            snprintf(k, sizeof(k), "s%d_mx", s); _irrigProfiles[s].maxWaterSec     = p.getUInt  (k, def.maxWaterSec);
-            snprintf(k, sizeof(k), "s%d_dr", s); _irrigProfiles[s].minRestDaySec   = p.getUInt  (k, def.minRestDaySec);
-            snprintf(k, sizeof(k), "s%d_nr", s); _irrigProfiles[s].minRestNightSec = p.getUInt  (k, def.minRestNightSec);
-            snprintf(k, sizeof(k), "s%d_po", s); _irrigProfiles[s].pulseOnSec      = p.getUInt  (k, def.pulseOnSec);
-            snprintf(k, sizeof(k), "s%d_ps", s); _irrigProfiles[s].pauseSec        = p.getUInt  (k, def.pauseSec);
+            _irrigProfiles[s] = def;
         }
     }
     // ── Watering runtime stats ────────────────────────────────────────────────
@@ -685,71 +723,145 @@ void RelayManager::loadIrrigPrefs() {
 }
 
 // ─── Persistence ──────────────────────────────────────────────────────────────
+// Relay prefs are stored as one packed binary blob per relay ("r0".."r7").
+// This replaces the old 22-key-per-relay format (176 keys total) with 8 keys,
+// preventing NVS exhaustion that caused silent write failures.
+
+struct __attribute__((packed)) RelayBlob {
+    uint8_t  mode, manualOn;
+    uint32_t timerOn, timerOff;
+    uint8_t  schedSlots, schedDays;
+    struct { uint8_t sh, sm, eh, em; } slots[MAX_SCHED_SLOTS];
+    float    buf;
+    uint32_t minOn, minOff, maxOn, maxOnRest, maxOff;
+    uint8_t  soilThr;
+    uint32_t waterDur;
+    uint8_t  fanIn;
+    uint32_t waterFlow;
+};
+
 void RelayManager::savePrefs() {
     Preferences p;
     p.begin("relays", false);
     for (int i = 0; i < NUM_RELAYS; i++) {
-        char k[16];
-        snprintf(k, sizeof(k), "r%d_mode", i);   p.putUChar(k, (uint8_t)_r[i].mode);
-        snprintf(k, sizeof(k), "r%d_man",  i);   p.putBool (k, _r[i].manualOn);
-        snprintf(k, sizeof(k), "r%d_ton",  i);   p.putUInt (k, _r[i].timer.onSec);
-        snprintf(k, sizeof(k), "r%d_toff", i);   p.putUInt (k, _r[i].timer.offSec);
-        snprintf(k, sizeof(k), "r%d_sc",   i);   p.putUChar(k, _r[i].schedule.slotCount);
-        snprintf(k, sizeof(k), "r%d_sday", i);   p.putUChar(k, _r[i].schedule.daysMask);
+        RelayBlob b = {};
+        b.mode       = (uint8_t)_r[i].mode;
+        b.manualOn   = _r[i].manualOn ? 1 : 0;
+        b.timerOn    = _r[i].timer.onSec;
+        b.timerOff   = _r[i].timer.offSec;
+        b.schedSlots = _r[i].schedule.slotCount;
+        b.schedDays  = _r[i].schedule.daysMask;
         for (int s = 0; s < MAX_SCHED_SLOTS; s++) {
-            char sk[16];
-            snprintf(sk, sizeof(sk), "r%d_%d_sh", i, s); p.putUChar(sk, _r[i].schedule.slots[s].startHour);
-            snprintf(sk, sizeof(sk), "r%d_%d_sm", i, s); p.putUChar(sk, _r[i].schedule.slots[s].startMin);
-            snprintf(sk, sizeof(sk), "r%d_%d_eh", i, s); p.putUChar(sk, _r[i].schedule.slots[s].endHour);
-            snprintf(sk, sizeof(sk), "r%d_%d_em", i, s); p.putUChar(sk, _r[i].schedule.slots[s].endMin);
+            b.slots[s].sh = _r[i].schedule.slots[s].startHour;
+            b.slots[s].sm = _r[i].schedule.slots[s].startMin;
+            b.slots[s].eh = _r[i].schedule.slots[s].endHour;
+            b.slots[s].em = _r[i].schedule.slots[s].endMin;
         }
-        snprintf(k, sizeof(k), "r%d_buf",  i);   p.putFloat(k, _r[i].autoBuffer);
-        snprintf(k, sizeof(k), "r%d_mion", i);   p.putUInt (k, _r[i].minOnSec);
-        snprintf(k, sizeof(k), "r%d_miof", i);   p.putUInt (k, _r[i].minOffSec);
-        snprintf(k, sizeof(k), "r%d_mxon", i);   p.putUInt (k, _r[i].maxOnSec);
-        snprintf(k, sizeof(k), "r%d_mxrs", i);   p.putUInt (k, _r[i].maxOnRestSec);
-        snprintf(k, sizeof(k), "r%d_mxof", i);   p.putUInt (k, _r[i].maxOffSec);
-        snprintf(k, sizeof(k), "r%d_sthr", i);   p.putUChar(k, _r[i].soilThreshold);
-        snprintf(k, sizeof(k), "r%d_wdur", i);   p.putUInt (k, _r[i].waterDurationSec);
-        snprintf(k, sizeof(k), "r%d_fi",   i);   p.putBool (k, _r[i].fanIntake);
-        snprintf(k, sizeof(k), "r%d_wfl",  i);   p.putUInt (k, _r[i].waterFlowML);
-        snprintf(k, sizeof(k), "r%d_inst", i);   p.putBool (k, _r[i].installed);
+        b.buf       = _r[i].autoBuffer;
+        b.minOn     = _r[i].minOnSec;
+        b.minOff    = _r[i].minOffSec;
+        b.maxOn     = _r[i].maxOnSec;
+        b.maxOnRest = _r[i].maxOnRestSec;
+        b.maxOff    = _r[i].maxOffSec;
+        b.soilThr   = _r[i].soilThreshold;
+        b.waterDur  = _r[i].waterDurationSec;
+        b.fanIn     = _r[i].fanIntake ? 1 : 0;
+        b.waterFlow = _r[i].waterFlowML;
+        char k[4]; snprintf(k, sizeof(k), "r%d", i);
+        p.putBytes(k, &b, sizeof(b));
     }
     p.end();
 }
 
+void RelayManager::flushPrefsIfDirty() {
+    if (_prefsDirty) {
+        _prefsDirty = false;
+        savePrefs();
+    }
+    if (_irrigPrefsDirty) {
+        _irrigPrefsDirty = false;
+        saveIrrigPrefs();
+    }
+}
+
 void RelayManager::loadPrefs() {
+    bool needMigration = false;
     Preferences p;
     p.begin("relays", true);
     for (int i = 0; i < NUM_RELAYS; i++) {
-        char k[16];
-        snprintf(k, sizeof(k), "r%d_mode", i);   _r[i].mode                    = (RelayMode)p.getUChar(k, RELAY_AUTO);
-        snprintf(k, sizeof(k), "r%d_man",  i);   _r[i].manualOn                = p.getBool (k, false);
-        snprintf(k, sizeof(k), "r%d_ton",  i);   _r[i].timer.onSec             = p.getUInt (k, 3600);
-        snprintf(k, sizeof(k), "r%d_toff", i);   _r[i].timer.offSec            = p.getUInt (k, 1800);
-        snprintf(k, sizeof(k), "r%d_sc",   i);   _r[i].schedule.slotCount  = p.getUChar(k, 1);
-        snprintf(k, sizeof(k), "r%d_sday", i);   _r[i].schedule.daysMask   = p.getUChar(k, 0x7F);
-        if (_r[i].schedule.slotCount < 1 || _r[i].schedule.slotCount > MAX_SCHED_SLOTS)
-            _r[i].schedule.slotCount = 1;
-        for (int s = 0; s < MAX_SCHED_SLOTS; s++) {
-            char sk[16];
-            snprintf(sk, sizeof(sk), "r%d_%d_sh", i, s); _r[i].schedule.slots[s].startHour = p.getUChar(sk, 8);
-            snprintf(sk, sizeof(sk), "r%d_%d_sm", i, s); _r[i].schedule.slots[s].startMin  = p.getUChar(sk, 0);
-            snprintf(sk, sizeof(sk), "r%d_%d_eh", i, s); _r[i].schedule.slots[s].endHour   = p.getUChar(sk, 9);
-            snprintf(sk, sizeof(sk), "r%d_%d_em", i, s); _r[i].schedule.slots[s].endMin    = p.getUChar(sk, 0);
+        char k[4]; snprintf(k, sizeof(k), "r%d", i);
+        if (p.getBytesLength(k) == sizeof(RelayBlob)) {
+            // ── New compact blob format ──────────────────────────────────────
+            RelayBlob b = {};
+            p.getBytes(k, &b, sizeof(b));
+            _r[i].mode                    = (RelayMode)b.mode;
+            _r[i].manualOn                = b.manualOn;
+            _r[i].timer.onSec             = b.timerOn;
+            _r[i].timer.offSec            = b.timerOff;
+            _r[i].schedule.slotCount      = b.schedSlots;
+            _r[i].schedule.daysMask       = b.schedDays;
+            if (_r[i].schedule.slotCount < 1 || _r[i].schedule.slotCount > MAX_SCHED_SLOTS)
+                _r[i].schedule.slotCount = 1;
+            for (int s = 0; s < MAX_SCHED_SLOTS; s++) {
+                _r[i].schedule.slots[s].startHour = b.slots[s].sh;
+                _r[i].schedule.slots[s].startMin  = b.slots[s].sm;
+                _r[i].schedule.slots[s].endHour   = b.slots[s].eh;
+                _r[i].schedule.slots[s].endMin    = b.slots[s].em;
+            }
+            _r[i].autoBuffer       = b.buf;
+            _r[i].minOnSec         = b.minOn;
+            _r[i].minOffSec        = b.minOff;
+            _r[i].maxOnSec         = b.maxOn;
+            _r[i].maxOnRestSec     = b.maxOnRest;
+            _r[i].maxOffSec        = b.maxOff;
+            _r[i].soilThreshold    = b.soilThr;
+            _r[i].waterDurationSec = b.waterDur;
+            _r[i].fanIntake        = b.fanIn;
+            _r[i].waterFlowML      = b.waterFlow;
+        } else {
+            // ── Legacy individual-key format — migrate on next flush ─────────
+            char lk[16];
+            snprintf(lk, sizeof(lk), "r%d_mode", i);   _r[i].mode             = (RelayMode)p.getUChar(lk, RELAY_AUTO);
+            snprintf(lk, sizeof(lk), "r%d_man",  i);   _r[i].manualOn         = p.getBool (lk, false);
+            snprintf(lk, sizeof(lk), "r%d_ton",  i);   _r[i].timer.onSec      = p.getUInt (lk, 3600);
+            snprintf(lk, sizeof(lk), "r%d_toff", i);   _r[i].timer.offSec     = p.getUInt (lk, 1800);
+            snprintf(lk, sizeof(lk), "r%d_sc",   i);   _r[i].schedule.slotCount = p.getUChar(lk, 1);
+            snprintf(lk, sizeof(lk), "r%d_sday", i);   _r[i].schedule.daysMask  = p.getUChar(lk, 0x7F);
+            if (_r[i].schedule.slotCount < 1 || _r[i].schedule.slotCount > MAX_SCHED_SLOTS)
+                _r[i].schedule.slotCount = 1;
+            for (int s = 0; s < MAX_SCHED_SLOTS; s++) {
+                char sk[16];
+                snprintf(sk, sizeof(sk), "r%d_%d_sh", i, s); _r[i].schedule.slots[s].startHour = p.getUChar(sk, 8);
+                snprintf(sk, sizeof(sk), "r%d_%d_sm", i, s); _r[i].schedule.slots[s].startMin  = p.getUChar(sk, 0);
+                snprintf(sk, sizeof(sk), "r%d_%d_eh", i, s); _r[i].schedule.slots[s].endHour   = p.getUChar(sk, 9);
+                snprintf(sk, sizeof(sk), "r%d_%d_em", i, s); _r[i].schedule.slots[s].endMin    = p.getUChar(sk, 0);
+            }
+            snprintf(lk, sizeof(lk), "r%d_buf",  i);   _r[i].autoBuffer       = p.getFloat(lk, DEFAULT_BUFFER[i]);
+            snprintf(lk, sizeof(lk), "r%d_mion", i);   _r[i].minOnSec         = p.getUInt (lk, (i == DEHUMIDIFIER) ? 180 : MIN_RELAY_ON_MS  / 1000);
+            snprintf(lk, sizeof(lk), "r%d_miof", i);   _r[i].minOffSec        = p.getUInt (lk, (i == WATERING) ? 1800 : (i == DEHUMIDIFIER) ? 300 : MIN_RELAY_OFF_MS / 1000);
+            snprintf(lk, sizeof(lk), "r%d_mxon", i);   _r[i].maxOnSec         = p.getUInt (lk, 0);
+            snprintf(lk, sizeof(lk), "r%d_mxrs", i);   _r[i].maxOnRestSec     = p.getUInt (lk, 0);
+            snprintf(lk, sizeof(lk), "r%d_mxof", i);   _r[i].maxOffSec        = p.getUInt (lk, (i == TOP_FAN) ? 60 : 0);
+            snprintf(lk, sizeof(lk), "r%d_sthr", i);   _r[i].soilThreshold    = p.getUChar(lk, 0);
+            snprintf(lk, sizeof(lk), "r%d_wdur", i);   _r[i].waterDurationSec = p.getUInt (lk, 300);
+            snprintf(lk, sizeof(lk), "r%d_fi",   i);   _r[i].fanIntake        = p.getBool (lk, false);
+            snprintf(lk, sizeof(lk), "r%d_wfl",  i);   _r[i].waterFlowML      = p.getUInt (lk, (i == WATERING) ? 500 : 0);
+            needMigration = true;
         }
-        snprintf(k, sizeof(k), "r%d_buf",  i);   _r[i].autoBuffer       = p.getFloat(k, DEFAULT_BUFFER[i]);
-        snprintf(k, sizeof(k), "r%d_mion", i);   _r[i].minOnSec         = p.getUInt (k, (i == DEHUMIDIFIER) ? 180 : MIN_RELAY_ON_MS  / 1000);
-        snprintf(k, sizeof(k), "r%d_miof", i);   _r[i].minOffSec        = p.getUInt (k, (i == WATERING) ? 1800 : (i == DEHUMIDIFIER) ? 300 : MIN_RELAY_OFF_MS / 1000);
-        snprintf(k, sizeof(k), "r%d_mxon", i);   _r[i].maxOnSec         = p.getUInt (k, 0);
-        snprintf(k, sizeof(k), "r%d_mxrs", i);   _r[i].maxOnRestSec     = p.getUInt (k, 0);
-        // TOP_FAN defaults to 60 s max-off (negative pressure guard); all others default disabled
-        snprintf(k, sizeof(k), "r%d_mxof", i);   _r[i].maxOffSec        = p.getUInt (k, (i == TOP_FAN) ? 60 : 0);
-        snprintf(k, sizeof(k), "r%d_sthr", i);   _r[i].soilThreshold    = p.getUChar(k, 0);
-        snprintf(k, sizeof(k), "r%d_wdur", i);   _r[i].waterDurationSec = p.getUInt (k, 300);
-        snprintf(k, sizeof(k), "r%d_fi",   i);   _r[i].fanIntake        = p.getBool (k, false);
-        snprintf(k, sizeof(k), "r%d_wfl",  i);   _r[i].waterFlowML      = p.getUInt (k, (i == WATERING) ? 500 : 0);
-        snprintf(k, sizeof(k), "r%d_inst", i);   _r[i].installed        = p.getBool (k, true);
+        // installed loaded separately in loadInstalledFlags()
     }
     p.end();
+    if (needMigration) {
+        // Old firmware stored relays as ~26 individual keys per relay (8 relays = 200+ NVS
+        // entries). These fill the 20 KB NVS partition and cause silent write failures for
+        // ALL other namespaces (climate mode, userMode, etc.) because NVS runs out of space.
+        // Fix: wipe the entire "relays" namespace now. All values are already in _r[] memory.
+        // flushPrefsIfDirty() will rewrite them as 8 compact blobs (24 entries total).
+        Preferences pc;
+        pc.begin("relays", false);
+        pc.clear();
+        pc.end();
+        _prefsDirty = true;
+        rlog("[RELAY] NVS migration: cleared legacy keys, writing compact blobs");
+    }
 }

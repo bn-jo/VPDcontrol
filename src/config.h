@@ -82,6 +82,12 @@
 #define HUMIDITY_HYST   3.0f    // %RH deadband
 #define VPD_HYST        0.05f   // kPa deadband
 
+// ─── A/C pre-shutdown humidifier guard ───────────────────────────────────────
+// When A/C temperature drops within this margin of its shutoff point, the
+// humidifier is suppressed — the A/C is about to stop dehumidifying and
+// humidity will spike; adding moisture now makes the spike worse.
+#define AC_PRESHUTDOWN_MARGIN  2.0f   // °C
+
 
 // ─── Flowering sub-stages ─────────────────────────────────────────────────────
 // Days 1-FLOWER_EARLY_DAYS = Early Flower; Day FLOWER_EARLY_DAYS+1 = auto-switch to Late Flower

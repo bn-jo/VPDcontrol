@@ -4,6 +4,8 @@
 #include <HTTPClient.h>
 #include <esp_sntp.h>       // NTP
 #include <esp_system.h>     // esp_reset_reason()
+#include <esp_task_wdt.h>   // task watchdog
+#include <nvs.h>            // nvs_get_stats()
 #include <time.h>
 
 #include "config.h"
@@ -18,6 +20,8 @@
 #include "intakesensor.h"
 #include "syslog.h"
 
+static TaskHandle_t _controlTaskHandle = nullptr;
+
 // ─── Remote log push — shared between controlTask (writer) and loop() (sender)
 // Single-slot queue: controlTask fills _pendingIrrig and sets the flag;
 // loop() reads it, clears the flag, then fires the HTTP POST on Core 1.
@@ -27,11 +31,15 @@ static IrrigEvent    _pendingIrrig;
 // ─── FreeRTOS task: sensor reading + climate control ─────────────────────────
 // Runs on Core 0 to leave Core 1 free for WiFi + web server
 static void controlTask(void* pvParam) {
+    // Register with the task watchdog — auto-restarts if this task hangs > 30 s
+    esp_task_wdt_add(NULL);
+
     unsigned long lastSensorMs  = 0;
     unsigned long lastControlMs = 0;
     unsigned long lastLogMs     = 0;
 
     for (;;) {
+        esp_task_wdt_reset();  // pet the watchdog every 100 ms tick
         unsigned long now = millis();
 
         // ── Sensor read ───────────────────────────────────────────────────────
@@ -145,6 +153,7 @@ static bool wifiConnect() {
             Serial.println("\n[WIFI] Timeout!");
             return false;
         }
+        esp_task_wdt_reset();  // wifiConnect() blocks up to WIFI_TIMEOUT_MS — pet WDT
         delay(500);
         Serial.print('.');
     }
@@ -158,6 +167,12 @@ void setup() {
     Serial.begin(115200);
     delay(500);
     Serial.println("\n=== VPD Control System ===");
+
+    // ── Task watchdog ─────────────────────────────────────────────────────────
+    // 30 s timeout — if controlTask or loop() freezes, auto-restart instead of
+    // hanging indefinitely. controlTask registers itself; loop() is registered below.
+    esp_task_wdt_init(30, true);   // 30 s, panic (= restart) on timeout
+    esp_task_wdt_add(NULL);        // add setup()/loop() (Core 1) to WDT now
 
     // ── Remote log + crash diagnostics ───────────────────────────────────────
     syslogBegin();   // load previous crash info from NVS
@@ -185,9 +200,16 @@ void setup() {
     intakeSensor.begin();
     soil.begin();
     relays.begin();
+    // Log NVS usage after relay init (relay migration clears old keys — this shows the result)
+    {
+        nvs_stats_t ns;
+        if (nvs_get_stats(NULL, &ns) == ESP_OK)
+            rlog("[NVS] used=%u free=%u total=%u namespaces=%u",
+                 ns.used_entries, ns.free_entries, ns.total_entries, ns.namespace_count);
+    }
+    logger.begin();   // mounts LittleFS — must come before climate.begin()
     climate.begin();
     relays.setIrrigMode((uint8_t)climate.getMode());  // sync initial stage profile
-    logger.begin();
     autoTuner.begin();
     wifiSensors.begin();  // load NVS now — WiFi not required for NVS read
 
@@ -204,7 +226,13 @@ void setup() {
         // OTA firmware update
         ArduinoOTA.setHostname("vpd-control");
         ArduinoOTA.setPassword("REDACTED");
-        ArduinoOTA.onStart([]()  { rlog("[OTA] Start"); });
+        ArduinoOTA.onStart([]() {
+            // Flush any pending NVS writes before the reboot so stage/prefs survive
+            climate.flushPrefsIfDirty();
+            climate.flushProfilePrefsIfDirty();
+            relays.flushPrefsIfDirty();
+            rlog("[OTA] Start — prefs flushed");
+        });
         ArduinoOTA.onEnd([]()    { rlog("[OTA] Done — rebooting"); });
         ArduinoOTA.onError([](ota_error_t e) { rlog("[OTA] Error %u", e); });
         ArduinoOTA.begin();
@@ -220,7 +248,7 @@ void setup() {
         16384,      // Stack size (bytes) — was 8192; enlarged after NVS calls were moved to update()
         nullptr,
         3,          // Priority (higher = more urgent)
-        nullptr,
+        &_controlTaskHandle,
         0           // Core 0
     );
 
@@ -235,7 +263,18 @@ void loop() {
     static unsigned long lastHeapLogMs  = 0;
     static unsigned long lastRoamMs     = 0;
     static bool          roamScanActive = false;
-    static bool          dailyRestartDone = false;  // one restart per 02:00 window
+    static bool          dailyRestartDone  = false;  // one restart per 01:20 window
+    static bool          noonRestartDone   = false;  // one restart per 13:20 window
+
+    // ── Deferred NVS flush — runs first, before any early return or restart ──────
+    relays.flushPrefsIfDirty();
+    climate.flushPrefsIfDirty();
+    climate.flushProfilePrefsIfDirty();
+
+    // ── Stage auto-transition (Core 1) ────────────────────────────────────────
+    // Runs here, NOT in controlTask, so it is serialised with setMode() on Core 1
+    // and cannot race with user-initiated stage changes.
+    climate.checkAutoTransition();
 
     // ── WiFi reconnect guard ──────────────────────────────────────────────────
     // setAutoReconnect handles brief dropouts; this catches longer outages where
@@ -252,6 +291,7 @@ void loop() {
             else        WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
             lastWifiRetry = now;
         }
+        esp_task_wdt_reset();  // pet WDT — WiFi loss must never trigger a crash loop
         yield();
         return;   // skip WS push and remote fetch while offline
     }
@@ -302,24 +342,49 @@ void loop() {
         lastWsPushMs = millis();
     }
 
-    // ── Daily safe restart at 02:00 AM ───────────────────────────────────────
-    // Restarts just after the known crash window (01:30 AM) so the system
-    // recovers automatically even if the underlying bug fires.
-    // Only fires when NTP is synced. Restores within ~5 s.
+    // ── Fix crash epoch once NTP syncs ───────────────────────────────────────
+    // At boot, syslogSaveCrashInfo runs before NTP so the epoch is 0.
+    // Update it to the correct wall-clock time as soon as NTP is ready.
+    {
+        static bool epochFixed = false;
+        if (!epochFixed && time(nullptr) > 1000000000L) {
+            epochFixed = true;
+            syslogFixEpoch();
+        }
+    }
+
+    // ── Proactive safe restarts (01:20 AM and 13:20 PM) ─────────────────────
+    // Two restarts per day caps the maximum uptime at ~12 h, keeping heap
+    // fragmentation and memory drift from accumulating into a panic.
     {
         time_t nowT = time(nullptr);
         if (nowT > 1000000000L) {
             struct tm lt;
             localtime_r(&nowT, &lt);
-            bool in2AmWindow = (lt.tm_hour == 1 && lt.tm_min == 20);
-            if (in2AmWindow && !dailyRestartDone) {
+            bool inNightWindow = (lt.tm_hour == 1  && lt.tm_min == 20);
+            bool inNoonWindow  = (lt.tm_hour == 13 && lt.tm_min == 20);
+            if (inNightWindow && !dailyRestartDone) {
                 dailyRestartDone = true;
-                rlog("[MAIN] Daily safe restart at 01:20");
+                climate.flushPrefsIfDirty();
+                climate.flushProfilePrefsIfDirty();
+                relays.flushPrefsIfDirty();
+                rlog("[MAIN] Safe restart at 01:20");
                 syslogSaveCrashInfo("SOFTWARE-RESTART");
                 delay(200);
                 ESP.restart();
             }
-            if (!in2AmWindow) dailyRestartDone = false;  // reset flag outside window
+            if (inNoonWindow && !noonRestartDone) {
+                noonRestartDone = true;
+                climate.flushPrefsIfDirty();
+                climate.flushProfilePrefsIfDirty();
+                relays.flushPrefsIfDirty();
+                rlog("[MAIN] Safe restart at 13:20");
+                syslogSaveCrashInfo("SOFTWARE-RESTART");
+                delay(200);
+                ESP.restart();
+            }
+            if (!inNightWindow) dailyRestartDone = false;
+            if (!inNoonWindow)  noonRestartDone  = false;
         }
     }
 
@@ -368,20 +433,28 @@ void loop() {
         }
     }
 
-    // ── Heap watchdog ─────────────────────────────────────────────────────────
-    // Log free heap every 5 min. Restart cleanly if critically low — prevents
-    // silent hangs caused by heap exhaustion after many hours of operation.
-    if (millis() - lastHeapLogMs >= 300000UL) {
-        uint32_t freeHeap = ESP.getFreeHeap();
-        rlog("[HEAP] Free: %u bytes  (min ever: %u)", freeHeap, ESP.getMinFreeHeap());
-        if (freeHeap < 10000) {
-            rlog("[HEAP] Critical — restarting");
-            syslogSaveCrashInfo("HEAP-CRITICAL");
+    // ── Heap + stack watchdog ─────────────────────────────────────────────────
+    if (millis() - lastHeapLogMs >= 120000UL) {   // every 2 min (was 5 min)
+        uint32_t freeHeap   = ESP.getFreeHeap();
+        uint32_t c1Stack    = uxTaskGetStackHighWaterMark(nullptr);
+        uint32_t c0Stack    = _controlTaskHandle
+                              ? uxTaskGetStackHighWaterMark(_controlTaskHandle) : 0;
+        rlog("[HEAP] Free: %u  min-ever: %u  C0-stack: %u  C1-stack: %u",
+             freeHeap, ESP.getMinFreeHeap(), c0Stack, c1Stack);
+        if (freeHeap < 20000) {   // raised from 10 KB — restart before allocations start failing
+            climate.flushPrefsIfDirty();
+            climate.flushProfilePrefsIfDirty();
+            relays.flushPrefsIfDirty();
+            rlog("[HEAP] Low — restarting");
+            syslogSaveCrashInfo("HEAP-LOW");
             delay(200);
             ESP.restart();
         }
         lastHeapLogMs = millis();
     }
+
+    // ── Core 1 task watchdog reset ────────────────────────────────────────────
+    esp_task_wdt_reset();
 
     // Give RTOS a chance to process other Core-1 tasks
     yield();

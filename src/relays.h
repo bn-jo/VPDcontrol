@@ -174,6 +174,9 @@ public:
 
     void savePrefs();
     void loadPrefs();
+    void saveInstalledFlags();
+    void loadInstalledFlags();
+    void flushPrefsIfDirty();   // call from Core 1 loop — writes deferred NVS saves
 
 private:
     RelayState _r[NUM_RELAYS];
@@ -187,7 +190,8 @@ private:
     uint8_t           _currentMode = 1;    // default Veg
     IrrigEvent        _lastIrrigEvent;
     bool              _irrigEventReady = false;
-    bool              _irrigPrefsDirty = false;  // deferred NVS write flag
+    bool              _irrigPrefsDirty = false;  // deferred irrig NVS write flag
+    bool              _prefsDirty      = false;  // deferred relay NVS write — flushed from Core 1
     bool              _probeMode = false;         // probe placement: suppress soil-triggered watering
 
     void     applyPhysical(RelayIndex idx, bool on);

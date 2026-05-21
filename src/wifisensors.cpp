@@ -5,6 +5,7 @@
 #include <ArduinoJson.h>
 #include <Preferences.h>
 #include <WiFi.h>
+#include <esp_task_wdt.h>
 
 WifiSensorManager wifiSensors;
 
@@ -61,6 +62,7 @@ void WifiSensorManager::_poll(int id) {
     http.setTimeout(WIFI_SENSOR_TIMEOUT);
     http.begin(s.sensorUrl);
     int code = http.GET();
+    esp_task_wdt_reset();   // pet watchdog — GET() can block up to WIFI_SENSOR_TIMEOUT
 
     if (code == HTTP_CODE_OK) {
         JsonDocument doc;

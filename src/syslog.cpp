@@ -35,6 +35,20 @@ void syslogSaveCrashInfo(const char* reason) {
     p.end();
 }
 
+// ─── Fix epoch after NTP sync ────────────────────────────────────────────────
+// Called once after NTP becomes available. The initial syslogSaveCrashInfo()
+// runs at boot before NTP, so the saved epoch is 0. This updates it in NVS and
+// also patches the in-RAM lastCrash so /api/syslog shows the correct boot time.
+void syslogFixEpoch() {
+    time_t now = time(nullptr);
+    if (now <= 1000000000L) return;  // NTP not ready
+    lastCrash.epoch = now;
+    Preferences p;
+    p.begin("syslog", false);
+    p.putLong("epoch", (long)now);
+    p.end();
+}
+
 // ─── Log a line (Serial + ring buffer) ───────────────────────────────────────
 void rlog(const char* fmt, ...) {
     char msg[SYSLOG_LINE_LEN];

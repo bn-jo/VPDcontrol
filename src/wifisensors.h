@@ -12,7 +12,7 @@
 #define WIFI_SENSOR_URL_LEN   80
 
 #define WIFI_SENSOR_POLL_MS       30000UL   // normal poll interval (30 s)
-#define WIFI_SENSOR_TIMEOUT       5000      // HTTP connect + read timeout (ms)
+#define WIFI_SENSOR_TIMEOUT       2000      // HTTP connect + read timeout (ms)
 #define WIFI_SENSOR_BACKOFF       60000UL   // max back-off on repeated failure (60 s)
 #define WIFI_SENSOR_GRACE_FAILS   2         // failures before marking invalid (grace period)
 

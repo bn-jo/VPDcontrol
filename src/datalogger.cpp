@@ -41,7 +41,7 @@ void DataLogger::log(const SensorData& sd, float soilPct) {
 }
 
 // ─── Build JSON response ───────────────────────────────────────────────────────
-int DataLogger::getJsonLast(int hours, char* buf, size_t bufSize, long since) {
+int DataLogger::getJsonLast(int hours, char* buf, size_t bufSize, long since, int step) {
     if (bufSize < 4) return 0;
 
     // Cutoff epoch: anything older than the requested window is skipped
@@ -63,6 +63,7 @@ int DataLogger::getJsonLast(int hours, char* buf, size_t bufSize, long since) {
     // Buffered line read — readBytesUntil reads a whole line at once,
     // far faster than the previous one-byte-at-a-time f.read() loop.
     char line[96];
+    int  rowNum = 0;
     while (f.available()) {
         int n = f.readBytesUntil('\n', line, sizeof(line) - 1);
         if (n <= 0) continue;
@@ -75,6 +76,9 @@ int DataLogger::getJsonLast(int hours, char* buf, size_t bufSize, long since) {
         if (fields < 4) continue;
         if ((time_t)ts < cutoff) continue;        // outside requested window
         if (since > 0 && ts <= since) continue;   // already seen by client
+
+        // Decimation: skip rows that don't land on the requested stride
+        if (step > 1 && (++rowNum % step) != 0) continue;
 
         if (w > bufSize - 96) break;              // guard against overflow
 
@@ -135,41 +139,52 @@ void DataLogger::logIrrigation(time_t ts, float before, float after,
 int DataLogger::getIrrigationJson(char* buf, size_t bufSize) {
     if (bufSize < 4) return 0;
 
+    // Ring-buffer the last 25 lines — the UI shows 20 but keep a small margin.
+    // This avoids the need for a large output buffer: we only read the tail.
+    static const int KEEP = 25;
+    static char ring[KEEP][80];
+    int head = 0, total = 0;
+
     File f = LittleFS.open(IRRIG_LOG_FILE, "r");
     if (!f) {
         buf[0] = '['; buf[1] = ']'; buf[2] = '\0';
         return 2;
     }
 
+    char line[80];
+    int lp = 0;
+    auto pushLine = [&]() {
+        if (lp <= 4) { lp = 0; return; }
+        line[lp] = '\0'; lp = 0;
+        memcpy(ring[head], line, strlen(line) + 1);
+        head = (head + 1) % KEEP;
+        total++;
+    };
+    while (f.available()) {
+        char c = (char)f.read();
+        if (c == '\n') pushLine();
+        else if (lp < (int)sizeof(line) - 2) line[lp++] = c;
+    }
+    pushLine();  // last line if no trailing newline
+    f.close();
+
+    int count  = total < KEEP ? total : KEEP;
+    int oldest = (head - count + KEEP * 3) % KEEP;  // index of oldest kept entry
+
     size_t w = 0;
     bool first = true;
     buf[w++] = '[';
-
-    char line[80];
-    int lp = 0;
-
-    auto flush = [&]() {
-        if (lp == 0) return;
-        line[lp] = '\0'; lp = 0;
+    for (int i = 0; i < count; i++) {
+        const char* row = ring[(oldest + i) % KEEP];
         long ts; float bef, aft; unsigned long dur, vol; unsigned src = 0;
-        int fields = sscanf(line, "%ld,%f,%f,%lu,%lu,%u", &ts, &bef, &aft, &dur, &vol, &src);
-        if (fields < 4) return;
-        if (w > bufSize - 96) return;
+        int fields = sscanf(row, "%ld,%f,%f,%lu,%lu,%u", &ts, &bef, &aft, &dur, &vol, &src);
+        if (fields < 4) continue;
         char entry[96];
         int n = snprintf(entry, sizeof(entry),
                          "%s{\"t\":%ld,\"b\":%.1f,\"a\":%.1f,\"d\":%lu,\"ml\":%lu,\"src\":%u}",
                          first ? "" : ",", ts, bef, aft, dur, vol, src);
         if (w + n < bufSize - 4) { memcpy(buf + w, entry, n); w += n; first = false; }
-    };
-
-    while (f.available()) {
-        char c = (char)f.read();
-        if (c == '\n') flush();
-        else if (lp < (int)sizeof(line) - 2) line[lp++] = c;
     }
-    flush();
-    f.close();
-
     buf[w++] = ']';
     buf[w]   = '\0';
     return (int)w;

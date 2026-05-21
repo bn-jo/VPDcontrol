@@ -5,3 +5,4 @@
 .vscode/ipch
 src/ui_html.h
 .DS_Store
+data/mock.js
