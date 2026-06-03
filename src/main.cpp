@@ -237,7 +237,7 @@ void setup() {
 
         // OTA firmware update
         ArduinoOTA.setHostname("vpd-control");
-        ArduinoOTA.setPassword("REDACTED");
+        ArduinoOTA.setPassword(OTA_PASSWORD);
         ArduinoOTA.onStart([]() {
             // Flush any pending NVS writes before the reboot so stage/prefs survive
             climate.flushPrefsIfDirty();

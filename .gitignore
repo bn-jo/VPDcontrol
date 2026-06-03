@@ -4,5 +4,6 @@
 .vscode/launch.json
 .vscode/ipch
 src/ui_html.h
+src/secrets.h
 .DS_Store
 data/mock.js

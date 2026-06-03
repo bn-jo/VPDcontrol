@@ -1,5 +1,6 @@
 #pragma once
 #include <Arduino.h>
+#include "secrets.h"   // WiFi / web-auth / OTA / DuckDNS credentials (gitignored)
 
 // ─── GPIO ────────────────────────────────────────────────────────────────────
 #define DHT_PIN              4   // GPIO4 — reliable general-purpose IO, not used by any peripheral
@@ -35,8 +36,7 @@
 #define SOIL_INTERVAL_MS     5000UL // Measure every 5 s
 
 // ─── WiFi ────────────────────────────────────────────────────────────────────
-#define WIFI_SSID           "REDACTED"
-#define WIFI_PASSWORD       "REDACTED"
+// WIFI_SSID / WIFI_PASSWORD are defined in secrets.h (gitignored).
 #define WIFI_TIMEOUT_MS     20000UL
 #define WIFI_ROAM_INTERVAL_MS   300000UL  // check for a better AP every 5 min
 #define WIFI_ROAM_RSSI_MIN        -72     // dBm — only scan if signal is weaker than this
@@ -54,9 +54,7 @@
 
 // ─── Remote access auth (HTTP Basic Auth for non-local connections) ───────────
 // Requests from 192.168.x.x / 10.x.x.x / 172.16-31.x.x bypass auth.
-// Change these before exposing the device to the internet.
-#define WEB_AUTH_USER      "REDACTED"
-#define WEB_AUTH_PASS      "REDACTED"
+// WEB_AUTH_USER / WEB_AUTH_PASS are defined in secrets.h (gitignored).
 #define STATIC_DNS         8,8,8,8
 
 // ─── Timing ──────────────────────────────────────────────────────────────────
@@ -176,9 +174,8 @@ static const IrrigationProfile IRRIG_DEFAULTS[3][4] = {
 // ─── DuckDNS — dynamic DNS (remote access without a static public IP) ────────
 // Sign up free at duckdns.org, create a domain, paste your token below.
 // The ESP32 will call the DuckDNS API every 5 min to keep the record current.
-// Set DUCKDNS_DOMAIN to "" to disable.
-#define DUCKDNS_DOMAIN       ""          // e.g. "mytent"  → mytent.duckdns.org
-#define DUCKDNS_TOKEN        ""          // from duckdns.org → your account page
+// DUCKDNS_DOMAIN / DUCKDNS_TOKEN are defined in secrets.h (gitignored).
+// Set DUCKDNS_DOMAIN to "" there to disable.
 #define DUCKDNS_INTERVAL_MS  300000UL   // update every 5 min
 
 // ─── Remote data collector ────────────────────────────────────────────────────
