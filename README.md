@@ -117,9 +117,11 @@ pio run -e esp32dev --target uploadfs    # web UI / filesystem (cable only)
 ```
 
 ### 3. Subsequent updates (over the air)
-Once the device is on WiFi, set its IP in `platformio.ini` and flash wirelessly:
+Once the device is on WiFi, set its IP in `platformio.ini`, export the OTA
+password (kept out of the repo), and flash wirelessly:
 
 ```bash
+export VPD_OTA_PASSWORD=your-ota-password   # must match OTA_PASSWORD in secrets.h
 pio run -e ota --target upload
 ```
 

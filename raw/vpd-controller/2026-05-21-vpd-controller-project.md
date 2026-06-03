@@ -47,7 +47,7 @@ wiring_diagram.svg          Full wiring diagram — single 8-channel relay modul
 
 ## WiFi / Credentials
 
-- SSID: REDACTED  Password: REDACTED (in config.h)
+- WiFi SSID / password configured in src/secrets.h (gitignored)
 - Chart.js loaded from CDN (jsDelivr) — requires internet access on the WiFi network
 
 ## A/C Control History

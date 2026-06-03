@@ -72,9 +72,8 @@ Removed 2026-04-13. Was causing repeated PANIC-CRASH (stack overflow). Do not re
 
 ## WiFi Credentials
 
-Stored in `src/config.h`:
-- SSID: `REDACTED`
-- Password: `REDACTED`
+Stored in `src/secrets.h` (gitignored — copy from `src/secrets.h.example`):
+- `WIFI_SSID` / `WIFI_PASSWORD`
 
 ## See Also
 
