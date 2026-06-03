@@ -885,6 +885,29 @@ body.split-active #tent2Frame { flex:1 1 auto; width:100%; border:0; background:
   body.split-active #paneRight { border-left:0; border-top:2px solid var(--border); }
 }
 
+/* When split, the left pane is only ~half the viewport, but @media breakpoints
+   track the full viewport — so the live dashboard would stay in the wide desktop
+   layout while the Tent-2 iframe (its own viewport) compacts. Make the left pane
+   a query container so it responds to its OWN width and compacts to match. */
+body.split-active #paneLeft { container: paneLeft / inline-size; }
+body.split-active #paneLeft main { max-width:none; }
+@container paneLeft (max-width: 820px) {
+  #paneLeft .metrics         { grid-template-columns: repeat(2, 1fr); }
+  #paneLeft .irrig-stat-grid { grid-template-columns: repeat(2, 1fr); }
+  #paneLeft header           { padding:.42rem .7rem; gap:.5rem; }
+  #paneLeft #headerMood      { display:none; }
+}
+@container paneLeft (max-width: 600px) {
+  #paneLeft header           { flex-wrap:wrap; }
+  #paneLeft main             { padding:.65rem .75rem; }
+  #paneLeft .metrics         { gap:.5rem; }
+  #paneLeft .relay-grid      { grid-template-columns: 1fr; }
+  #paneLeft .chart-wrap      { height:220px; }
+}
+@container paneLeft (max-width: 380px) {
+  #paneLeft .metrics         { grid-template-columns: 1fr; }
+}
+
 </style>
 </head>
 <body>
@@ -1633,14 +1656,16 @@ function handleState(s) {
     _vpdBandMin = s.profile.vpdMin || 0;
     _vpdBandMax = s.profile.vpdMax || 0;
   }
+  // _vpdTargetKpa is owned solely by updateVpdTargetUI() (called above), which
+  // guards against overwriting an in-progress user edit via _vpdTouchAt. Do NOT
+  // reassign it here — doing so reset the value on every WebSocket tick, which
+  // made the +/- buttons unusable (you could never set a target).
   if (s.vpdTarget && s.vpdTarget.enabled && s.vpdTarget.kpa) {
     _vpdTargetOn  = true;
-    _vpdTargetKpa = s.vpdTarget.kpa;
     _vpdBandMin   = s.vpdTarget.kpa - (s.vpdTarget.buffer || 0.1);
     _vpdBandMax   = s.vpdTarget.kpa + (s.vpdTarget.buffer || 0.1);
   } else {
     _vpdTargetOn  = false;
-    _vpdTargetKpa = 0;
   }
   if (chart) chart.update('none');
   updateGrowProgress(s);
