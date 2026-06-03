@@ -12,33 +12,9 @@ WifiSensorManager wifiSensors;
 // ─── Init ─────────────────────────────────────────────────────────────────────
 void WifiSensorManager::begin() {
     loadPrefs();
-    _ensureBuiltin();
     int n = 0;
     for (int i = 0; i < WIFI_SENSOR_MAX; i++) if (_s[i].enabled) n++;
     rlog("[WSENS] Loaded %d sensor(s)", n);
-}
-
-// Guarantees the built-in sensor (BUILTIN_SENSOR_URL) is always present,
-// enabled, and contributing to climate calculations.
-// Called on every boot — re-registers the sensor if it was removed via UI.
-void WifiSensorManager::_ensureBuiltin() {
-    // Find existing slot by URL
-    for (int i = 0; i < WIFI_SENSOR_MAX; i++) {
-        if (strncmp(_s[i].sensorUrl, BUILTIN_SENSOR_URL, WIFI_SENSOR_URL_LEN) == 0) {
-            // Already present — make sure it's enabled and active
-            bool changed = false;
-            if (!_s[i].enabled)      { _s[i].enabled = true;      changed = true; }
-            if (!_s[i].sensorActive) { _s[i].sensorActive = true; changed = true; }
-            if (changed) {
-                savePrefs();
-                rlog("[WSENS] Built-in sensor re-enabled");
-            }
-            return;
-        }
-    }
-    // Not found — register it
-    add(BUILTIN_SENSOR_NAME, BUILTIN_SENSOR_URL, "");
-    rlog("[WSENS] Built-in sensor registered: %s", BUILTIN_SENSOR_URL);
 }
 
 // ─── Main poll loop ───────────────────────────────────────────────────────────
@@ -65,7 +41,8 @@ void WifiSensorManager::_poll(int id) {
     esp_task_wdt_reset();   // pet watchdog — GET() can block up to WIFI_SENSOR_TIMEOUT
 
     if (code == HTTP_CODE_OK) {
-        JsonDocument doc;
+        static JsonDocument doc;  // static: no heap churn on repeated polls
+        doc.clear();
         if (deserializeJson(doc, http.getStream()) == DeserializationError::Ok) {
             // Accept "temp"/"hum", "temperature"/"humidity", or "t"/"h"
             float t = doc["temp"]        | doc["temperature"] | doc["t"] | -999.0f;
@@ -117,8 +94,7 @@ bool WifiSensorManager::getAverage(float& t, float& h) const {
 }
 
 // ─── Management ──────────────────────────────────────────────────────────────
-bool WifiSensorManager::add(const char* name, const char* sensorUrl,
-                              const char* streamUrl) {
+bool WifiSensorManager::add(const char* name, const char* sensorUrl) {
     // Update existing entry with same name (any state), else find empty slot
     int slot = -1;
     for (int i = 0; i < WIFI_SENSOR_MAX; i++) {
@@ -133,34 +109,26 @@ bool WifiSensorManager::add(const char* name, const char* sensorUrl,
     }
     if (slot < 0) return false;  // all 4 slots occupied
 
-    strncpy(_s[slot].name,      name,                      WIFI_SENSOR_NAME_LEN - 1);
+    strncpy(_s[slot].name,      name,                       WIFI_SENSOR_NAME_LEN - 1);
     strncpy(_s[slot].sensorUrl, sensorUrl ? sensorUrl : "", WIFI_SENSOR_URL_LEN  - 1);
-    strncpy(_s[slot].streamUrl, streamUrl ? streamUrl : "", WIFI_SENSOR_URL_LEN  - 1);
-    _s[slot].name[WIFI_SENSOR_NAME_LEN-1]      = '\0';
-    _s[slot].sensorUrl[WIFI_SENSOR_URL_LEN-1]  = '\0';
-    _s[slot].streamUrl[WIFI_SENSOR_URL_LEN-1]  = '\0';
+    _s[slot].name[WIFI_SENSOR_NAME_LEN-1]     = '\0';
+    _s[slot].sensorUrl[WIFI_SENSOR_URL_LEN-1] = '\0';
     _s[slot].enabled      = true;
     _s[slot].sensorActive = true;
     _s[slot].valid        = false;
     _s[slot].failCount    = 0;
-    _s[slot].nextPollMs   = 0;    // poll immediately on next update() if sensorUrl set
-    savePrefs();
-    rlog("[WSENS] Added '%s' sensor=%s stream=%s", name,
-         sensorUrl && sensorUrl[0] ? sensorUrl : "(none)",
-         streamUrl && streamUrl[0] ? streamUrl : "(none)");
+    _s[slot].nextPollMs   = 0;
+    _prefsDirty = true;
+    rlog("[WSENS] Added '%s' sensor=%s", name,
+         sensorUrl && sensorUrl[0] ? sensorUrl : "(none)");
     return true;
 }
 
 bool WifiSensorManager::remove(int id) {
     if (id < 0 || id >= WIFI_SENSOR_MAX) return false;
-    // Built-in sensor cannot be removed — it re-registers on next boot anyway
-    if (strncmp(_s[id].sensorUrl, BUILTIN_SENSOR_URL, WIFI_SENSOR_URL_LEN) == 0) {
-        rlog("[WSENS] Remove blocked — '%s' is a built-in sensor", _s[id].name);
-        return false;
-    }
     rlog("[WSENS] Removed '%s'", _s[id].name);
     memset(&_s[id], 0, sizeof(WifiSensor));
-    savePrefs();
+    _prefsDirty = true;
     return true;
 }
 
@@ -169,14 +137,14 @@ bool WifiSensorManager::setEnabled(int id, bool en) {
     _s[id].enabled = en;
     if (!en) { _s[id].valid = false; _s[id].failCount = 0; }
     else      { _s[id].nextPollMs = 0; }  // poll immediately when re-enabled
-    savePrefs();
+    _prefsDirty = true;
     return true;
 }
 
 bool WifiSensorManager::setSensorActive(int id, bool active) {
     if (id < 0 || id >= WIFI_SENSOR_MAX) return false;
     _s[id].sensorActive = active;
-    savePrefs();
+    _prefsDirty = true;
     rlog("[WSENS] '%s' sensor data %s", _s[id].name, active ? "enabled" : "disabled");
     return true;
 }
@@ -188,24 +156,22 @@ int WifiSensorManager::getJson(char* buf, size_t bufSize) const {
     bool first = true;
     for (int i = 0; i < WIFI_SENSOR_MAX; i++) {
         if (_s[i].name[0] == '\0') continue;  // skip truly empty slots
-        if (w > bufSize - 240) break;
+        if (w > bufSize - 200) break;
         char tempStr[12] = "null", humStr[12] = "null";
         if (_s[i].valid) {
             snprintf(tempStr, sizeof(tempStr), "%.1f", _s[i].temperature);
             snprintf(humStr,  sizeof(humStr),  "%.1f", _s[i].humidity);
         }
-        bool builtin = (strncmp(_s[i].sensorUrl, BUILTIN_SENSOR_URL, WIFI_SENSOR_URL_LEN) == 0);
         w += snprintf(buf + w, bufSize - w,
             "%s{\"id\":%d,\"name\":\"%s\",\"sensorUrl\":\"%s\","
-            "\"streamUrl\":\"%s\",\"temp\":%s,\"hum\":%s,"
-            "\"valid\":%s,\"enabled\":%s,\"sensorActive\":%s,\"builtin\":%s}",
+            "\"temp\":%s,\"hum\":%s,"
+            "\"valid\":%s,\"enabled\":%s,\"sensorActive\":%s}",
             first ? "" : ",", i,
-            _s[i].name, _s[i].sensorUrl, _s[i].streamUrl,
+            _s[i].name, _s[i].sensorUrl,
             tempStr, humStr,
             _s[i].valid        ? "true" : "false",
             _s[i].enabled      ? "true" : "false",
-            _s[i].sensorActive ? "true" : "false",
-            builtin            ? "true" : "false");
+            _s[i].sensorActive ? "true" : "false");
         first = false;
     }
     w += snprintf(buf + w, bufSize - w, "]");
@@ -220,11 +186,16 @@ void WifiSensorManager::savePrefs() {
         char k[8];
         snprintf(k, sizeof(k), "n%d",  i); p.putString(k, _s[i].name);
         snprintf(k, sizeof(k), "u%d",  i); p.putString(k, _s[i].sensorUrl);
-        snprintf(k, sizeof(k), "v%d",  i); p.putString(k, _s[i].streamUrl);
         snprintf(k, sizeof(k), "e%d",  i); p.putBool  (k, _s[i].enabled);
         snprintf(k, sizeof(k), "sa%d", i); p.putBool  (k, _s[i].sensorActive);
     }
     p.end();
+}
+
+void WifiSensorManager::flushPrefsIfDirty() {
+    if (!_prefsDirty) return;
+    _prefsDirty = false;
+    savePrefs();
 }
 
 void WifiSensorManager::loadPrefs() {
@@ -239,10 +210,6 @@ void WifiSensorManager::loadPrefs() {
         snprintf(k, sizeof(k), "u%d", i); {
             String v = p.getString(k, "");
             strncpy(_s[i].sensorUrl, v.c_str(), WIFI_SENSOR_URL_LEN - 1);
-        }
-        snprintf(k, sizeof(k), "v%d", i); {
-            String v = p.getString(k, "");
-            strncpy(_s[i].streamUrl, v.c_str(), WIFI_SENSOR_URL_LEN - 1);
         }
         snprintf(k, sizeof(k), "e%d",  i); _s[i].enabled      = p.getBool(k, false);
         snprintf(k, sizeof(k), "sa%d", i); _s[i].sensorActive  = p.getBool(k, true);

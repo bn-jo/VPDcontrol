@@ -6,10 +6,12 @@
 #include "relays.h"
 #include "climate.h"
 #include "datalogger.h"
-#include "autotune.h"
 #include "wifisensors.h"
 #include "intakesensor.h"
 #include "syslog.h"
+#include "crashlog.h"
+#include "eventlog.h"
+#include "irremote.h"
 
 #include <ESPAsyncWebServer.h>
 #include <ArduinoJson.h>
@@ -20,6 +22,14 @@
 static AsyncWebServer server(80);
 static AsyncWebSocket ws("/ws");
 
+// ─── Shared state-JSON resources ──────────────────────────────────────────────
+// Single static output buffer + mutex prevents two concurrent callers (loop() vs
+// async_tcp task) from racing on heap String allocations or the former static
+// sensBuf inside buildStateJson(), both of which caused PANIC-CRASH.
+static SemaphoreHandle_t _jsonMux      = nullptr;
+static char              _stateJsonBuf[8192];
+static char              _wsSensBuf[WIFI_SENSOR_MAX * 220 + 8];
+
 // ─── Auth helper ──────────────────────────────────────────────────────────────
 // Always require HTTP Basic Auth — credentials defined in config.h.
 static bool checkAuth(AsyncWebServerRequest* req) {
@@ -29,8 +39,12 @@ static bool checkAuth(AsyncWebServerRequest* req) {
 }
 
 // ─── State JSON builder ────────────────────────────────────────────────────────
-static void buildStateJson(String& out) {
-    JsonDocument doc;
+// Caller MUST hold _jsonMux before calling and release it after consuming buf.
+// buf == _stateJsonBuf; protected by _jsonMux to prevent re-entrancy between
+// loop() (webBroadcast) and async_tcp task (onWsEvent / /api/state).
+static void buildStateJson(char* buf, size_t bufSize) {
+    static JsonDocument doc;  // static: allocated once, no heap churn every 2 s
+    doc.clear();
     doc["type"] = "state";
     doc["rssi"] = WiFi.RSSI();
 
@@ -65,10 +79,10 @@ static void buildStateJson(String& out) {
     doc["valid"]           = sd.valid;
     doc["remoteConnected"] = remoteValid;
 
-    // WiFi sensor array (name, T/H, valid, stream URL for camera tab)
-    static char sensBuf[WIFI_SENSOR_MAX * 220 + 8];
-    wifiSensors.getJson(sensBuf, sizeof(sensBuf));
-    doc["wifiSensors"] = serialized(sensBuf);
+    // WiFi sensor array (name, T/H, valid)
+    // _wsSensBuf is at file scope, protected by _jsonMux held by the caller.
+    wifiSensors.getJson(_wsSensBuf, sizeof(_wsSensBuf));
+    doc["wifiSensors"] = serialized(_wsSensBuf);
 
     doc["growMode"]   = (int)climate.getMode();
     doc["dryingFast"] = climate.isDryingFast();
@@ -85,6 +99,11 @@ static void buildStateJson(String& out) {
     acObj["dayHigh"]        = climate.acDayHigh();
     acObj["nightLow"]       = climate.acNightLow();
     acObj["nightHigh"]      = climate.acNightHigh();
+
+    JsonObject hpObj        = doc["heatPulse"].to<JsonObject>();
+    hpObj["onSec"]          = climate.heatPulseOnSec();
+    hpObj["restSec"]        = climate.heatPulseRestSec();
+    hpObj["target"]         = climate.heatTarget();
     acObj["delay"]          = climate.acHumDelaySec();
 
     // Intake air sensor (DHT11 outside grow tent)
@@ -284,30 +303,18 @@ static void buildStateJson(String& out) {
         po["nvMin"] = gp.night.vpdMin;   po["nvMax"] = gp.night.vpdMax;
     }
 
-    // Auto-Tune status
-    const ATStatus& at = autoTuner.status();
-    JsonObject atObj        = doc["autoTune"].to<JsonObject>();
-    atObj["phase"]          = (int)at.phase;
-    atObj["relayId"]        = at.relayId;
-    atObj["relayName"]      = at.relayName ? at.relayName : "";
-    atObj["stepDone"]       = at.stepDone;
-    atObj["stepTotal"]      = at.stepTotal;
-    atObj["phaseRemMs"]     = at.phaseRemMs;
-    atObj["phaseTotMs"]     = at.phaseTotMs;
-    atObj["abortSafety"]    = at.abortSafety;
-    JsonArray atResults     = atObj["results"].to<JsonArray>();
-    for (int i = 0; i < at.resultCount; i++) {
-        const ATResult& r = at.results[i];
-        JsonObject ro     = atResults.add<JsonObject>();
-        ro["id"]          = r.relayId;
-        ro["name"]        = relays.get((RelayIndex)r.relayId).name;
-        ro["base"]        = r.baseVal;
-        ro["on"]          = r.onVal;
-        ro["delta"]       = r.delta;
-        ro["buf"]         = r.bufApplied;
+    // IR remote state
+    {
+        const IRCommand& ir = irRemote.lastCmd();
+        JsonObject irObj    = doc["ir"].to<JsonObject>();
+        irObj["proto"]  = (uint8_t)irRemote.protocol();
+        irObj["power"]  = ir.power;
+        irObj["temp"]   = ir.temp;
+        irObj["mode"]   = ir.mode;
+        irObj["fan"]    = ir.fan;
     }
 
-    serializeJson(doc, out);
+    serializeJson(doc, buf, bufSize);
 }
 
 // ─── WebSocket event handler ───────────────────────────────────────────────────
@@ -320,9 +327,11 @@ static void onWsEvent(AsyncWebSocket*       server,
 {
     if (type == WS_EVT_CONNECT) {
         // Push full state immediately so new browsers don't wait for the next broadcast tick
-        String out;
-        buildStateJson(out);
-        client->text(out);
+        if (xSemaphoreTake(_jsonMux, pdMS_TO_TICKS(200)) == pdTRUE) {
+            buildStateJson(_stateJsonBuf, sizeof(_stateJsonBuf));
+            client->text(_stateJsonBuf, strlen(_stateJsonBuf));
+            xSemaphoreGive(_jsonMux);
+        }
         return;
     }
     if (type != WS_EVT_DATA) return;
@@ -333,8 +342,10 @@ static void onWsEvent(AsyncWebSocket*       server,
     if (info->opcode != WS_TEXT) return;
     if (len > 4096) { client->close(); return; }
 
-    // Parse without modifying the library-owned buffer (avoids out-of-bounds write)
-    JsonDocument doc;
+    // Parse without modifying the library-owned buffer (avoids out-of-bounds write).
+    // static: allocated once to avoid heap churn on every WS message.
+    // deserializeJson() clears doc before parsing, so stale content is never an issue.
+    static JsonDocument doc;
     if (deserializeJson(doc, (const char*)data, len) != DeserializationError::Ok) return;
 
     const char* msgType = doc["type"] | "";
@@ -384,10 +395,18 @@ static void onWsEvent(AsyncWebSocket*       server,
         int m = doc["mode"] | -1;
         if (m >= 0 && m < NUM_GROW_MODES) {
             climate.setMode((GrowMode)m);
+            static const char* stageNames[] = {
+                "Seedling","Veg","Early Flower","Late Flower","Drying"
+            };
+            char evtBuf[48];
+            snprintf(evtBuf, sizeof(evtBuf), "%s (user)", stageNames[m]);
+            eventlog("STAGE", evtBuf);
         }
     } else if (strcmp(msgType, "setStageDay") == 0) {
         int d = doc["day"] | 0;
-        if (d >= 1) climate.setStageDay((uint32_t)d);
+        if (d >= 1) { climate.setStageDay((uint32_t)d); }
+        char evtBuf[32]; snprintf(evtBuf, sizeof(evtBuf), "day corrected to %d", d);
+        eventlog("STAGE-DAY", evtBuf);
     } else if (strcmp(msgType, "relay") == 0) {
         int         id     = doc["id"]     | -1;
         const char* action = doc["action"] | "";
@@ -474,7 +493,28 @@ static void onWsEvent(AsyncWebSocket*       server,
         }
     } else if (strcmp(msgType, "resetIrrigDefaults") == 0) {
         relays.resetIrrigDefaults();
+    } else if (strcmp(msgType, "setHeatPulse") == 0) {
+        uint32_t onSec   = doc["onSec"]   | (uint32_t)45;
+        uint32_t restSec = doc["restSec"] | (uint32_t)420;
+        float    target  = doc["target"]  | 0.0f;
+        climate.setHeatPulse(onSec, restSec, target);
+    } else if (strcmp(msgType, "irSend") == 0) {
+        IRCommand cmd;
+        cmd.power = doc["power"] | false;
+        cmd.temp  = (uint8_t)constrain(doc["temp"] | 24, 16, 30);
+        cmd.mode  = (uint8_t)constrain(doc["mode"] | 0,  0,  4);
+        cmd.fan   = (uint8_t)constrain(doc["fan"]  | 0,  0,  3);
+        irRemote.sendCommand(cmd);
+    } else if (strcmp(msgType, "irSetProto") == 0) {
+        uint8_t p = (uint8_t)(doc["proto"] | 0);
+        if (p < (uint8_t)IRProto::NUM_PROTO) irRemote.setProtocol((IRProto)p);
     } else if (strcmp(msgType, "restart") == 0) {
+        climate.flushPrefsIfDirty();
+        climate.flushProfilePrefsIfDirty();
+        relays.flushPrefsIfDirty();
+        wifiSensors.flushPrefsIfDirty();
+        soil.flushCalibIfDirty();
+        irRemote.flushPrefsIfDirty();
         delay(200);
         ESP.restart();
     } else if (strcmp(msgType, "soilCalib") == 0) {
@@ -497,30 +537,12 @@ static void onWsEvent(AsyncWebSocket*       server,
             pc.plants[i].potVolumeL = doc["pots"][i] | (uint16_t)15;
         }
         relays.setPlantConfig(pc);
-    } else if (strcmp(msgType, "autoTune") == 0) {
-        const char* action = doc["action"] | "";
-        if (strcmp(action, "start") == 0) {
-            uint8_t mask = 0;
-            for (JsonVariantConst v : doc["relays"].as<JsonArrayConst>()) {
-                uint8_t rid = v.as<uint8_t>();
-                if (rid < 8) mask |= (1u << rid);
-            }
-            if (mask == 0) mask = 0xFF;  // fallback: test all
-            autoTuner.requestStart(mask);
-        } else if (strcmp(action, "cancel") == 0) {
-            autoTuner.requestCancel();
-        } else if (strcmp(action, "reset") == 0) {
-            autoTuner.requestReset();
-        }
     } else if (strcmp(msgType, "addSensor") == 0) {
         const char* name      = doc["name"]      | "";
         const char* sensorUrl = doc["sensorUrl"] | "";
-        const char* streamUrl = doc["streamUrl"] | "";
-        // Allow camera-only entries (no sensorUrl) as long as name + streamUrl are set
-        bool urlOk  = !sensorUrl[0] || strncmp(sensorUrl, "http://", 7) == 0;
-        bool strmOk = !streamUrl[0] || strncmp(streamUrl, "http://", 7) == 0;
-        if (name[0] && (sensorUrl[0] || streamUrl[0]) && urlOk && strmOk)
-            wifiSensors.add(name, sensorUrl, streamUrl);
+        bool urlOk = sensorUrl[0] && strncmp(sensorUrl, "http://", 7) == 0;
+        if (name[0] && urlOk)
+            wifiSensors.add(name, sensorUrl);
     } else if (strcmp(msgType, "removeSensor") == 0) {
         int id = doc["id"] | -1;
         if (id >= 0) wifiSensors.remove(id);
@@ -538,9 +560,11 @@ static void onWsEvent(AsyncWebSocket*       server,
     // The 2-second webBroadcast() loop notifies all other clients — calling
     // textAll() here from the async-TCP callback context races with that loop
     // and can corrupt the WebSocket queue → PANIC-CRASH.
-    String out;
-    buildStateJson(out);
-    client->text(out);
+    if (xSemaphoreTake(_jsonMux, pdMS_TO_TICKS(200)) == pdTRUE) {
+        buildStateJson(_stateJsonBuf, sizeof(_stateJsonBuf));
+        client->text(_stateJsonBuf, strlen(_stateJsonBuf));
+        xSemaphoreGive(_jsonMux);
+    }
 }
 
 // ─── Log API handler ──────────────────────────────────────────────────────────
@@ -570,6 +594,7 @@ static void handleLogRequest(AsyncWebServerRequest* req) {
 
 // ─── Public init ──────────────────────────────────────────────────────────────
 void webBegin() {
+    _jsonMux = xSemaphoreCreateMutex();  // serialises buildStateJson() across tasks
     ws.setAuthentication(WEB_AUTH_USER, WEB_AUTH_PASS);
     ws.onEvent(onWsEvent);
     server.addHandler(&ws);
@@ -582,9 +607,13 @@ void webBegin() {
 
     server.on("/api/state", HTTP_GET, [](AsyncWebServerRequest* req) {
         if (!checkAuth(req)) return;
-        String out;
-        buildStateJson(out);
-        req->send(200, "application/json", out);
+        if (xSemaphoreTake(_jsonMux, pdMS_TO_TICKS(300)) == pdTRUE) {
+            buildStateJson(_stateJsonBuf, sizeof(_stateJsonBuf));
+            req->send(200, "application/json", _stateJsonBuf);
+            xSemaphoreGive(_jsonMux);
+        } else {
+            req->send(503, "text/plain", "Busy");
+        }
     });
 
     // ── OTA update page (firmware + UI filesystem) ───────────────────────────
@@ -727,6 +756,238 @@ void webBegin() {
         req->send(resp);
     });
 
+    // ── Crash history (7-day ring buffer) ────────────────────────────────────
+    server.on("/api/crashes", HTTP_GET, [](AsyncWebServerRequest* req) {
+        if (!checkAuth(req)) return;
+        static char crashBuf[512];
+        crashlogGetJson(crashBuf, sizeof(crashBuf));
+        AsyncWebServerResponse* resp = req->beginResponse(200, "application/json", crashBuf);
+        resp->addHeader("Cache-Control", "no-cache");
+        req->send(resp);
+    });
+
+    // ── Persistent event log ─────────────────────────────────────────────────
+    server.on("/api/events", HTTP_GET, [](AsyncWebServerRequest* req) {
+        if (!checkAuth(req)) return;
+        // Reuse logBuf — async_tcp is single-threaded, no overlap with /api/logs
+        eventlogGetJson(logBuf, sizeof(logBuf));
+        AsyncWebServerResponse* resp = req->beginResponse(200, "application/json", logBuf);
+        resp->addHeader("Cache-Control", "no-cache");
+        req->send(resp);
+    });
+
+    // ── Settings backup ───────────────────────────────────────────────────────
+    server.on("/api/backup", HTTP_GET, [](AsyncWebServerRequest* req) {
+        if (!checkAuth(req)) return;
+        static JsonDocument bdoc;
+        bdoc.clear();
+        bdoc["version"] = 1;
+        bdoc["ts"]      = (long)time(nullptr);
+        bdoc["growMode"]   = (int)climate.getMode();
+        bdoc["stageDay"]   = climate.stageDay();
+        bdoc["dryingFast"] = climate.isDryingFast();
+
+        const VpdTargetCfg& vtc = climate.vpdTarget();
+        JsonObject vt   = bdoc["vpdTarget"].to<JsonObject>();
+        vt["enabled"]   = vtc.enabled; vt["kpa"] = vtc.kpa; vt["buffer"] = vtc.buffer;
+
+        JsonObject ac   = bdoc["acTemps"].to<JsonObject>();
+        ac["dayLow"]    = climate.acDayLow();    ac["dayHigh"]   = climate.acDayHigh();
+        ac["nightLow"]  = climate.acNightLow();  ac["nightHigh"] = climate.acNightHigh();
+        ac["delay"]     = climate.acHumDelaySec();
+
+        JsonObject hp   = bdoc["heatPulse"].to<JsonObject>();
+        hp["onSec"]     = climate.heatPulseOnSec(); hp["restSec"] = climate.heatPulseRestSec();
+        hp["target"]    = climate.heatTarget();
+
+        const LightSchedule& sched = climate.lightSchedule();
+        JsonObject ls   = bdoc["lightStart"].to<JsonObject>();
+        ls["hour"]      = sched.dayStartHour(); ls["min"] = sched.dayStartMin();
+
+        JsonArray profiles = bdoc["profiles"].to<JsonArray>();
+        for (int i = 0; i < NUM_GROW_MODES; i++) {
+            const GrowProfile& gp = climate.getProfileByMode((GrowMode)i);
+            JsonObject p = profiles.add<JsonObject>();
+            p["dtMin"] = gp.day.tempMin;   p["dtMax"] = gp.day.tempMax;
+            p["dhMin"] = gp.day.humMin;    p["dhMax"] = gp.day.humMax;
+            p["dvMin"] = gp.day.vpdMin;    p["dvMax"] = gp.day.vpdMax;
+            p["ntMin"] = gp.night.tempMin; p["ntMax"] = gp.night.tempMax;
+            p["nhMin"] = gp.night.humMin;  p["nhMax"] = gp.night.humMax;
+            p["nvMin"] = gp.night.vpdMin;  p["nvMax"] = gp.night.vpdMax;
+            p["lOn"]   = gp.lightOnHours;  p["lOff"]  = gp.lightOffHours;
+        }
+
+        JsonArray relayArr = bdoc["relays"].to<JsonArray>();
+        for (int i = 0; i < NUM_RELAYS; i++) {
+            const RelayState& r = relays.get((RelayIndex)i);
+            JsonObject rel = relayArr.add<JsonObject>();
+            rel["id"]      = i;
+            rel["mode"]    = (int)r.mode;
+            rel["minOn"]   = r.minOnSec;    rel["maxOn"]      = r.maxOnSec;
+            rel["maxOnRest"]= r.maxOnRestSec; rel["maxOff"]   = r.maxOffSec;
+            rel["buffer"]  = r.autoBuffer;  rel["installed"]  = r.installed;
+            rel["fanIntake"]= r.fanIntake;
+            rel["waterFlow"]= (unsigned int)r.waterFlowML;
+            JsonObject tmr = rel["timer"].to<JsonObject>();
+            tmr["on"] = r.timer.onSec; tmr["off"] = r.timer.offSec;
+            JsonObject sc  = rel["sched"].to<JsonObject>();
+            sc["days"]     = r.schedule.daysMask;
+            JsonArray slots = sc["slots"].to<JsonArray>();
+            for (int s = 0; s < r.schedule.slotCount && s < MAX_SCHED_SLOTS; s++) {
+                JsonObject sl = slots.add<JsonObject>();
+                sl["sh"] = r.schedule.slots[s].startHour; sl["sm"] = r.schedule.slots[s].startMin;
+                sl["eh"] = r.schedule.slots[s].endHour;   sl["em"] = r.schedule.slots[s].endMin;
+            }
+        }
+
+        JsonArray irrigArr = bdoc["irrigProfiles"].to<JsonArray>();
+        for (int i = 0; i < 4; i++) {
+            const IrrigationProfile& ip = relays.getIrrigProfile(i);
+            JsonObject po = irrigArr.add<JsonObject>();
+            po["stage"]   = i; po["enabled"]    = ip.enabled;
+            po["trigger"] = ip.soilTriggerPct;  po["target"] = ip.soilTargetPct;
+            po["maxSec"]  = ip.maxWaterSec;     po["dayRest"]    = ip.minRestDaySec;
+            po["nightRest"]= ip.minRestNightSec; po["pulseOn"]  = ip.pulseOnSec;
+            po["pauseSec"]= ip.pauseSec;
+        }
+
+        const PlantConfig& pc = relays.getPlantConfig();
+        JsonObject plants  = bdoc["plantConfig"].to<JsonObject>();
+        plants["count"]    = pc.count; plants["substrate"] = pc.substrateType;
+        plants["precision"]= pc.precisionEnabled;
+        JsonArray pots     = plants["pots"].to<JsonArray>();
+        for (int i = 0; i < pc.count && i < MAX_PLANTS; i++) pots.add(pc.plants[i].potVolumeL);
+
+        JsonObject soilCal = bdoc["soilCalib"].to<JsonObject>();
+        soilCal["dry"]     = soil.adcDry();
+        soilCal["wet"]     = soil.adcWet();
+
+        // WiFi sensors — reuse existing _wsSensBuf (already BSS, same file scope)
+        wifiSensors.getJson(_wsSensBuf, sizeof(_wsSensBuf));
+        bdoc["wifiSensors"] = serialized(_wsSensBuf);
+
+        // Serialize into logBuf — async_tcp is single-threaded, safe to reuse
+        serializeJson(bdoc, logBuf, sizeof(logBuf));
+        AsyncWebServerResponse* resp = req->beginResponse(200, "application/json", logBuf);
+        resp->addHeader("Content-Disposition", "attachment; filename=\"vpd-backup.json\"");
+        resp->addHeader("Cache-Control", "no-cache");
+        req->send(resp);
+    });
+
+    // ── Settings restore (upload backup JSON) ────────────────────────────────
+    // Accepts the backup JSON as POST body; applies all settings and flushes NVS.
+    server.on("/api/restore", HTTP_POST,
+        [](AsyncWebServerRequest* req) {
+            if (!checkAuth(req)) return;
+            req->send(200, "text/plain", "OK — rebooting to apply");
+            delay(300);
+            ESP.restart();
+        },
+        nullptr,
+        [](AsyncWebServerRequest* req, uint8_t* data, size_t len, size_t index, size_t total) {
+            if (!checkAuth(req)) return;
+            // Use logBuf to accumulate body (backup JSON ~4-6KB, logBuf is 24KB)
+            static size_t restoreLen = 0;
+            if (index == 0) restoreLen = 0;
+            if (restoreLen + len < sizeof(logBuf) - 1) {
+                memcpy(logBuf + restoreLen, data, len);
+                restoreLen += len;
+            }
+            if (index + len < total) return;  // not done yet
+            logBuf[restoreLen] = '\0';
+
+            static JsonDocument rdoc;
+            if (deserializeJson(rdoc, logBuf, restoreLen) != DeserializationError::Ok) {
+                req->send(400, "text/plain", "Invalid JSON");
+                return;
+            }
+
+            // Apply profiles
+            if (rdoc["profiles"].is<JsonArray>()) {
+                for (int i = 0; i < NUM_GROW_MODES && i < (int)rdoc["profiles"].size(); i++) {
+                    JsonObjectConst p = rdoc["profiles"][i];
+                    const GrowProfile& cur = climate.getProfileByMode((GrowMode)i);
+                    DayNightRange day = cur.day, night = cur.night;
+                    day.tempMin = p["dtMin"] | cur.day.tempMin;  day.tempMax = p["dtMax"] | cur.day.tempMax;
+                    day.humMin  = p["dhMin"] | cur.day.humMin;   day.humMax  = p["dhMax"] | cur.day.humMax;
+                    day.vpdMin  = p["dvMin"] | cur.day.vpdMin;   day.vpdMax  = p["dvMax"] | cur.day.vpdMax;
+                    night.tempMin = p["ntMin"] | cur.night.tempMin; night.tempMax = p["ntMax"] | cur.night.tempMax;
+                    night.humMin  = p["nhMin"] | cur.night.humMin;  night.humMax  = p["nhMax"] | cur.night.humMax;
+                    night.vpdMin  = p["nvMin"] | cur.night.vpdMin;  night.vpdMax  = p["nvMax"] | cur.night.vpdMax;
+                    climate.setProfile((GrowMode)i, day, night);
+                }
+            }
+
+            // Apply VPD target
+            if (rdoc["vpdTarget"].is<JsonObject>())
+                climate.setVpdTarget(rdoc["vpdTarget"]["enabled"] | false,
+                                     rdoc["vpdTarget"]["kpa"]     | 1.0f,
+                                     rdoc["vpdTarget"]["buffer"]  | 0.1f);
+
+            // Apply A/C temps
+            if (rdoc["acTemps"].is<JsonObject>()) {
+                climate.setAcTemps(rdoc["acTemps"]["dayLow"]   | 0.0f,
+                                   rdoc["acTemps"]["dayHigh"]  | 0.0f, false);
+                climate.setAcTemps(rdoc["acTemps"]["nightLow"] | 0.0f,
+                                   rdoc["acTemps"]["nightHigh"]| 0.0f, true);
+                climate.setAcHumDelay(rdoc["acTemps"]["delay"] | (uint32_t)600);
+            }
+
+            // Apply heat pulse
+            if (rdoc["heatPulse"].is<JsonObject>())
+                climate.setHeatPulse(rdoc["heatPulse"]["onSec"]   | (uint32_t)45,
+                                     rdoc["heatPulse"]["restSec"] | (uint32_t)420,
+                                     rdoc["heatPulse"]["target"]  | 0.0f);
+
+            // Apply light schedule start
+            if (rdoc["lightStart"].is<JsonObject>())
+                climate.setDayStart(rdoc["lightStart"]["hour"] | (uint8_t)255,
+                                    rdoc["lightStart"]["min"]  | (uint8_t)0);
+
+            // Apply irrigation profiles
+            if (rdoc["irrigProfiles"].is<JsonArray>()) {
+                for (JsonObjectConst ip : rdoc["irrigProfiles"].as<JsonArrayConst>()) {
+                    uint8_t stage = ip["stage"] | (uint8_t)0;
+                    if (stage >= 4) continue;
+                    IrrigationProfile p;
+                    p.enabled          = ip["enabled"]   | true;
+                    p.soilTriggerPct   = ip["trigger"]   | (uint8_t)50;
+                    p.soilTargetPct    = ip["target"]    | (uint8_t)70;
+                    p.maxWaterSec      = ip["maxSec"]    | (uint32_t)180;
+                    p.minRestDaySec    = ip["dayRest"]   | (uint32_t)1800;
+                    p.minRestNightSec  = ip["nightRest"] | (uint32_t)3600;
+                    p.pulseOnSec       = ip["pulseOn"]   | (uint32_t)20;
+                    p.pauseSec         = ip["pauseSec"]  | (uint32_t)45;
+                    relays.setIrrigProfile(stage, p);
+                }
+            }
+
+            // Apply plant config
+            if (rdoc["plantConfig"].is<JsonObject>()) {
+                PlantConfig pc;
+                pc.precisionEnabled = rdoc["plantConfig"]["precision"] | false;
+                pc.count            = rdoc["plantConfig"]["count"]     | (uint8_t)1;
+                pc.substrateType    = rdoc["plantConfig"]["substrate"] | (uint8_t)1;
+                if (pc.count < 1 || pc.count > MAX_PLANTS) pc.count = 1;
+                for (uint8_t i = 0; i < pc.count && i < MAX_PLANTS; i++)
+                    pc.plants[i].potVolumeL = rdoc["plantConfig"]["pots"][i] | (uint16_t)15;
+                relays.setPlantConfig(pc);
+            }
+
+            // Apply soil calibration
+            if (rdoc["soilCalib"].is<JsonObject>())
+                soil.setCalib(rdoc["soilCalib"]["dry"] | soil.adcDry(),
+                              rdoc["soilCalib"]["wet"] | soil.adcWet());
+
+            // Flush all to NVS
+            climate.flushPrefsIfDirty();
+            climate.flushProfilePrefsIfDirty();
+            relays.flushPrefsIfDirty();
+            soil.flushCalibIfDirty();
+            eventlog("RESTORE", "settings restored from backup");
+        }
+    );
+
     // ── Irrigation event history ──────────────────────────────────────────────
     server.on("/api/irrigation", HTTP_GET, [](AsyncWebServerRequest* req) {
         if (!checkAuth(req)) return;
@@ -763,7 +1024,10 @@ void webBroadcast() {
     if (!ws.count()) return;
     ws.cleanupClients();
 
-    String out;
-    buildStateJson(out);
-    ws.textAll(out);
+    // Short timeout: if the async_tcp task is mid-build, skip this tick.
+    // The next broadcast 2 s later will succeed — no point blocking loop().
+    if (xSemaphoreTake(_jsonMux, pdMS_TO_TICKS(50)) != pdTRUE) return;
+    buildStateJson(_stateJsonBuf, sizeof(_stateJsonBuf));
+    ws.textAll(_stateJsonBuf, strlen(_stateJsonBuf));
+    xSemaphoreGive(_jsonMux);
 }

@@ -144,7 +144,6 @@ public:
     void setOnFor(RelayIndex idx, uint32_t seconds);  // turn ON for N seconds then OFF
     void setInstalled(RelayIndex idx, bool installed); // mark relay as connected/missing
     void setSoilMoisture(float pct, bool valid);
-    void resetAllBuffers();   // Restore every relay's autoBuffer to factory default
     void setWaterDurMode(bool fixed, uint32_t fixedSec);  // set adaptive vs fixed duration
     void setProbePlacement(bool m);  // suppress soil-triggered watering while moving probe
     bool probePlacementMode() const { return _probeMode; }
@@ -190,9 +189,10 @@ private:
     uint8_t           _currentMode = 1;    // default Veg
     IrrigEvent        _lastIrrigEvent;
     bool              _irrigEventReady = false;
-    bool              _irrigPrefsDirty = false;  // deferred irrig NVS write flag
-    bool              _prefsDirty      = false;  // deferred relay NVS write — flushed from Core 1
-    bool              _probeMode = false;         // probe placement: suppress soil-triggered watering
+    bool              _irrigPrefsDirty   = false;  // deferred irrig NVS write — flushed from Core 1
+    bool              _installedDirty   = false;  // deferred installed-flags NVS write
+    bool              _prefsDirty       = false;  // deferred relay NVS write — flushed from Core 1
+    bool              _probeMode        = false;  // probe placement: suppress soil-triggered watering
 
     void     applyPhysical(RelayIndex idx, bool on);
     bool     canChange(RelayIndex idx, bool newOn) const;

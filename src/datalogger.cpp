@@ -56,12 +56,25 @@ int DataLogger::getJsonLast(int hours, char* buf, size_t bufSize, long since, in
         return 2;
     }
 
+    // Fast-seek: skip the bulk of the file for time-windowed requests.
+    // Entries are appended chronologically, so recent data is at the tail.
+    // Estimate: 15 entries/hour × 80 bytes/entry (generous) → seek back from end.
+    // The timestamp filter below discards any over-read entries, so a generous
+    // estimate only costs a few extra lines read, not correctness.
+    if (hours > 0 && cutoff > 0) {
+        size_t fileSize = f.size();
+        size_t bytesNeeded = (size_t)hours * 15 * 80;  // overestimate deliberately
+        if (bytesNeeded < fileSize) {
+            f.seek(fileSize - bytesNeeded);
+            // Align to next newline so we don't start mid-entry
+            while (f.available() && f.read() != '\n') {}
+        }
+    }
+
     size_t w     = 0;
     bool   first = true;
     buf[w++] = '[';
 
-    // Buffered line read — readBytesUntil reads a whole line at once,
-    // far faster than the previous one-byte-at-a-time f.read() loop.
     char line[96];
     int  rowNum = 0;
     while (f.available()) {

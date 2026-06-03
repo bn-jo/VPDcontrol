@@ -134,7 +134,7 @@ void RelayManager::setMode(RelayIndex idx, RelayMode mode) {
         // applied when transitioning back to AUTO.
         applyPhysical(idx, _r[idx].autoOn);
     }
-    savePrefs();
+    _prefsDirty = true;  // flushed from Core 1 loop() — avoid NVS write in WS callback
 }
 
 void RelayManager::setManual(RelayIndex idx, bool on) {
@@ -143,7 +143,7 @@ void RelayManager::setManual(RelayIndex idx, bool on) {
     if (_r[idx].mode == RELAY_MANUAL) {
         applyPhysical(idx, on);   // bypass canChange — manual override is immediate
     }
-    savePrefs();
+    _prefsDirty = true;  // flushed from Core 1 loop()
 }
 
 void RelayManager::setOnFor(RelayIndex idx, uint32_t seconds) {
@@ -158,7 +158,7 @@ void RelayManager::setOnFor(RelayIndex idx, uint32_t seconds) {
 
 void RelayManager::setSchedule(RelayIndex idx, const ScheduleCfg& cfg) {
     _r[idx].schedule = cfg;
-    savePrefs();
+    _prefsDirty = true;
 }
 
 void RelayManager::setTimer(RelayIndex idx, uint32_t onSec, uint32_t offSec) {
@@ -167,7 +167,7 @@ void RelayManager::setTimer(RelayIndex idx, uint32_t onSec, uint32_t offSec) {
     _r[idx].timerPhaseStart    = millis();
     _r[idx].timerInOnPhase     = true;
     request(idx, true);
-    savePrefs();
+    _prefsDirty = true;
 }
 
 // ─── Main update (call every loop) ───────────────────────────────────────────
@@ -509,35 +509,35 @@ void RelayManager::tickSchedule(RelayIndex idx) {
 
 void RelayManager::setBuffer(RelayIndex idx, float buf) {
     _r[idx].autoBuffer = buf;
-    savePrefs();
+    _prefsDirty = true;
 }
 
 void RelayManager::setDuration(RelayIndex idx, uint32_t minOnSec, uint32_t maxOnSec, uint32_t maxOnRestSec) {
     _r[idx].minOnSec     = minOnSec;
     _r[idx].maxOnSec     = maxOnSec;
     _r[idx].maxOnRestSec = maxOnRestSec;
-    savePrefs();
+    _prefsDirty = true;
 }
 
 void RelayManager::setMaxOff(RelayIndex idx, uint32_t maxOffSec) {
     _r[idx].maxOffSec = maxOffSec;
-    savePrefs();
+    _prefsDirty = true;
 }
 
 void RelayManager::setSoilWater(RelayIndex idx, uint8_t threshold, uint32_t durationSec) {
     _r[idx].soilThreshold    = threshold;
     _r[idx].waterDurationSec = durationSec;
-    savePrefs();
+    _prefsDirty = true;
 }
 
 void RelayManager::setWaterFlow(RelayIndex idx, uint32_t mlPerMin) {
     _r[idx].waterFlowML = mlPerMin;
-    savePrefs();
+    _prefsDirty = true;
 }
 
 void RelayManager::setFanIntake(RelayIndex idx, bool intake) {
     _r[idx].fanIntake = intake;
-    savePrefs();
+    _prefsDirty = true;
 }
 
 void RelayManager::setInstalled(RelayIndex idx, bool installed) {
@@ -548,7 +548,7 @@ void RelayManager::setInstalled(RelayIndex idx, bool installed) {
         _r[idx].autoOn     = false;
         _r[idx].physicalOn = false;
     }
-    saveInstalledFlags();
+    _installedDirty = true;  // flushed from Core 1 loop() — avoid NVS write in WS callback
 }
 
 void RelayManager::saveInstalledFlags() {
@@ -588,15 +588,9 @@ void RelayManager::setProbePlacement(bool m) {
 void RelayManager::setWaterDurMode(bool fixed, uint32_t fixedSec) {
     _r[WATERING].fixedDurMode = fixed;
     _r[WATERING].fixedDurSec  = (fixedSec > 0) ? fixedSec : 60;
-    saveIrrigPrefs();
+    _irrigPrefsDirty = true;  // flushed from Core 1 loop() — avoid NVS write in WS callback
 }
 
-void RelayManager::resetAllBuffers() {
-    for (int i = 0; i < NUM_RELAYS; i++) {
-        _r[i].autoBuffer = DEFAULT_BUFFER[i];
-    }
-    savePrefs();
-}
 
 void RelayManager::setSoilMoisture(float pct, bool valid) {
     _soilPct   = pct;
@@ -626,7 +620,7 @@ void RelayManager::setIrrigProfile(uint8_t stage, const IrrigationProfile& p) {
     if (stage == _currentMode) {
         _r[WATERING].irrigProfile = p;
     }
-    saveIrrigPrefs();
+    _irrigPrefsDirty = true;  // flushed from Core 1 loop() — avoid NVS write in WS callback
 }
 
 void RelayManager::resetIrrigDefaults() {
@@ -635,7 +629,7 @@ void RelayManager::resetIrrigDefaults() {
         _irrigProfiles[s] = IRRIG_DEFAULTS[sub][s];
     }
     _r[WATERING].irrigProfile = _irrigProfiles[_currentMode];
-    saveIrrigPrefs();
+    _irrigPrefsDirty = true;  // flushed from Core 1 loop() — avoid NVS write in WS callback
 }
 
 const IrrigationProfile& RelayManager::getIrrigProfile(uint8_t stage) const {
@@ -645,7 +639,7 @@ const IrrigationProfile& RelayManager::getIrrigProfile(uint8_t stage) const {
 
 void RelayManager::setPlantConfig(const PlantConfig& cfg) {
     _plantCfg = cfg;
-    saveIrrigPrefs();
+    _irrigPrefsDirty = true;  // flushed from Core 1 loop() — avoid NVS write in WS callback
 }
 
 bool RelayManager::popIrrigEvent(IrrigEvent& ev) {
@@ -782,6 +776,10 @@ void RelayManager::flushPrefsIfDirty() {
         _irrigPrefsDirty = false;
         saveIrrigPrefs();
     }
+    if (_installedDirty) {
+        _installedDirty = false;
+        saveInstalledFlags();
+    }
 }
 
 void RelayManager::loadPrefs() {
@@ -809,13 +807,15 @@ void RelayManager::loadPrefs() {
                 _r[i].schedule.slots[s].endMin    = b.slots[s].em;
             }
             _r[i].autoBuffer       = b.buf;
-            _r[i].minOnSec         = b.minOn;
-            _r[i].minOffSec        = b.minOff;
-            _r[i].maxOnSec         = b.maxOn;
-            _r[i].maxOnRestSec     = b.maxOnRest;
-            _r[i].maxOffSec        = b.maxOff;
+            // Sanity-clamp timing fields — a corrupted blob can store UINT32_MAX,
+            // which makes canChange() never allow state transitions (auto mode stuck).
+            _r[i].minOnSec         = (b.minOn  > 3600) ? (uint32_t)(MIN_RELAY_ON_MS  / 1000) : b.minOn;
+            _r[i].minOffSec        = (b.minOff > 3600) ? (uint32_t)(MIN_RELAY_OFF_MS / 1000) : b.minOff;
+            _r[i].maxOnSec         = (b.maxOn  > 86400) ? 0 : b.maxOn;
+            _r[i].maxOnRestSec     = (b.maxOnRest > 86400) ? 0 : b.maxOnRest;
+            _r[i].maxOffSec        = (b.maxOff > 86400) ? 0 : b.maxOff;
             _r[i].soilThreshold    = b.soilThr;
-            _r[i].waterDurationSec = b.waterDur;
+            _r[i].waterDurationSec = (b.waterDur > 86400) ? 300 : b.waterDur;
             _r[i].fanIntake        = b.fanIn;
             _r[i].waterFlowML      = b.waterFlow;
         } else {

@@ -412,6 +412,21 @@ section { margin-bottom:1rem; }
 }
 .day-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 
+/* ─── IR Remote card ─────────────────────────────────────────────────────── */
+.ir-remote-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; padding: .9rem 1rem; margin-top: .75rem;
+}
+.ir-remote-header {
+  display: flex; align-items: center; justify-content: space-between;
+  cursor: pointer; font-size: .85rem; font-weight: 600; user-select: none;
+}
+.ir-remote-body { margin-top: .75rem; display: flex; flex-direction: column; gap: .4rem; }
+.ir-remote-body select {
+  background: var(--input); border: 1px solid var(--border); border-radius: 6px;
+  color: inherit; font-size: .82rem; padding: .28rem .45rem; flex: 1;
+}
+
 /* ─── Grow-stage confirmation modal ──────────────────────────────────────── */
 .modal-overlay {
   display: none; position: fixed; inset: 0; z-index: 200;
@@ -576,47 +591,6 @@ body.chart-fs-lock { overflow: hidden; }
 .sched-bar { height: 100%; border-radius: 3px; background: var(--green); transition: width .5s; }
 .sched-bar.night { background: #818cf8; }
 
-/* ─── Auto-Tune panel ─────────────────────────────────────────────────────── */
-.at-panel.visible { display: block; }
-.at-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: .6rem; }
-.at-title  { font-weight: 700; font-size: .95rem; }
-.at-phase-label { font-size: .8rem; color: var(--muted); }
-.at-row { display: flex; align-items: center; gap: .6rem; font-size: .8rem; margin-bottom: .35rem; }
-.at-bar-wrap { flex: 1; background: var(--bg); border-radius: 4px; height: 6px; overflow: hidden; }
-.at-bar { height: 100%; border-radius: 4px; background: var(--accent); transition: width .5s; }
-.at-bar.baseline { background: var(--muted); }
-.at-bar.on       { background: var(--green); }
-.at-bar.cooldown { background: var(--blue);  }
-.at-relay-name { font-weight: 700; font-size: .9rem; }
-.at-step       { color: var(--muted); font-size: .78rem; }
-.at-results { margin-top: .75rem; border-top: 1px solid var(--border); padding-top: .75rem; }
-.at-results table { width: 100%; border-collapse: collapse; font-size: .78rem; }
-.at-results th { color: var(--muted); font-weight: 600; text-align: left; padding: .18rem .4rem; }
-.at-results td { padding: .22rem .4rem; border-top: 1px solid var(--border); }
-.at-results .pos { color: var(--green); }
-.at-results .neg { color: var(--blue);  }
-.btn-at {
-  float: right; font-size: .7rem; font-weight: 600;
-  text-transform: none; letter-spacing: 0;
-  background: var(--accent); border: none; color: #fff;
-  padding: .28rem .7rem; border-radius: 5px; cursor: pointer;
-}
-.btn-at:hover { background: var(--accent-lo); }
-.btn-at-cancel {
-  background: var(--bg); border: 1px solid var(--red); color: var(--red);
-  padding: .26rem .65rem; border-radius: 5px;
-  font-size: .78rem; font-weight: 600; cursor: pointer;
-}
-.btn-at-cancel:hover { background: var(--red); color: #fff; }
-.at-btn-group { display: flex; gap: .4rem; align-items: center; }
-.btn-at-action {
-  background: var(--bg); border: 1px solid var(--border); color: var(--muted);
-  padding: .26rem .65rem; border-radius: 5px;
-  font-size: .78rem; font-weight: 600; cursor: pointer;
-}
-.btn-at-action:hover { border-color: var(--muted); color: var(--text); }
-.btn-at-del { border-color: var(--red) !important; color: var(--red) !important; }
-.btn-at-del:hover { background: var(--red) !important; color: #fff !important; }
 .timer-status { font-size:.8rem; font-weight:600; margin-bottom:.4rem; padding:.18rem .5rem; border-radius:4px; }
 .timer-status.phase-on  { color: var(--green); background: rgba(74,222,128,.08); }
 .timer-status.phase-off { color: var(--muted); background: rgba(148,163,184,.08); }
@@ -722,17 +696,6 @@ body.chart-fs-lock { overflow: hidden; }
   -moz-appearance: textfield;
 }
 .sched-slot input[type=number]:focus { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px rgba(16,185,129,.25); }
-
-/* ─── Auto-Tune panel ─────────────────────────────────────────────────────── */
-.at-panel {
-  background: var(--surface);
-  border: 1px solid var(--accent);
-  border-radius: var(--radius);
-  padding: .9rem 1rem;
-  margin-bottom: .75rem;
-  box-shadow: var(--shadow-card);
-  display: none;
-}
 
 /* ─── Modal refinement ────────────────────────────────────────────────────── */
 .modal {
@@ -921,24 +884,6 @@ button, input, select, textarea { font-family: inherit; }
   </div>
 </div>
 
-<div class="modal-overlay" id="atModal">
-  <div class="modal" style="border-color:var(--accent)">
-    <div class="modal-warn">🔬</div>
-    <div class="modal-title" style="color:var(--blue)">Start Auto-Tune?</div>
-    <div class="modal-body">
-      The system will test <strong>5 relays</strong> one by one — measuring how each
-      device affects VPD, humidity, and temperature.<br><br>
-      Each relay takes ~<strong>7 min</strong> &nbsp;(total ≈ <strong>35 min</strong>).
-      Other relays continue running normally during the test.<br><br>
-      <strong>Do not start if plants are in a critical state.</strong>
-    </div>
-    <div class="modal-actions">
-      <button class="modal-cancel"  onclick="cancelAtModal()">Cancel</button>
-      <button class="modal-confirm" style="background:var(--accent)" onclick="confirmAutoTune()">Start Auto-Tune</button>
-    </div>
-  </div>
-</div>
-
 <header>
   <div class="logo"><span class="logo-plant">🌿</span> <span>Guetos</span> Systems</div>
   <span class="phase-badge" id="phaseBadge" style="display:none"></span>
@@ -978,7 +923,6 @@ button, input, select, textarea { font-family: inherit; }
   <button class="page-tab"        id="ptab-irrig"  onclick="showPageTab('irrigation')">💧 Irrigation</button>
   <button class="page-tab"        id="ptab-sensors" onclick="showPageTab('sensors')">📡 Sensors</button>
   <button class="page-tab"        id="ptab-syslog"  onclick="showPageTab('syslog')">🔍 Syslog</button>
-  <button class="page-tab"        id="ptab-camera"   onclick="showPageTab('camera')">📷 Camera</button>
   <button class="page-tab"        id="ptab-profiles" onclick="showPageTab('profiles')">🌿 Profiles</button>
 </nav>
 <div class="alert-banner" id="alertBanner">
@@ -1135,9 +1079,7 @@ button, input, select, textarea { font-family: inherit; }
 
   <!-- ─── Relay controls ───────────────────────────────────────────────────── -->
   <section>
-    <div class="section-title">Outputs
-      <button class="btn-at" onclick="showAtModal()">Auto-Tune</button>
-    </div>
+    <div class="section-title">Outputs</div>
     <div class="relay-vis-row">
       <label class="extra-toggle"><input type="checkbox" id="showRelay_0" checked onchange="setRelayVisible(0,this.checked)"><span>Top Fan</span></label>
       <label class="extra-toggle"><input type="checkbox" id="showRelay_1" checked onchange="setRelayVisible(1,this.checked)"><span>Bottom Fan</span></label>
@@ -1149,45 +1091,61 @@ button, input, select, textarea { font-family: inherit; }
       <label class="extra-toggle"><input type="checkbox" id="showRelay_7" checked onchange="setRelayVisible(7,this.checked)"><span>Dehumidifier</span></label>
     </div>
 
-    <!-- Auto-Tune progress panel — visible while tuning or after completion -->
-    <div class="at-panel" id="atPanel">
-      <div class="at-header">
-        <div>
-          <span class="at-title">Auto-Tune</span>
-          <span class="at-phase-label" id="atPhaseLabel"> — </span>
-        </div>
-        <div class="at-btn-group">
-          <button class="btn-at-cancel"            id="atCancelBtn" onclick="cancelAutoTune()" style="display:none">Cancel</button>
-          <button class="btn-at-action"             id="atHideBtn"   onclick="hideAtPanel()"   style="display:none">Hide</button>
-          <button class="btn-at-action btn-at-del"  id="atResetBtn"  onclick="resetAutoTune()" style="display:none">Delete</button>
-        </div>
-      </div>
-      <div class="at-row">
-        <span class="at-relay-name" id="atRelayName">—</span>
-        <span class="at-step" id="atStepCount"></span>
-        <span style="margin-left:auto;color:var(--muted);font-size:.75rem" id="atTimeRem"></span>
-      </div>
-      <div style="font-size:.72rem;color:var(--muted);margin-bottom:.3rem" id="atTotalRem"></div>
-      <div style="margin-bottom:.4rem">
-        <div class="at-bar-wrap"><div class="at-bar" id="atPhaseBar" style="width:0%"></div></div>
-      </div>
-      <div class="at-row" style="margin-bottom:0">
-        <span style="color:var(--muted);font-size:.72rem;min-width:3.5rem">Overall</span>
-        <div class="at-bar-wrap"><div class="at-bar" id="atOverallBar" style="width:0%"></div></div>
-        <span style="color:var(--muted);font-size:.72rem;min-width:2.5rem;text-align:right" id="atOverallPct">0%</span>
-      </div>
-      <div class="at-results" id="atResults" style="display:none">
-        <table>
-          <thead><tr>
-            <th>Relay</th><th>Baseline</th><th>ON avg</th><th>Effect</th><th>Buffer set</th>
-          </tr></thead>
-          <tbody id="atResultRows"></tbody>
-        </table>
-      </div>
-    </div>
-
     <div class="relay-grid" id="relayGrid">
       <!-- populated by JS -->
+    </div>
+
+    <!-- IR Remote Control — send settings to the A/C unit via IR LED on GPIO 23 -->
+    <div class="ir-remote-card" id="irRemoteCard">
+      <div class="ir-remote-header" onclick="toggleIrPanel()">
+        <span>📡 IR Remote (A/C)</span>
+        <span id="irExpandIcon" style="transition:transform .2s;display:inline-block">▼</span>
+      </div>
+      <div class="ir-remote-body" id="irRemoteBody" style="display:none">
+        <div class="tuning-row">
+          <label>Protocol</label>
+          <select id="irProtoSel" onchange="setIrProto(this.value)">
+            <option value="0">Tcl112Ac (default)</option>
+            <option value="1">MideaAC</option>
+            <option value="2">CoolixAC</option>
+            <option value="3">GreeAC</option>
+          </select>
+        </div>
+        <div class="tuning-row">
+          <label>Power</label>
+          <button class="tab active" id="irPowOn"  onclick="setIrPow(true)">On</button>
+          <button class="tab"        id="irPowOff" onclick="setIrPow(false)">Off</button>
+        </div>
+        <div class="tuning-row">
+          <label>Temp</label>
+          <input type="number" id="irTemp" value="24" min="16" max="30" step="1" style="width:4.5rem">
+          <span>°C</span>
+        </div>
+        <div class="tuning-row">
+          <label>Mode</label>
+          <select id="irMode">
+            <option value="0">Cool</option>
+            <option value="1">Heat</option>
+            <option value="2">Fan</option>
+            <option value="3">Dry</option>
+            <option value="4">Auto</option>
+          </select>
+        </div>
+        <div class="tuning-row">
+          <label>Fan</label>
+          <select id="irFan">
+            <option value="0">Auto</option>
+            <option value="1">Low</option>
+            <option value="2">Med</option>
+            <option value="3">High</option>
+          </select>
+        </div>
+        <button class="btn-apply" style="margin-top:.35rem" onclick="sendIrCommand()">📡 Send IR</button>
+        <div style="font-size:.68rem;color:var(--muted);margin-top:.3rem;line-height:1.4">
+          Sends IR to the A/C unit. The physical relay (power) is controlled separately above.
+          Try Tcl112Ac first — switch protocol if the unit does not respond.
+        </div>
+      </div>
     </div>
   </section>
 
@@ -1429,15 +1387,11 @@ button, input, select, textarea { font-family: inherit; }
         <input id="addSensorName" placeholder="Name  (e.g. ESP-CAM)"
           style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;
                  padding:.38rem .7rem;color:var(--text);font-size:.82rem;outline:none">
-        <input id="addSensorUrl" placeholder="Sensor data URL  (optional, e.g. http://192.168.1.101/data)"
-          style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;
-                 padding:.38rem .7rem;color:var(--text);font-size:.82rem;outline:none">
-        <input id="addStreamUrl" placeholder="Camera stream URL  (optional, e.g. http://192.168.1.101:81/stream)"
+        <input id="addSensorUrl" placeholder="Sensor data URL  (e.g. http://192.168.1.101/data)"
           style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;
                  padding:.38rem .7rem;color:var(--text);font-size:.82rem;outline:none">
         <div style="font-size:.72rem;color:var(--muted);line-height:1.5">
-          At least one URL is required. Sensor URL must return JSON with <code>temp</code> and <code>hum</code> fields.<br>
-          Camera-only: leave sensor URL blank, fill in stream URL only.
+          Sensor URL must return JSON with <code>temp</code> and <code>hum</code> fields.
         </div>
         <button class="btn-sm" onclick="addWifiSensor()" style="width:fit-content">Add</button>
       </div>
@@ -1448,6 +1402,53 @@ button, input, select, textarea { font-family: inherit; }
 
 <!-- ─── Syslog tab ──────────────────────────────────────────────────────────── -->
 <div id="tab-syslog" style="display:none;padding:.5rem 0">
+
+  <!-- Crash history card -->
+  <section class="card" style="padding:1rem;margin-bottom:.75rem">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
+      <h3 style="margin:0;font-size:1rem">Crash History (7 days)</h3>
+      <button class="btn-sm" onclick="loadCrashHistory()" style="font-size:.78rem">↺ Refresh</button>
+    </div>
+    <div id="crashHistoryTable" style="overflow-x:auto">
+      <span style="color:var(--muted);font-size:.82rem">Click ↺ Refresh to load…</span>
+    </div>
+  </section>
+
+  <!-- Event log card -->
+  <section class="card" style="padding:1rem;margin-bottom:.75rem">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
+      <h3 style="margin:0;font-size:1rem">Event Log (persistent)</h3>
+      <button class="btn-sm" onclick="loadEventLog()" style="font-size:.78rem">↺ Refresh</button>
+    </div>
+    <div id="eventLogTable" style="overflow-x:auto">
+      <span style="color:var(--muted);font-size:.82rem">Click ↺ Refresh to load…</span>
+    </div>
+  </section>
+
+  <!-- Backup / Restore card -->
+  <section class="card" style="padding:1rem;margin-bottom:.75rem">
+    <h3 style="margin:0 0 .75rem;font-size:1rem">Backup &amp; Restore</h3>
+    <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center">
+      <a id="backupLink" href="/api/backup" download="vpd-backup.json"
+         style="text-decoration:none">
+        <button class="btn-sm" style="background:var(--blue);color:#fff;font-size:.82rem">
+          ⬇ Download Backup
+        </button>
+      </a>
+      <label style="font-size:.82rem;cursor:pointer">
+        <input type="file" id="restoreFile" accept=".json" style="display:none"
+               onchange="uploadRestore(this)">
+        <span class="btn-sm" style="background:var(--green,#16a34a);color:#fff;font-size:.82rem;cursor:pointer">
+          ⬆ Restore from Backup
+        </span>
+      </label>
+      <span id="restoreStatus" style="font-size:.8rem;color:var(--muted)"></span>
+    </div>
+    <p style="margin:.6rem 0 0;font-size:.75rem;color:var(--muted)">
+      Backup saves all relay settings, grow profiles, irrigation profiles, plant config and soil calibration.
+      Restore applies settings then reboots the device.
+    </p>
+  </section>
 
   <section class="card" style="padding:1rem">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
@@ -1469,33 +1470,6 @@ button, input, select, textarea { font-family: inherit; }
   </section>
 
 </div><!-- end #tab-syslog -->
-
-<!-- ─── Camera tab ──────────────────────────────────────────────────────────── -->
-<div id="tab-camera" style="display:none;padding:.5rem 0">
-
-  <section class="card" style="padding:1rem">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
-      <h3 style="margin:0;font-size:1rem">📷 Live Camera</h3>
-      <div style="display:flex;gap:.5rem;align-items:center">
-        <button class="btn-sm" onclick="cameraReload()" style="font-size:.75rem">⟳ Reload</button>
-        <a href="http://192.168.1.100" target="_blank" rel="noopener"
-           style="background:var(--green);color:#000;font-weight:700;font-size:.78rem;
-                  padding:.3rem .8rem;border-radius:7px;text-decoration:none">Open ↗</a>
-      </div>
-    </div>
-    <div style="background:#000;border-radius:8px;overflow:hidden">
-      <img id="camStreamImg" src="http://192.168.1.100:81/stream"
-           style="width:100%;display:block;max-height:480px;object-fit:contain"
-           onerror="_camRetry()">
-      <div id="camStreamErr" style="display:none;padding:2.5rem 1rem;text-align:center;
-           color:var(--muted);font-size:.82rem;line-height:1.7">
-        <span id="camErrMsg">Connecting…</span><br>
-        Use <strong>Open ↗</strong> to view the camera in a new tab.
-      </div>
-    </div>
-  </section>
-
-</div><!-- end #tab-camera -->
 
 <!-- ─── Profiles tab ──────────────────────────────────────────────────────────── -->
 <div id="tab-profiles" style="display:none;padding:.5rem 0">
@@ -1543,7 +1517,10 @@ function connect() {
 
   ws.onopen = () => {
     setStatus(true, 'Connected');
-    if (_wsWasConnected) loadChart(chartHours);   // reconnect — reload to catch up on missed data
+    // Only reload chart on reconnect if the chart already had data — avoids
+    // triggering a full /api/logs read on the very first connection (or after a
+    // crash-reboot before any data was shown).
+    if (_wsWasConnected && _chartLastTs > 0) loadChart(chartHours);
     _wsWasConnected = true;
   };
 
@@ -1572,7 +1549,7 @@ function handleState(s) {
   lastState = s;
   updateMetrics(s);
   updateSoil(s);
-  updateRelays(s.relays, s.lightSched, s.acTemps, s.profile);
+  updateRelays(s.relays, s.lightSched, s.acTemps, s.profile, s.heatPulse);
   updateRelayMini(s.relays);
   const dot = document.getElementById('remoteSensorDot');
   if (dot) {
@@ -1585,7 +1562,6 @@ function handleState(s) {
   updatePhaseBadge(s.lightSched);
   updateAlerts(s.alerts || []);
   updateVpdTargetUI(s.vpdTarget);
-  updateAutoTune(s.autoTune);
   updateIntakeSensor(s.intake);
   updatePlantMood(s);
   updateProfilesTab(s.allProfiles, s.growMode);
@@ -1610,6 +1586,7 @@ function handleState(s) {
   applyDryToggle(s.growMode === 4, dryFast);
 
   updateIrrigationTab(s);
+  updateIrRemote(s.ir);
 
   // ── Grow-assist features ──────────────────────────────────────────────────
   if (s.profile) {
@@ -1970,11 +1947,16 @@ function dismissAlert() {
 let _lightSched  = null;
 let _acTemps     = { dayLow: 0, dayHigh: 0, nightLow: 0, nightHigh: 0 };
 let _acProfTemps = { dayLow: 20, dayHigh: 25, nightLow: 18, nightHigh: 22 };
+let _heatPulse   = { onSec: 45, restSec: 420 };
 
-function updateRelays(relayArr, lightSched, acTemps, profile) {
+function updateRelays(relayArr, lightSched, acTemps, profile, heatPulse) {
   _lightSched  = lightSched || null;
   _acTemps     = acTemps   || { dayLow: 0, dayHigh: 0, nightLow: 0, nightHigh: 0 };
   if (acTemps) try { localStorage.setItem('acTemps', JSON.stringify(_acTemps)); } catch(_) {}
+  if (heatPulse) {
+    _heatPulse = heatPulse;
+    try { localStorage.setItem('heatPulse', JSON.stringify(_heatPulse)); } catch(_) {}
+  }
   _acProfTemps = {
     dayLow:   profile?.dayTempMin   ?? 20, dayHigh:   profile?.dayTempMax   ?? 25,
     nightLow: profile?.nightTempMin ?? 18, nightHigh: profile?.nightTempMax ?? 22
@@ -1999,9 +1981,10 @@ function updateRelays(relayArr, lightSched, acTemps, profile) {
 // Relay index 4 = A/C (physical relay cuts/restores mains power)
 // Relay index 6 = Watering (soil-driven)
 // Relay index 7 = Dehumidifier
-const LIGHTS_ID   = 3;
-const AC_RELAY_ID = 4;
-const WATERING_ID = 6;
+const LIGHTS_ID    = 3;
+const AC_RELAY_ID  = 4;
+const HEAT_RELAY_ID = 5;
+const WATERING_ID  = 6;
 
 function renderRelayCard(card, r, force) {
   if (!force) {
@@ -2202,6 +2185,44 @@ function renderRelayCard(card, r, force) {
             Blank = profile default (Day: ${_acProfTemps.dayHigh}/${_acProfTemps.dayLow}°C · Night: ${_acProfTemps.nightHigh}/${_acProfTemps.nightLow}°C).
           </div>
           <button class="btn-apply" onclick="applyAcTemps(${r.id},this)">Apply</button>
+        </div>`;
+    } else if (r.id === HEAT_RELAY_ID) {
+      // ── Heater relay AUTO body ─────────────────────────────────────────────
+      const hpOn     = _heatPulse.onSec   ?? 45;
+      const hpRest   = _heatPulse.restSec ?? 420;
+      const hpTarget = (_heatPulse.target > 0) ? _heatPulse.target : '';
+      const minOn    = r.minOn ?? 180;
+      const profMin  = _acProfTemps.dayLow;   // current profile tempMin (day)
+      body = `<span class="auto-note">Climate-driven — pulses when temp is low</span>
+        <div class="auto-tuning">
+          <div class="tuning-row">
+            <label title="Turn ON when temp drops below this — blank uses profile tempMin">Turn ON below</label>
+            <input type="number" id="hp_tgt_${r.id}" value="${hpTarget}"
+                   placeholder="${profMin}" min="5" max="40" step="0.5" style="width:4.5rem">
+            <span>°C</span>
+          </div>
+          <div style="font-size:.68rem;color:var(--muted);padding:.05rem 0 .35rem 0;line-height:1.4">
+            Blank = profile tempMin (currently ${profMin}°C).
+          </div>
+          <div class="tuning-row" style="padding-top:.35rem;border-top:1px solid var(--border)">
+            <label title="How long the heater stays ON per pulse">Pulse ON</label>
+            <input type="number" id="hp_on_${r.id}" value="${hpOn}" min="5" max="3600">
+            <span>sec</span>
+          </div>
+          <div class="tuning-row">
+            <label title="How long the heater rests between pulses">Rest</label>
+            <input type="number" id="hp_rest_${r.id}" value="${hpRest}" min="30" max="7200">
+            <span>sec</span>
+          </div>
+          <div class="tuning-row" style="padding-top:.35rem;border-top:1px solid var(--border)">
+            <label title="Minimum time heater must stay ON before it can turn OFF">Min ON</label>
+            <input type="number" id="mion_${r.id}" value="${minOn}" min="0" max="3600">
+            <span>sec</span>
+          </div>
+          <div style="font-size:.68rem;color:var(--muted);padding:.1rem 0 .35rem 0;line-height:1.4">
+            A/C interlock: heater blocked when A/C is running or in cooldown.
+          </div>
+          <button class="btn-apply" onclick="applyHeatPulse(${r.id},this)">Apply</button>
         </div>`;
     } else {
       const buf        = (r.buffer     ?? 0.05).toFixed(2);
@@ -2981,6 +3002,51 @@ function onMaxOnChange(id) {
   if (mxonEl && row) row.style.display = parseInt(mxonEl.value, 10) > 0 ? '' : 'none';
 }
 
+// ─── IR Remote ────────────────────────────────────────────────────────────────
+function toggleIrPanel() {
+  const b = document.getElementById('irRemoteBody');
+  const i = document.getElementById('irExpandIcon');
+  const open = b.style.display !== 'none';
+  b.style.display = open ? 'none' : 'block';
+  if (i) i.style.transform = open ? '' : 'rotate(180deg)';
+}
+
+function setIrPow(on) {
+  document.getElementById('irPowOn').classList.toggle('active',  on);
+  document.getElementById('irPowOff').classList.toggle('active', !on);
+}
+
+function setIrProto(val) {
+  send({ type: 'irSetProto', proto: parseInt(val, 10) });
+}
+
+function sendIrCommand() {
+  send({
+    type:  'irSend',
+    power: document.getElementById('irPowOn').classList.contains('active'),
+    temp:  parseInt(document.getElementById('irTemp').value, 10) || 24,
+    mode:  parseInt(document.getElementById('irMode').value, 10),
+    fan:   parseInt(document.getElementById('irFan').value,  10)
+  });
+}
+
+function updateIrRemote(ir) {
+  if (!ir) return;
+  // Don't overwrite while the panel is open — user may be editing settings
+  const body = document.getElementById('irRemoteBody');
+  if (body && body.style.display !== 'none') return;
+  const toUpdate = { irProtoSel: ir.proto, irTemp: ir.temp, irMode: ir.mode, irFan: ir.fan };
+  for (const [id, val] of Object.entries(toUpdate)) {
+    const el = document.getElementById(id);
+    if (el) el.value = val;
+  }
+  const on = !!ir.power;
+  const po = document.getElementById('irPowOn');
+  const pf = document.getElementById('irPowOff');
+  if (po) po.classList.toggle('active',  on);
+  if (pf) pf.classList.toggle('active', !on);
+}
+
 function applyAcTemps(id, btn) {
   const dayHigh   = parseFloat(document.getElementById('ac_day_high_'   + id).value) || 0;
   const dayLow    = parseFloat(document.getElementById('ac_day_low_'    + id).value) || 0;
@@ -2993,6 +3059,22 @@ function applyAcTemps(id, btn) {
   try { localStorage.setItem('acTemps', JSON.stringify(_acTemps)); } catch(_) {}
   const card = document.getElementById('rcard-' + id);
   if (card) card.dataset.touch = Date.now();
+  btn.textContent = '✓ Saved';
+  setTimeout(() => { btn.textContent = 'Apply'; }, 1500);
+}
+
+function applyHeatPulse(id, btn) {
+  const onSec   = Math.max(5,  parseInt(document.getElementById('hp_on_'   + id)?.value, 10) || 45);
+  const restSec = Math.max(30, parseInt(document.getElementById('hp_rest_' + id)?.value, 10) || 420);
+  const target  = parseFloat(document.getElementById('hp_tgt_' + id)?.value) || 0;
+  const minOnEl = document.getElementById('mion_' + id);
+  if (minOnEl) {
+    const minOn = Math.max(0, parseInt(minOnEl.value, 10) || 0);
+    send({ type: 'relay', id, action: 'duration', minOn, maxOn: 0, maxOnRest: 0 });
+  }
+  send({ type: 'setHeatPulse', onSec, restSec, target });
+  _heatPulse = { onSec, restSec, target };
+  try { localStorage.setItem('heatPulse', JSON.stringify(_heatPulse)); } catch(_) {}
   btn.textContent = '✓ Saved';
   setTimeout(() => { btn.textContent = 'Apply'; }, 1500);
 }
@@ -3705,184 +3787,13 @@ function updatePlantMood(s) {
   if (hdr) { hdr.textContent = headerMsg; hdr.style.color = headerColor; }
 }
 
-// ─── Auto-Tune ────────────────────────────────────────────────────────────────
-// AT phase numbers: 0=IDLE 1=BASELINE 2=ON 3=COOLDOWN 4=DONE 5=ABORTED
-const AT_METRIC_UNIT = ['kPa', '%RH', '°C'];
-// relayId → metric index (matches METRIC[] in autotune.cpp)
-const AT_RELAY_METRIC = { 0: 0, 1: 2, 2: 0, 4: 1, 5: 2 };
-
-const AT_TUNABLE = [0, 1, 2, 5, 7];  // relay IDs auto-tune can test
-const AT_TUNABLE_NAMES = { 0:'Top Fan', 1:'Bottom Fan', 2:'Humidifier', 5:'Heat', 7:'Dehumidifier' };
-
-function getSelectedATRelays() {
-  return AT_TUNABLE.filter(id => {
-    const cb = document.getElementById('showRelay_' + id);
-    return cb && cb.checked;
-  });
-}
-
-function showAtModal() {
-  const sel = getSelectedATRelays();
-  const count = sel.length;
-  const names = sel.map(id => AT_TUNABLE_NAMES[id]).join(', ');
-  const mins  = count * 7;
-  document.querySelector('#atModal .modal-body').innerHTML =
-    (count === 0
-      ? '<strong>No relays selected.</strong> Enable at least one relay checkbox to run Auto-Tune.'
-      : `Will test <strong>${count} relay${count !== 1 ? 's' : ''}</strong>: ${names}.<br><br>` +
-        `Each relay takes ~<strong>7 min</strong> &nbsp;(total ≈ <strong>${mins} min</strong>).<br><br>` +
-        `<strong>Do not start if plants are in a critical state.</strong>`);
-  document.getElementById('atModal').classList.add('visible');
-}
-
-function cancelAtModal(){ document.getElementById('atModal').classList.remove('visible'); }
-
-function confirmAutoTune() {
-  const sel = getSelectedATRelays();
-  if (sel.length === 0) { cancelAtModal(); return; }
-  cancelAtModal();
-  try { localStorage.removeItem('atPanelHidden'); } catch(_) {}
-  send({ type: 'autoTune', action: 'start', relays: sel });
-}
-function cancelAutoTune()  { send({ type: 'autoTune', action: 'cancel' }); }
-
-function hideAtPanel() {
-  try { localStorage.setItem('atPanelHidden', '1'); } catch(_) {}
-  document.getElementById('atPanel').classList.remove('visible');
-}
-
-function resetAutoTune() {
-  send({ type: 'autoTune', action: 'reset' });
-  try { localStorage.removeItem('atPanelHidden'); } catch(_) {}
-}
-
-function updateAutoTune(at) {
-  if (!at) return;
-  const panel      = document.getElementById('atPanel');
-  const phaseLabel = document.getElementById('atPhaseLabel');
-  const relayName  = document.getElementById('atRelayName');
-  const stepCount  = document.getElementById('atStepCount');
-  const timeRem    = document.getElementById('atTimeRem');
-  const phaseBar   = document.getElementById('atPhaseBar');
-  const overallBar = document.getElementById('atOverallBar');
-  const overallPct = document.getElementById('atOverallPct');
-  const cancelBtn  = document.getElementById('atCancelBtn');
-  const hideBtn    = document.getElementById('atHideBtn');
-  const resetBtn   = document.getElementById('atResetBtn');
-  const resultsDiv = document.getElementById('atResults');
-  const resultRows = document.getElementById('atResultRows');
-
-  const phase    = at.phase;
-  const isActive = phase >= 1 && phase <= 3;
-  const isDone   = phase === 4;
-  const isAborted= phase === 5;
-  const isFinished = isDone || isAborted;
-
-  // Hide panel when idle
-  if (phase === 0) { panel.classList.remove('visible'); return; }
-
-  // When done/aborted: respect user's hide preference
-  if (isFinished) {
-    try {
-      if (localStorage.getItem('atPanelHidden') === '1') {
-        panel.classList.remove('visible'); return;
-      }
-    } catch(_) {}
-  }
-  panel.classList.add('visible');
-
-  // Phase label
-  const pNames = ['','Measuring baseline…','Device ON — observing effect…','Cooling down…'];
-  if (isActive) {
-    phaseLabel.textContent = ' — ' + pNames[phase];
-    phaseLabel.style.color = phase === 2 ? 'var(--green)' : 'var(--muted)';
-  } else if (isDone) {
-    phaseLabel.textContent = ' — Complete!';
-    phaseLabel.style.color = 'var(--green)';
-  } else {
-    phaseLabel.textContent = at.abortSafety ? ' — Aborted (safety limit)' : ' — Cancelled';
-    phaseLabel.style.color = 'var(--red)';
-  }
-
-  // Relay + step
-  relayName.textContent = at.relayName || (isDone ? 'All done' : '—');
-  stepCount.textContent = at.stepTotal > 0 ? `(${at.stepDone}/${at.stepTotal})` : '';
-
-  // Time remaining
-  if (isActive && at.phaseRemMs > 0) {
-    const s = Math.ceil(at.phaseRemMs / 1000);
-    const m = Math.floor(s / 60), ss = s % 60;
-    timeRem.textContent = m > 0 ? `${m}m ${ss}s` : `${ss}s`;
-
-    // Total remaining = current phase rem + remaining phases in this relay + remaining relays
-    const MS_PER_RELAY = (120 + 180 + 120) * 1000;
-    const phaseMs = [0, 120000, 180000, 120000];       // baseline, on, cooldown
-    const phaseDoneIdx = [0, 0, 1, 2][phase] || 0;    // phases done so far in this step
-    let totalMs = at.phaseRemMs;
-    for (let p = phaseDoneIdx + 1; p < 3; p++) totalMs += phaseMs[p + 1];
-    totalMs += (at.stepTotal - at.stepDone - 1) * MS_PER_RELAY;
-    const tm = Math.ceil(totalMs / 1000);
-    const tmH = Math.floor(tm / 3600), tmM = Math.floor((tm % 3600) / 60);
-    const totalEl = document.getElementById('atTotalRem');
-    if (totalEl) totalEl.textContent = `Total remaining: ~${tmH > 0 ? tmH + 'h ' : ''}${tmM}m`;
-  } else {
-    timeRem.textContent = '';
-    const totalEl = document.getElementById('atTotalRem');
-    if (totalEl) totalEl.textContent = '';
-  }
-
-  // Phase bar
-  const pbColors = ['','baseline','on','cooldown'];
-  if (isActive && at.phaseTotMs > 0) {
-    const pct = Math.min(100, Math.round((at.phaseTotMs - at.phaseRemMs) / at.phaseTotMs * 100));
-    phaseBar.style.width = pct + '%';
-    phaseBar.className = 'at-bar ' + (pbColors[phase] || '');
-  } else {
-    phaseBar.style.width = isDone ? '100%' : '0%';
-    phaseBar.className = 'at-bar' + (isDone ? ' on' : '');
-  }
-
-  // Overall bar: each relay = 3 phases; phase within step: baseline=0, on=1, cooldown=2
-  const totalPhases = at.stepTotal * 3;
-  const phaseOffset = [0, 0, 1, 2];
-  let done = at.stepDone * 3;
-  if (isActive && at.phaseTotMs > 0) {
-    done += (phaseOffset[phase] || 0) + (at.phaseTotMs - at.phaseRemMs) / at.phaseTotMs;
-  } else if (isDone) { done = totalPhases; }
-  const opct = totalPhases > 0 ? Math.min(100, Math.round(done / totalPhases * 100)) : 0;
-  overallBar.style.width = opct + '%';
-  overallBar.className = 'at-bar' + (isDone ? ' on' : '');
-  overallPct.textContent = opct + '%';
-
-  cancelBtn.style.display = isActive     ? '' : 'none';
-  if (hideBtn)  hideBtn.style.display  = isFinished ? '' : 'none';
-  if (resetBtn) resetBtn.style.display = isFinished ? '' : 'none';
-
-  // Results table
-  if ((isDone || isAborted) && at.results && at.results.length > 0) {
-    resultsDiv.style.display = '';
-    resultRows.innerHTML = at.results.map(r => {
-      const unit = AT_RELAY_METRIC[r.id] !== undefined ? AT_METRIC_UNIT[AT_RELAY_METRIC[r.id]] : '';
-      const sign = r.delta >= 0 ? '+' : '';
-      const cls  = r.delta >= 0 ? 'pos' : 'neg';
-      return `<tr>
-        <td>${r.name}</td>
-        <td>${r.base.toFixed(3)} ${unit}</td>
-        <td>${r.on.toFixed(3)} ${unit}</td>
-        <td class="${cls}">${sign}${r.delta.toFixed(3)}</td>
-        <td style="color:var(--blue)">${r.buf.toFixed(3)}</td>
-      </tr>`;
-    }).join('');
-  } else { resultsDiv.style.display = 'none'; }
-}
-
 // ═══════════════════════════════════════════════════════════════════════════════
 // IRRIGATION TAB
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // ─── Page tab switching ───────────────────────────────────────────────────────
 function showPageTab(name) {
-  ['dashboard', 'irrigation', 'sensors', 'syslog', 'camera', 'profiles'].forEach(t => {
+  ['dashboard', 'irrigation', 'sensors', 'syslog', 'profiles'].forEach(t => {
     const el  = document.getElementById('tab-' + t);
     const btn = document.getElementById('ptab-' + t);
     if (el)  el.style.display = (t === name) ? '' : 'none';
@@ -3890,8 +3801,7 @@ function showPageTab(name) {
   });
   try { localStorage.setItem('pageTab', name); } catch(_) {}
   if (name === 'irrigation') { loadIrrigHistory(); loadSoilChart(); }
-  if (name === 'syslog')     loadSyslog();
-  if (name === 'camera')     cameraAutoConnect();
+  if (name === 'syslog')     { loadSyslog(); loadCrashHistory(); loadEventLog(); }
 }
 
 // ─── Live state update ────────────────────────────────────────────────────────
@@ -4369,6 +4279,113 @@ function loadSyslog() {
     });
 }
 
+// ─── Crash history loader ─────────────────────────────────────────────────────
+function loadCrashHistory() {
+  const el = document.getElementById('crashHistoryTable');
+  if (el) el.innerHTML = '<span style="color:var(--muted);font-size:.82rem">Loading…</span>';
+  fetch('/api/crashes')
+    .then(r => r.json())
+    .then(data => {
+      if (!el) return;
+      if (!Array.isArray(data) || data.length === 0) {
+        el.innerHTML = '<span style="color:var(--muted);font-size:.82rem">No crash history yet.</span>';
+        return;
+      }
+      // Build a simple table, newest first (reverse)
+      const rows = [...data].reverse().map(d => {
+        const ds = String(d.date);
+        const dateStr = ds.length === 8
+          ? `${ds.slice(6,8)}/${ds.slice(4,6)}/${ds.slice(0,4)}`
+          : ds;
+        const pStyle = d.panic    > 0 ? 'color:var(--red);font-weight:700' : 'color:var(--muted)';
+        const bStyle = d.brownout > 0 ? 'color:var(--yellow);font-weight:700' : 'color:var(--muted)';
+        const wStyle = d.watchdog > 0 ? 'color:var(--orange,#f97316);font-weight:700' : 'color:var(--muted)';
+        return `<tr>
+          <td style="padding:.35rem .6rem;font-size:.82rem">${dateStr}</td>
+          <td style="padding:.35rem .6rem;text-align:center;font-size:.82rem;${pStyle}">${d.panic}</td>
+          <td style="padding:.35rem .6rem;text-align:center;font-size:.82rem;${bStyle}">${d.brownout}</td>
+          <td style="padding:.35rem .6rem;text-align:center;font-size:.82rem;${wStyle}">${d.watchdog}</td>
+        </tr>`;
+      }).join('');
+      el.innerHTML = `<table style="width:100%;border-collapse:collapse">
+        <thead><tr style="border-bottom:1px solid var(--border)">
+          <th style="padding:.3rem .6rem;text-align:left;font-size:.78rem;color:var(--muted);font-weight:600">Date</th>
+          <th style="padding:.3rem .6rem;text-align:center;font-size:.78rem;color:var(--muted);font-weight:600">Panic</th>
+          <th style="padding:.3rem .6rem;text-align:center;font-size:.78rem;color:var(--muted);font-weight:600">Brownout</th>
+          <th style="padding:.3rem .6rem;text-align:center;font-size:.78rem;color:var(--muted);font-weight:600">Watchdog</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+    })
+    .catch(err => {
+      if (el) el.textContent = 'Error: ' + err;
+    });
+}
+
+// ─── Event log loader ─────────────────────────────────────────────────────────
+function loadEventLog() {
+  const el = document.getElementById('eventLogTable');
+  if (el) el.innerHTML = '<span style="color:var(--muted);font-size:.82rem">Loading…</span>';
+  fetch('/api/events')
+    .then(r => r.json())
+    .then(data => {
+      if (!el) return;
+      if (!Array.isArray(data) || data.length === 0) {
+        el.innerHTML = '<span style="color:var(--muted);font-size:.82rem">No events yet.</span>';
+        return;
+      }
+      const typeColor = {
+        'BOOT':     'var(--blue)',
+        'CRASH':    'var(--red)',
+        'STAGE':    'var(--green)',
+        'STAGE-DAY':'var(--green)',
+        'LIGHT':    'var(--yellow)',
+        'WIFI':     'var(--blue)',
+        'RST':      'var(--muted)',
+        'HEAP-RST': 'var(--red)',
+        'RESTORE':  'var(--green)',
+      };
+      const rows = [...data].reverse().map(e => {
+        const ts  = e.ts > 1000000000 ? new Date(e.ts * 1000).toLocaleString() : '—';
+        const col = typeColor[e.type] || 'var(--text)';
+        const safe = (e.detail||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
+        return `<tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:.3rem .6rem;font-size:.75rem;color:var(--muted);white-space:nowrap">${ts}</td>
+          <td style="padding:.3rem .6rem;font-size:.78rem;font-weight:700;color:${col};white-space:nowrap">${e.type}</td>
+          <td style="padding:.3rem .6rem;font-size:.78rem">${safe}</td>
+        </tr>`;
+      }).join('');
+      el.innerHTML = `<table style="width:100%;border-collapse:collapse">
+        <thead><tr style="border-bottom:2px solid var(--border)">
+          <th style="padding:.3rem .6rem;text-align:left;font-size:.75rem;color:var(--muted)">Time</th>
+          <th style="padding:.3rem .6rem;text-align:left;font-size:.75rem;color:var(--muted)">Type</th>
+          <th style="padding:.3rem .6rem;text-align:left;font-size:.75rem;color:var(--muted)">Detail</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+    })
+    .catch(err => { if (el) el.textContent = 'Error: ' + err; });
+}
+
+// ─── Backup restore upload ─────────────────────────────────────────────────────
+function uploadRestore(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const st = document.getElementById('restoreStatus');
+  if (st) st.textContent = 'Uploading…';
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', '/api/restore');
+  xhr.setRequestHeader('Content-Type', 'application/json');
+  xhr.onload = () => {
+    if (st) st.textContent = xhr.status === 200 ? 'Restored — rebooting…' : 'Failed: ' + xhr.responseText;
+    input.value = '';
+  };
+  xhr.onerror = () => { if (st) st.textContent = 'Upload error'; };
+  const reader = new FileReader();
+  reader.onload = e => xhr.send(e.target.result);
+  reader.readAsText(file);
+}
+
 // ─── WiFi Sensor management ───────────────────────────────────────────────────
 let _wifiSensors = [];  // last received array from WS state
 
@@ -4379,9 +4396,6 @@ function updateWifiSensors(arr) {
   const list = document.getElementById('wifiSensorList');
   if (!list) return;
 
-  // Build sensor-pick buttons for the camera tab
-  _updateCamSensorPick(arr);
-
   if (!arr.some(s => s.name)) {
     list.innerHTML = '<span style="color:var(--muted);font-size:.82rem">No sensors configured yet — add one below.</span>';
     return;
@@ -4390,24 +4404,16 @@ function updateWifiSensors(arr) {
   list.innerHTML = arr.map(s => {
     if (!s.name) return '';
     const dot  = s.valid ? '🟢' : (s.enabled ? '🔴' : '⚫');
-    const temp = s.valid && s.sensorUrl ? s.temp.toFixed(1) + '°C' : '—';
-    const hum  = s.valid && s.sensorUrl ? s.hum.toFixed(0)  + '%'  : '—';
-    const subtitle = s.sensorUrl
-      ? `<span style="color:var(--muted)">${s.sensorUrl}</span>`
-      : `<span style="color:var(--muted)">📷 camera only</span>`;
-    const camBtn = s.streamUrl
-      ? `<button class="btn-sm" style="font-size:.72rem;padding:.15rem .45rem"
-           onclick="cameraFromSensor(${s.id})" title="View camera">📷</button>`
-      : '';
-    // Sensor data toggle — only shown when device has a sensor URL
+    const temp = s.valid ? s.temp.toFixed(1) + '°C' : '—';
+    const hum  = s.valid ? s.hum.toFixed(0)  + '%'  : '—';
+    const subtitle = `<span style="color:var(--muted)">${s.sensorUrl}</span>`;
+    // Sensor data toggle
     const sensorOn = s.sensorActive !== false;
-    const sensorBtn = s.sensorUrl
-      ? `<button class="btn-sm" title="${sensorOn ? 'Sensor data active — click to disable' : 'Sensor data disabled — click to enable'}"
+    const sensorBtn = `<button class="btn-sm" title="${sensorOn ? 'Sensor data active — click to disable' : 'Sensor data disabled — click to enable'}"
            style="font-size:.72rem;padding:.15rem .5rem;${sensorOn
              ? 'background:var(--green)22;color:var(--green)'
              : 'background:var(--surface2);color:var(--muted)'}"
-           onclick="toggleSensorActive(${s.id},${!sensorOn})">📡 ${sensorOn ? 'On' : 'Off'}</button>`
-      : '';
+           onclick="toggleSensorActive(${s.id},${!sensorOn})">📡 ${sensorOn ? 'On' : 'Off'}</button>`;
     return `
     <div style="display:flex;align-items:center;gap:.55rem;padding:.45rem .6rem;
                 background:var(--surface2);border-radius:8px;${!s.enabled?'opacity:.5':''}">
@@ -4417,38 +4423,27 @@ function updateWifiSensors(arr) {
         <div style="font-size:.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${subtitle}</div>
       </div>
       <span style="font-size:.82rem;font-weight:600;min-width:4rem;text-align:right">${temp} / ${hum}</span>
-      ${camBtn}
       ${sensorBtn}
-      ${s.builtin
-        ? `<span style="font-size:.72rem;color:var(--muted);padding:.15rem .3rem" title="Built-in sensor — always active">📌</span>`
-        : `<label style="display:flex;align-items:center;gap:.25rem;font-size:.75rem;cursor:pointer">
-             <input type="checkbox" ${s.enabled?'checked':''} onchange="toggleWifiSensor(${s.id},this.checked)"
-                    style="accent-color:var(--green)"> On
-           </label>
-           <button class="btn-sm" style="font-size:.72rem;padding:.15rem .45rem;background:var(--red)22;color:var(--red)"
-                   onclick="removeWifiSensor(${s.id})" title="Remove">✕</button>`
-      }
+      <label style="display:flex;align-items:center;gap:.25rem;font-size:.75rem;cursor:pointer">
+        <input type="checkbox" ${s.enabled?'checked':''} onchange="toggleWifiSensor(${s.id},this.checked)"
+               style="accent-color:var(--green)"> On
+      </label>
+      <button class="btn-sm" style="font-size:.72rem;padding:.15rem .45rem;background:var(--red)22;color:var(--red)"
+              onclick="removeWifiSensor(${s.id})" title="Remove">✕</button>
     </div>`;
   }).join('');
-}
-
-function _updateCamSensorPick(arr) {
-  // Refresh camera link list whenever sensor list updates
-  _renderCamLinks(arr);
 }
 
 function addWifiSensor() {
   const name      = (document.getElementById('addSensorName')?.value || '').trim();
   const sensorUrl = (document.getElementById('addSensorUrl')?.value  || '').trim();
-  const streamUrl = (document.getElementById('addStreamUrl')?.value  || '').trim();
-  if (!name || (!sensorUrl && !streamUrl)) {
-    alert('Name and at least one URL (sensor or camera) are required.');
+  if (!name || !sensorUrl) {
+    alert('Name and sensor URL are required.');
     return;
   }
-  send({ type: 'addSensor', name, sensorUrl, streamUrl });
+  send({ type: 'addSensor', name, sensorUrl });
   document.getElementById('addSensorName').value = '';
   document.getElementById('addSensorUrl').value  = '';
-  document.getElementById('addStreamUrl').value  = '';
   const d = document.getElementById('addSensorDetails');
   if (d) d.removeAttribute('open');
 }
@@ -4465,109 +4460,6 @@ function removeWifiSensor(id) {
 function toggleWifiSensor(id, en) {
   send({ type: 'toggleSensor', id, enabled: en });
 }
-
-// ─── Camera tab ───────────────────────────────────────────────────────────────
-// Derives stream + page URLs from whichever URL field the user filled in.
-// Tries to show the MJPEG stream inline; falls back to an "Open ↗" link if
-// the browser blocks the cross-origin load.
-
-function _getCamUrls(s) {
-  const base = s.streamUrl;
-  if (!base) return null;
-  try {
-    const u = new URL(base);
-    const isStream = u.port === '81' || u.pathname.toLowerCase().includes('stream');
-    return isStream
-      ? { stream: base,                                           page: `${u.protocol}//${u.hostname}` }
-      : { stream: `${u.protocol}//${u.hostname}:81/stream`,      page: base };
-  } catch(_) {
-    return { stream: base, page: base };
-  }
-}
-
-function _renderCamLinks(arr) {
-  const list = document.getElementById('camLinkList');
-  if (!list) return;
-  const sensors = (arr || _wifiSensors).filter(s => s.enabled && s.streamUrl);
-  if (!sensors.length) {
-    list.innerHTML = `<div style="color:var(--muted);font-size:.85rem;line-height:1.9;
-        text-align:center;padding:2.5rem 1rem">
-      No camera configured.<br>
-      Go to <strong>Sensors</strong> tab → Add sensor.<br>
-      <span style="font-size:.75rem">The Camera URL field is optional — if left empty, stream
-      is auto-detected from the sensor URL.</span>
-    </div>`;
-    return;
-  }
-  list.innerHTML = sensors.map(s => {
-    const urls = _getCamUrls(s);
-    if (!urls) return '';
-    const imgId = 'camImg-' + s.id;
-    const errId = 'camErr-' + s.id;
-    return `
-    <div style="margin-bottom:1.1rem">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.45rem">
-        <strong style="font-size:.9rem">📷 ${s.name}</strong>
-        <a href="${urls.page}" target="_blank" rel="noopener"
-           style="background:var(--green);color:#000;font-weight:700;font-size:.78rem;
-                  padding:.3rem .8rem;border-radius:7px;text-decoration:none">Open ↗</a>
-      </div>
-      <div style="background:#000;border-radius:8px;overflow:hidden">
-        <img id="${imgId}" src="${urls.stream}"
-             style="width:100%;display:block;max-height:420px;object-fit:contain"
-             onerror="this.style.display='none';document.getElementById('${errId}').style.display=''">
-        <div id="${errId}" style="display:none;padding:2.5rem 1rem;text-align:center;
-             color:var(--muted);font-size:.82rem;line-height:1.7">
-          Stream blocked by browser security.<br>
-          Use <strong>Open ↗</strong> to view the camera in a new tab.
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-// ─── Camera stream with retry ─────────────────────────────────────────────────
-const CAM_STREAM_URL = 'http://192.168.1.100:81/stream';
-let _camRetryCount = 0;
-let _camRetryTimer = null;
-
-function _camSetStream() {
-  const img = document.getElementById('camStreamImg');
-  const err = document.getElementById('camStreamErr');
-  if (!img) return;
-  img.style.display = '';
-  if (err) err.style.display = 'none';
-  // Force reload by blanking src first, then setting it
-  img.src = '';
-  img.src = CAM_STREAM_URL;
-}
-
-function _camRetry() {
-  const img = document.getElementById('camStreamImg');
-  const err = document.getElementById('camStreamErr');
-  const msg = document.getElementById('camErrMsg');
-  if (!img) return;
-  img.style.display = 'none';
-  if (_camRetryCount < 5) {
-    _camRetryCount++;
-    const delay = _camRetryCount * 2000;  // 2 s, 4 s, 6 s, 8 s, 10 s
-    if (msg) msg.textContent = `Connecting… (attempt ${_camRetryCount}/5)`;
-    if (err) err.style.display = '';
-    clearTimeout(_camRetryTimer);
-    _camRetryTimer = setTimeout(_camSetStream, delay);
-  } else {
-    if (msg) msg.textContent = 'Stream unavailable or blocked by browser security.';
-    if (err) err.style.display = '';
-  }
-}
-
-function cameraAutoConnect() {
-  _camRetryCount = 0;
-  clearTimeout(_camRetryTimer);
-  _camSetStream();
-}
-function cameraFromSensor(id) { showPageTab('camera'); }
-function cameraReload() { cameraAutoConnect(); }
 
 // ─── Event log table ──────────────────────────────────────────────────────────
 function _renderIrrigLog(events) {
@@ -4822,6 +4714,16 @@ function resetProfile(mode, btn) {
     }
   } catch(_) {}
 
+  // Restore last-known heat pulse settings
+  try {
+    const savedHp = JSON.parse(localStorage.getItem('heatPulse') || 'null');
+    if (savedHp) {
+      _heatPulse = savedHp;
+      const hpCard = document.getElementById('rcard-' + HEAT_RELAY_ID);
+      if (hpCard && _cache[HEAT_RELAY_ID]) renderRelayCard(hpCard, _cache[HEAT_RELAY_ID]);
+    }
+  } catch(_) {}
+
   // Restore last-known grow stage
   try {
     const saved = localStorage.getItem('growStage');
@@ -4836,7 +4738,7 @@ function resetProfile(mode, btn) {
   // Restore last active page tab
   try {
     const tab = localStorage.getItem('pageTab');
-    if (['irrigation','sensors','syslog','camera','profiles'].includes(tab)) showPageTab(tab);
+    if (['irrigation','sensors','syslog','profiles'].includes(tab)) showPageTab(tab);
   } catch(_) {}
 
   // Restore VPD target so it shows instantly before WebSocket connects

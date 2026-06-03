@@ -22,14 +22,16 @@ public:
     int  rawAdc()  const { return _rawAdc; }   // last averaged ADC reading
     int  adcDry()  const { return _adcDry; }   // calibrated dry endpoint
     int  adcWet()  const { return _adcWet; }   // calibrated wet endpoint
-    void setCalib(int dry, int wet);            // update + persist to NVS
+    void setCalib(int dry, int wet);            // update calibration (deferred NVS write)
+    void flushCalibIfDirty();                   // call from loop() on Core 1
 
 private:
-    SoilData      _d      = {};
-    unsigned long _lastMs = 0;
-    int           _rawAdc = 0;
-    int           _adcDry = 2800;
-    int           _adcWet = 800;
+    SoilData      _d         = {};
+    unsigned long _lastMs    = 0;
+    int           _rawAdc    = 0;
+    int           _adcDry    = 2800;
+    int           _adcWet    = 800;
+    bool          _calibDirty = false;
     void loadCalibPrefs();
     void saveCalibPrefs();
 };

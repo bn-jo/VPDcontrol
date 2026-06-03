@@ -41,8 +41,15 @@ void SoilSensor::setCalib(int dry, int wet) {
     if (dry <= wet || dry < 100 || wet < 100) return;   // sanity check
     _adcDry = dry;
     _adcWet = wet;
+    _calibDirty = true;
+    Serial.printf("[SOIL] Calibration queued: dry=%d wet=%d\n", dry, wet);
+}
+
+void SoilSensor::flushCalibIfDirty() {
+    if (!_calibDirty) return;
+    _calibDirty = false;
     saveCalibPrefs();
-    Serial.printf("[SOIL] Calibration saved: dry=%d wet=%d\n", dry, wet);
+    Serial.printf("[SOIL] Calibration saved: dry=%d wet=%d\n", _adcDry, _adcWet);
 }
 
 void SoilSensor::loadCalibPrefs() {

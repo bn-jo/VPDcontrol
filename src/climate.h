@@ -55,6 +55,9 @@ public:
     uint8_t  dayStartHour()   const { return _dayStartHour; }
     uint8_t  dayStartMin()    const { return _dayStartMin;  }
 
+    // Call from Core 1 loop() — writes NVS only if dirty
+    void flushIfDirty();
+
 private:
     bool     _isOn;
     int64_t  _phaseStartEpoch;  // Unix epoch when current phase started
@@ -65,8 +68,10 @@ private:
     uint8_t  _alertFlags;
     uint8_t  _dayStartHour = 0xFF;   // 255 = disabled
     uint8_t  _dayStartMin  = 0;
+    volatile bool _dirty   = false;  // set from Core 0; flushed from Core 1
 
-    void save();
+    void markDirty();   // sets _dirty — safe to call from any core
+    void writeNvs();    // actual NVS write — must only be called from Core 1
     void load();
     void recoverFromNtp();  // Called once NTP becomes available
 };
@@ -107,6 +112,12 @@ public:
     // this many seconds after the A/C turns off, letting the environment settle.
     void                  setAcHumDelay(uint32_t sec);
     uint32_t              acHumDelaySec()  const { return _acHumDelaySec; }
+
+    // Heater pulse timing + trigger target (configurable via UI)
+    void                  setHeatPulse(uint32_t onSec, uint32_t restSec, float target = 0.0f);
+    uint32_t              heatPulseOnSec()   const { return _heatPulseOnSec; }
+    uint32_t              heatPulseRestSec() const { return _heatPulseRestSec; }
+    float                 heatTarget()       const { return _heatTarget; }
     // Days elapsed since current stage was set (0 if NTP not yet synced)
     uint32_t              stageDay()        const;
     void                  setStageDay(uint32_t day);  // manual correction
@@ -128,12 +139,17 @@ private:
     float           _acDayHigh    = 0.0f;   // 0 = follow day profile tempMax
     float           _acNightLow   = 0.0f;   // 0 = follow night profile tempMin
     float           _acNightHigh  = 0.0f;   // 0 = follow night profile tempMax
-    uint32_t        _acHumDelaySec = 600;   // seconds humidifier/heat-mat stay suppressed after A/C turns off
+    uint32_t        _acHumDelaySec    = 600;   // seconds humidifier/heat-mat stay suppressed after A/C turns off
+    uint32_t        _heatPulseOnSec   = 45;    // heater pulse ON duration (seconds)
+    uint32_t        _heatPulseRestSec = 420;   // heater rest between pulses (seconds)
+    float           _heatTarget       = 0.0f;  // turn ON below this °C; 0 = use profile tempMin
     unsigned long   _acLastOffMs   = 0;     // millis() when A/C last turned off (0 = never)
     int64_t         _stageStartEpoch;   // Unix epoch when current stage was last set
     bool            _userModeLocked     = false;  // set when user explicitly picks any non-flower stage
     volatile bool   _prefsDirty         = false;  // deferred climate NVS write
     volatile bool   _profilePrefsDirty = false;  // deferred profile NVS write — flushed from Core 1
+    volatile bool   _userModeDirty     = false;  // deferred "userMode" NVS key — separate from savePrefs()
+    uint8_t         _pendingUserMode   = 0;
 
     // Hysteresis state (persist between control ticks)
     bool _humidifierOn;

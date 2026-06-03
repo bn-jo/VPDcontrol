@@ -18,6 +18,9 @@
 #define RELAY_EXTRA_PIN        13   // Relay 8: Spare / extra device
 
 
+// ─── IR LED (A/C remote control — IRremoteESP8266, GPIO 23 former TX pin) ────
+#define IR_LED_PIN   23   // GPIO 23 — IR LED anode via 33Ω resistor + transistor
+
 // ─── Intake air sensor (DHT11 — room outside the tent) ───────────────────────
 // Wired to GPIO16 (free general-purpose IO; GPIO15 has pull-down that blocks DHT).
 #define INTAKE_SENSOR_PIN          16
@@ -43,11 +46,6 @@
 // Managed at runtime via the Sensors tab in the web UI (stored in NVS).
 // Constants are defined in wifisensors.h — nothing needed here.
 
-// Built-in sensor: always registered, always active, cannot be removed via UI.
-// Change the URL path if your sensor serves JSON on a different endpoint.
-#define BUILTIN_SENSOR_NAME  "Sensor 2"
-#define BUILTIN_SENSOR_URL   "http://192.168.1.204/data"
-
 // Static IP — ESP32 will always appear at this address on your network.
 // If you ever get a conflict, change STATIC_IP to another unused address.
 #define STATIC_IP          192,168,1,200
@@ -62,8 +60,8 @@
 #define STATIC_DNS         8,8,8,8
 
 // ─── Timing ──────────────────────────────────────────────────────────────────
-#define SENSOR_INTERVAL_MS    10000UL   // Read sensor every 10 s
-#define CONTROL_INTERVAL_MS   30000UL   // Run climate logic every 30 s
+#define SENSOR_INTERVAL_MS     5000UL   // Read sensor every 5 s
+#define CONTROL_INTERVAL_MS   10000UL   // Run climate logic every 10 s
 #define LOG_INTERVAL_MS      300000UL   // Log to flash every 5 min
 #define WS_PUSH_INTERVAL_MS    2000UL   // Push WebSocket state every 2 s
 #define MIN_RELAY_ON_MS             30000UL   // Minimum relay ON time
@@ -109,14 +107,7 @@
 #define LOG_FILE_PATH       "/logs.csv"
 #define LOG_MAX_ENTRIES     2016    // 7 days at 5-min intervals
 #define LOG_TRIM_TARGET     1008    // Keep 3.5 days after trim
-#define LOG_RESPONSE_BUF    40960   // 40 KB response buffer (covers ~24 h)
-
-// ─── Auto-Tune ───────────────────────────────────────────────────────────────
-// Step-response characterisation: BASELINE (relay OFF) → ON → COOLDOWN per relay.
-// Total time per relay ≈ 7 min; full run (5 relays) ≈ 35 min.
-#define AT_BASELINE_MS  120000UL   // 2 min — measure ambient before turning ON
-#define AT_ON_MS        180000UL   // 3 min — relay ON, measure effect
-#define AT_COOLDOWN_MS  120000UL   // 2 min — relay OFF, environment recovers
+#define LOG_RESPONSE_BUF    24000   // covers 24 h at 5-min intervals with step decimation (was 32 KB)
 
 // ─── Precision Irrigation ─────────────────────────────────────────────────────
 #define IRRIG_LOG_FILE   "/irrig.csv"
@@ -181,6 +172,14 @@ static const IrrigationProfile IRRIG_DEFAULTS[3][4] = {
     { false,  0,  0,   0,     0,     0,  0,  0 },  // Drying   — off
   },
 };
+
+// ─── DuckDNS — dynamic DNS (remote access without a static public IP) ────────
+// Sign up free at duckdns.org, create a domain, paste your token below.
+// The ESP32 will call the DuckDNS API every 5 min to keep the record current.
+// Set DUCKDNS_DOMAIN to "" to disable.
+#define DUCKDNS_DOMAIN       ""          // e.g. "mytent"  → mytent.duckdns.org
+#define DUCKDNS_TOKEN        ""          // from duckdns.org → your account page
+#define DUCKDNS_INTERVAL_MS  300000UL   // update every 5 min
 
 // ─── Remote data collector ────────────────────────────────────────────────────
 // Server that stores unlimited sensor history. Push happens every LOG_INTERVAL_MS.

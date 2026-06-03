@@ -15,18 +15,29 @@
 #include "climate.h"
 #include "datalogger.h"
 #include "webserver.h"
-#include "autotune.h"
 #include "wifisensors.h"
 #include "intakesensor.h"
 #include "syslog.h"
+#include "crashlog.h"
+#include "eventlog.h"
+#include "irremote.h"
 
 static TaskHandle_t _controlTaskHandle = nullptr;
 
-// ─── Remote log push — shared between controlTask (writer) and loop() (sender)
-// Single-slot queue: controlTask fills _pendingIrrig and sets the flag;
-// loop() reads it, clears the flag, then fires the HTTP POST on Core 1.
+// ─── Core 0 → Core 1 pending writes ──────────────────────────────────────────
+// All LittleFS and HTTP writes happen on Core 1 to keep the control loop pure.
+// Each slot is single-producer (Core 0) / single-consumer (Core 1).
+// Pattern: Core 0 writes payload then sets flag (with barrier); Core 1 clears
+// flag first (with barrier), then reads payload — same as _irrigPushPending.
+
+// Pending irrigation event (LittleFS log + HTTP remote push)
 static volatile bool _irrigPushPending = false;
 static IrrigEvent    _pendingIrrig;
+
+// Pending sensor log (LittleFS write every LOG_INTERVAL_MS)
+static volatile bool _sensorLogPending = false;
+static SensorData    _pendingLogSd;
+static float         _pendingLogSoil   = -1.0f;
 
 // ─── FreeRTOS task: sensor reading + climate control ─────────────────────────
 // Runs on Core 0 to leave Core 1 free for WiFi + web server
@@ -44,12 +55,7 @@ static void controlTask(void* pvParam) {
 
         // ── Sensor read ───────────────────────────────────────────────────────
         if (now - lastSensorMs >= SENSOR_INTERVAL_MS) {
-            bool ok = sensors.read();
-            if (!ok) Serial.println("[SNS] Read failed — using stale data");
-            if (ok) {
-                const SensorData& sd = sensors.data();
-                autoTuner.feed(sd.temperature, sd.humidity, sd.vpd);
-            }
+            if (!sensors.read()) Serial.println("[SNS] Read failed — using stale data");
             lastSensorMs = now;
         }
         intakeSensor.update();  // Self-throttles at INTAKE_SENSOR_INTERVAL_MS
@@ -74,23 +80,26 @@ static void controlTask(void* pvParam) {
 
         // ── Relay state machine (timers + hysteresis guards) ──────────────────
         relays.update();
-        autoTuner.tick();
 
         // ── Log completed irrigation events ───────────────────────────────────
+        // LittleFS write and HTTP push both happen on Core 1 (loop()) to keep
+        // Core 0 free of I/O. Payload is copied here; flag is set last (barrier).
         IrrigEvent iev;
         if (relays.popIrrigEvent(iev)) {
-            logger.logIrrigation(iev.ts, iev.soilBefore, iev.soilAfter,
-                                 iev.durationSec, iev.volumeML, iev.src);
-            // Queue for remote push (consumed by loop() on Core 1)
-            _pendingIrrig     = iev;
+            _pendingIrrig = iev;
+            __sync_synchronize();
             _irrigPushPending = true;
         }
 
         // ── Data logging ──────────────────────────────────────────────────────
+        // Sensor data is copied to a pending slot; Core 1's loop() does the
+        // actual LittleFS write so the control task stays off flash I/O entirely.
         if (now - lastLogMs >= LOG_INTERVAL_MS) {
             if (sensors.data().valid) {
-                float soilPct = soil.data().valid ? soil.data().moisture : -1.0f;
-                logger.log(sensors.data(), soilPct);
+                _pendingLogSoil = soil.data().valid ? soil.data().moisture : -1.0f;
+                _pendingLogSd   = sensors.data();
+                __sync_synchronize();
+                _sensorLogPending = true;
             }
             lastLogMs = now;
         }
@@ -177,22 +186,23 @@ void setup() {
     // ── Remote log + crash diagnostics ───────────────────────────────────────
     syslogBegin();   // load previous crash info from NVS
 
+    // Capture reset reason early (before LittleFS) so it can be logged later
+    static const char* _bootReason = "UNKNOWN";
     {
         esp_reset_reason_t rr = esp_reset_reason();
-        const char* rrStr = "UNKNOWN";
         switch (rr) {
-            case ESP_RST_POWERON:   rrStr = "POWER-ON";          break;
-            case ESP_RST_SW:        rrStr = "SOFTWARE-RESTART";  break;
-            case ESP_RST_PANIC:     rrStr = "PANIC-CRASH";       break;
-            case ESP_RST_INT_WDT:   rrStr = "INT-WATCHDOG";      break;
-            case ESP_RST_TASK_WDT:  rrStr = "TASK-WATCHDOG";     break;
-            case ESP_RST_WDT:       rrStr = "WDT-OTHER";         break;
-            case ESP_RST_BROWNOUT:  rrStr = "BROWNOUT";          break;
+            case ESP_RST_POWERON:   _bootReason = "POWER-ON";          break;
+            case ESP_RST_SW:        _bootReason = "SOFTWARE-RESTART";  break;
+            case ESP_RST_PANIC:     _bootReason = "PANIC-CRASH";       break;
+            case ESP_RST_INT_WDT:   _bootReason = "INT-WATCHDOG";      break;
+            case ESP_RST_TASK_WDT:  _bootReason = "TASK-WATCHDOG";     break;
+            case ESP_RST_WDT:       _bootReason = "WDT-OTHER";         break;
+            case ESP_RST_BROWNOUT:  _bootReason = "BROWNOUT";          break;
             default: break;
         }
-        rlog("[BOOT] Reset reason: %s", rrStr);
-        // Stamp this boot's reason into NVS so it survives the NEXT reboot
-        syslogSaveCrashInfo(rrStr);
+        rlog("[BOOT] Reset reason: %s", _bootReason);
+        syslogSaveCrashInfo(_bootReason);
+        crashlogBegin(rr);
     }
 
     // Hardware init
@@ -208,10 +218,12 @@ void setup() {
                  ns.used_entries, ns.free_entries, ns.total_entries, ns.namespace_count);
     }
     logger.begin();   // mounts LittleFS — must come before climate.begin()
+    eventlogBegin();  // count existing events (LittleFS already mounted)
+    eventlog("BOOT", _bootReason);  // persist this boot's reason across future reboots
     climate.begin();
     relays.setIrrigMode((uint8_t)climate.getMode());  // sync initial stage profile
-    autoTuner.begin();
     wifiSensors.begin();  // load NVS now — WiFi not required for NVS read
+    irRemote.begin();     // start IR task on Core 1 (dedicated 16 KB stack)
 
     // WiFi
     if (wifiConnect()) {
@@ -231,6 +243,9 @@ void setup() {
             climate.flushPrefsIfDirty();
             climate.flushProfilePrefsIfDirty();
             relays.flushPrefsIfDirty();
+            wifiSensors.flushPrefsIfDirty();
+            soil.flushCalibIfDirty();
+            irRemote.flushPrefsIfDirty();
             rlog("[OTA] Start — prefs flushed");
         });
         ArduinoOTA.onEnd([]()    { rlog("[OTA] Done — rebooting"); });
@@ -265,11 +280,17 @@ void loop() {
     static bool          roamScanActive = false;
     static bool          dailyRestartDone  = false;  // one restart per 01:20 window
     static bool          noonRestartDone   = false;  // one restart per 13:20 window
+    static bool          wifiWasUp         = false;  // track WiFi for event logging
+    static bool          lightsWasOn       = false;  // track light state for event logging
+    static GrowMode      lastGrowMode      = (GrowMode)255; // track stage for event logging
 
     // ── Deferred NVS flush — runs first, before any early return or restart ──────
     relays.flushPrefsIfDirty();
     climate.flushPrefsIfDirty();
     climate.flushProfilePrefsIfDirty();
+    wifiSensors.flushPrefsIfDirty();
+    soil.flushCalibIfDirty();
+    irRemote.flushPrefsIfDirty();
 
     // ── Stage auto-transition (Core 1) ────────────────────────────────────────
     // Runs here, NOT in controlTask, so it is serialised with setMode() on Core 1
@@ -281,6 +302,10 @@ void loop() {
     // the driver gives up (e.g. router reboot at night).
     if (WiFi.status() != WL_CONNECTED) {
         roamScanActive = false;   // cancel any pending roam scan
+        if (wifiWasUp) {
+            wifiWasUp = false;
+            eventlog("WIFI", "disconnected");
+        }
         unsigned long now = millis();
         if (now - lastWifiRetry >= 30000UL) {
             rlog("[WIFI] Lost — reconnecting...");
@@ -294,6 +319,12 @@ void loop() {
         esp_task_wdt_reset();  // pet WDT — WiFi loss must never trigger a crash loop
         yield();
         return;   // skip WS push and remote fetch while offline
+    }
+    if (!wifiWasUp) {
+        wifiWasUp = true;
+        char wfBuf[40];
+        snprintf(wfBuf, sizeof(wfBuf), "connected %s", WiFi.localIP().toString().c_str());
+        eventlog("WIFI", wfBuf);
     }
 
     // ── Roaming: periodically check for a stronger AP ─────────────────────────
@@ -335,21 +366,46 @@ void loop() {
 
     ArduinoOTA.handle();
 
-    wifiSensors.update();    // Non-blocking; polls each due sensor with exponential backoff
-
+    // ── WebSocket broadcast ───────────────────────────────────────────────────
+    // Runs BEFORE wifiSensors.update() so HTTP polling never delays the broadcast.
     if (millis() - lastWsPushMs >= WS_PUSH_INTERVAL_MS) {
         webBroadcast();
         lastWsPushMs = millis();
     }
 
+    // ── WiFi sensor polling (blocking HTTP GET — up to WIFI_SENSOR_TIMEOUT each)
+    wifiSensors.update();
+
     // ── Fix crash epoch once NTP syncs ───────────────────────────────────────
-    // At boot, syslogSaveCrashInfo runs before NTP so the epoch is 0.
-    // Update it to the correct wall-clock time as soon as NTP is ready.
     {
         static bool epochFixed = false;
         if (!epochFixed && time(nullptr) > 1000000000L) {
             epochFixed = true;
             syslogFixEpoch();
+            crashlogOnNtpSync();
+        }
+    }
+
+    // ── Track light state + grow stage changes → event log ────────────────────
+    {
+        bool lightsNow = climate.isLightsOn();
+        if (lightsNow != lightsWasOn) {
+            lightsWasOn = lightsNow;
+            eventlog("LIGHT", lightsNow ? "ON" : "OFF");
+        }
+        GrowMode modeNow = climate.getMode();
+        if (modeNow != lastGrowMode) {
+            lastGrowMode = modeNow;
+            if (lastGrowMode != (GrowMode)255) {  // skip the initial sentinel value
+                static const char* stageNames[] = {
+                    "Seedling","Veg","Early Flower","Late Flower","Drying"
+                };
+                char detail[48];
+                snprintf(detail, sizeof(detail), "%s day=%lu",
+                         stageNames[(int)modeNow < 5 ? (int)modeNow : 0],
+                         (unsigned long)climate.stageDay());
+                eventlog("STAGE", detail);
+            }
         }
     }
 
@@ -368,7 +424,11 @@ void loop() {
                 climate.flushPrefsIfDirty();
                 climate.flushProfilePrefsIfDirty();
                 relays.flushPrefsIfDirty();
+                wifiSensors.flushPrefsIfDirty();
+                soil.flushCalibIfDirty();
+                irRemote.flushPrefsIfDirty();
                 rlog("[MAIN] Safe restart at 01:20");
+                eventlog("RST", "safe-01:20");
                 syslogSaveCrashInfo("SOFTWARE-RESTART");
                 delay(200);
                 ESP.restart();
@@ -378,7 +438,11 @@ void loop() {
                 climate.flushPrefsIfDirty();
                 climate.flushProfilePrefsIfDirty();
                 relays.flushPrefsIfDirty();
+                wifiSensors.flushPrefsIfDirty();
+                soil.flushCalibIfDirty();
+                irRemote.flushPrefsIfDirty();
                 rlog("[MAIN] Safe restart at 13:20");
+                eventlog("RST", "safe-13:20");
                 syslogSaveCrashInfo("SOFTWARE-RESTART");
                 delay(200);
                 ESP.restart();
@@ -388,47 +452,101 @@ void loop() {
         }
     }
 
-    // ── Remote data push ──────────────────────────────────────────────────────
-    // Mirror every sensor log point and irrigation event to the remote server.
-    // Runs on Core 1 alongside WiFi — HTTPClient is not safe on Core 0.
+    // ── Deferred LittleFS writes + remote push (all Core 1) ──────────────────
+    // Core 0 copies data into pending slots and sets flags; Core 1 drains them
+    // here. This keeps the control task (Core 0) completely off flash I/O.
     {
-        static unsigned long lastRemoteLogMs = 0;
-        if (millis() - lastRemoteLogMs >= LOG_INTERVAL_MS && sensors.data().valid) {
-            lastRemoteLogMs = millis();
-            const SensorData& sd = sensors.data();
-            char body[100];
-            float soilPct = soil.data().valid ? soil.data().moisture : -1.0f;
-            int n;
-            if (soilPct >= 0.0f)
-                n = snprintf(body, sizeof(body),
-                    "{\"t\":%ld,\"T\":%.1f,\"H\":%.1f,\"V\":%.3f,\"S\":%.1f}",
-                    (long)sd.timestamp, sd.temperature, sd.humidity, sd.vpd, soilPct);
-            else
-                n = snprintf(body, sizeof(body),
-                    "{\"t\":%ld,\"T\":%.1f,\"H\":%.1f,\"V\":%.3f}",
-                    (long)sd.timestamp, sd.temperature, sd.humidity, sd.vpd);
-            (void)n;
-            HTTPClient http;
-            http.begin(REMOTE_LOG_URL "/vpd/log");
-            http.setTimeout(REMOTE_LOG_TIMEOUT);
-            http.addHeader("Content-Type", "application/json");
-            http.POST(body);
-            http.end();
+        // ── Sensor log ────────────────────────────────────────────────────────
+        if (_sensorLogPending) {
+            // Copy payload before clearing the flag so Core 0 can re-arm immediately.
+            SensorData logSd   = _pendingLogSd;
+            float      logSoil = _pendingLogSoil;
+            __sync_synchronize();
+            _sensorLogPending = false;
+
+            // LittleFS write — safe on Core 1 (HTTP handlers also Core 1)
+            if (logSd.valid) logger.log(logSd, logSoil);
+
+            // Remote push — same snapshot as LittleFS entry so they always match
+            if (REMOTE_LOG_URL[0]) {
+                char body[100];
+                int n;
+                if (logSoil >= 0.0f)
+                    n = snprintf(body, sizeof(body),
+                        "{\"t\":%ld,\"T\":%.1f,\"H\":%.1f,\"V\":%.3f,\"S\":%.1f}",
+                        (long)logSd.timestamp, logSd.temperature, logSd.humidity,
+                        logSd.vpd, logSoil);
+                else
+                    n = snprintf(body, sizeof(body),
+                        "{\"t\":%ld,\"T\":%.1f,\"H\":%.1f,\"V\":%.3f}",
+                        (long)logSd.timestamp, logSd.temperature, logSd.humidity,
+                        logSd.vpd);
+                (void)n;
+                esp_task_wdt_reset();
+                HTTPClient http;
+                http.begin(REMOTE_LOG_URL "/vpd/log");
+                http.setConnectTimeout(REMOTE_LOG_TIMEOUT);
+                http.setTimeout(REMOTE_LOG_TIMEOUT);
+                http.addHeader("Content-Type", "application/json");
+                http.POST(body);
+                http.end();
+            }
         }
 
+        // ── Irrigation event ──────────────────────────────────────────────────
+        // Clear flag FIRST so Core 0 can arm a new event while we process this one.
         if (_irrigPushPending) {
-            _irrigPushPending = false;
             IrrigEvent ie = _pendingIrrig;
-            char body[128];
-            snprintf(body, sizeof(body),
-                "{\"t\":%ld,\"b\":%.1f,\"a\":%.1f,\"d\":%lu,\"ml\":%lu,\"src\":%u}",
-                (long)ie.ts, ie.soilBefore, ie.soilAfter,
-                (unsigned long)ie.durationSec, (unsigned long)ie.volumeML, (unsigned)ie.src);
+            __sync_synchronize();
+            _irrigPushPending = false;
+
+            // LittleFS write — safe on Core 1
+            logger.logIrrigation(ie.ts, ie.soilBefore, ie.soilAfter,
+                                  ie.durationSec, ie.volumeML, ie.src);
+
+            // Remote push
+            if (REMOTE_LOG_URL[0]) {
+                char body[128];
+                snprintf(body, sizeof(body),
+                    "{\"t\":%ld,\"b\":%.1f,\"a\":%.1f,\"d\":%lu,\"ml\":%lu,\"src\":%u}",
+                    (long)ie.ts, ie.soilBefore, ie.soilAfter,
+                    (unsigned long)ie.durationSec, (unsigned long)ie.volumeML,
+                    (unsigned)ie.src);
+                esp_task_wdt_reset();
+                HTTPClient http;
+                http.begin(REMOTE_LOG_URL "/vpd/irrig");
+                http.setConnectTimeout(REMOTE_LOG_TIMEOUT);
+                http.setTimeout(REMOTE_LOG_TIMEOUT);
+                http.addHeader("Content-Type", "application/json");
+                http.POST(body);
+                http.end();
+            }
+        }
+    }
+
+    // ── DuckDNS update — keeps remote access hostname current ────────────────
+    if (DUCKDNS_DOMAIN[0] && DUCKDNS_TOKEN[0]) {
+        static unsigned long lastDnsMs = 0;
+        if (millis() - lastDnsMs >= DUCKDNS_INTERVAL_MS) {
+            lastDnsMs = millis();
+            char url[220];
+            snprintf(url, sizeof(url),
+                "http://www.duckdns.org/update?domains=%s&token=%s&ip=",
+                DUCKDNS_DOMAIN, DUCKDNS_TOKEN);
+            esp_task_wdt_reset();  // GET may block up to 4 s
             HTTPClient http;
-            http.begin(REMOTE_LOG_URL "/vpd/irrig");
-            http.setTimeout(REMOTE_LOG_TIMEOUT);
-            http.addHeader("Content-Type", "application/json");
-            http.POST(body);
+            http.begin(url);
+            http.setTimeout(4000);
+            int code = http.GET();
+            if (code == 200) {
+                char resp[8] = {};
+                WiFiClient* stream = http.getStreamPtr();
+                if (stream) stream->readBytes(resp, sizeof(resp) - 1);
+                resp[strcspn(resp, "\r\n ")] = '\0';
+                rlog("[DDNS] %s", resp);   // "OK" or "KO"
+            } else {
+                rlog("[DDNS] Update failed: %d", code);
+            }
             http.end();
         }
     }
@@ -439,13 +557,26 @@ void loop() {
         uint32_t c1Stack    = uxTaskGetStackHighWaterMark(nullptr);
         uint32_t c0Stack    = _controlTaskHandle
                               ? uxTaskGetStackHighWaterMark(_controlTaskHandle) : 0;
-        rlog("[HEAP] Free: %u  min-ever: %u  C0-stack: %u  C1-stack: %u",
-             freeHeap, ESP.getMinFreeHeap(), c0Stack, c1Stack);
+        // async_tcp and irTask are library-created tasks; look them up by name once.
+        static TaskHandle_t _asyncHandle = nullptr;
+        static TaskHandle_t _irHandle    = nullptr;
+        if (!_asyncHandle) _asyncHandle  = xTaskGetHandle("async_tcp");
+        if (!_irHandle)    _irHandle     = xTaskGetHandle("irTask");
+        uint32_t asyncStack = _asyncHandle ? uxTaskGetStackHighWaterMark(_asyncHandle) : 0;
+        uint32_t irStack    = _irHandle    ? uxTaskGetStackHighWaterMark(_irHandle)    : 0;
+        rlog("[HEAP] Free: %u  min: %u  C0: %u  C1: %u  async: %u  ir: %u",
+             freeHeap, ESP.getMinFreeHeap(), c0Stack, c1Stack, asyncStack, irStack);
         if (freeHeap < 20000) {   // raised from 10 KB — restart before allocations start failing
             climate.flushPrefsIfDirty();
             climate.flushProfilePrefsIfDirty();
             relays.flushPrefsIfDirty();
+            wifiSensors.flushPrefsIfDirty();
+            soil.flushCalibIfDirty();
+            irRemote.flushPrefsIfDirty();
             rlog("[HEAP] Low — restarting");
+            char hpBuf[32];
+            snprintf(hpBuf, sizeof(hpBuf), "free=%lu", (unsigned long)freeHeap);
+            eventlog("HEAP-RST", hpBuf);
             syslogSaveCrashInfo("HEAP-LOW");
             delay(200);
             ESP.restart();

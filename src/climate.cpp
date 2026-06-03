@@ -32,26 +32,28 @@ void LightSchedule::onModeChange(GrowMode newMode, const GrowProfile* profiles) 
     _onSec  = (uint32_t)profiles[newMode].lightOnHours  * 3600U;
     _offSec = (uint32_t)profiles[newMode].lightOffHours * 3600U;
     _mode   = newMode;
-    save();
+    markDirty();
 }
 
 void LightSchedule::setDayStart(uint8_t hour, uint8_t min) {
     _dayStartHour = hour;
     _dayStartMin  = min;
-    save();
+    markDirty();
 }
 
 void LightSchedule::tick() {
-    // Seedling: always ON — no schedule needed
+    // Seedling: always ON — no schedule needed. With no time-based phases, neither
+    // the overdue nor the NTP-missing alert is meaningful — clear both so the
+    // "Light Schedule Alert" banner never pops on a 24/7 schedule.
     if (_offSec == 0) {
         _isOn = true;
-        _alertFlags &= ~ALERT_SCHED_OVERDUE;
+        _alertFlags &= ~(ALERT_SCHED_OVERDUE | ALERT_NTP_MISSING);
         return;
     }
-    // Drying: always OFF — lights never on
+    // Drying: always OFF — lights never on. Same reasoning: no schedule, no alerts.
     if (_onSec == 0) {
         _isOn = false;
-        _alertFlags &= ~ALERT_SCHED_OVERDUE;
+        _alertFlags &= ~(ALERT_SCHED_OVERDUE | ALERT_NTP_MISSING);
         return;
     }
 
@@ -88,7 +90,7 @@ void LightSchedule::tick() {
         if (_isOn != shouldBeOn) {
             _isOn            = shouldBeOn;
             _phaseStartEpoch = (int64_t)now;
-            save();
+            markDirty();
             Serial.printf("[LIGHT] Fixed-start → %s\n", _isOn ? "ON" : "OFF");
         }
         _alertFlags &= ~ALERT_SCHED_OVERDUE;
@@ -104,7 +106,7 @@ void LightSchedule::tick() {
     if ((uint64_t)elapsed >= phaseDuration) {
         _isOn = !_isOn;
         _phaseStartEpoch = (int64_t)now;
-        save();
+        markDirty();
         Serial.printf("[LIGHT] Phase → %s\n", _isOn ? "ON" : "OFF");
     }
 
@@ -170,7 +172,7 @@ void LightSchedule::recoverFromNtp() {
     if (_phaseStartEpoch == 0) {
         _isOn            = true;
         _phaseStartEpoch = (int64_t)now;
-        save();
+        markDirty();
         Serial.println("[LIGHT] First boot — starting ON phase");
         return;
     }
@@ -203,12 +205,17 @@ void LightSchedule::recoverFromNtp() {
         _isOn            = false;
         _phaseStartEpoch = (int64_t)now - (int64_t)(posInCycle - _onSec);
     }
-    save();
+    markDirty();
     Serial.printf("[LIGHT] NTP recovery — %s phase, %lu s remaining\n",
                   _isOn ? "ON" : "OFF", (unsigned long)remainingSec());
 }
 
-void LightSchedule::save() {
+// markDirty() — safe to call from any core (sets a volatile flag only).
+// writeNvs()  — the actual flash write; MUST be called only from Core 1.
+// flushIfDirty() — called from ClimateController::flushPrefsIfDirty() on Core 1.
+void LightSchedule::markDirty() { _dirty = true; }
+
+void LightSchedule::writeNvs() {
     Preferences p;
     p.begin("lights", false);
     p.putLong64("epoch", _phaseStartEpoch);
@@ -217,6 +224,12 @@ void LightSchedule::save() {
     p.putUChar ("dsh",   _dayStartHour);
     p.putUChar ("dsm",   _dayStartMin);
     p.end();
+}
+
+void LightSchedule::flushIfDirty() {
+    if (!_dirty) return;
+    _dirty = false;
+    writeNvs();
 }
 
 void LightSchedule::load() {
@@ -317,16 +330,13 @@ void ClimateController::setMode(GrowMode m) {
     // Record when this stage started (requires NTP; stored as 0 if not yet synced)
     time_t now = time(nullptr);
     _stageStartEpoch = (now > 1000000000L) ? (int64_t)now : 0;
-    // Stage changes are infrequent user actions — write immediately so a reboot
-    // (OTA upload, power cut, scheduled restart) never loses the new stage.
-    savePrefs();
-    // Write a separate "userMode" key that the auto-transition never touches.
-    // loadPrefs() prefers this key so auto-transition can never overwrite user intent.
-    Preferences pu;
-    pu.begin("climate", false);
-    pu.putUChar("userMode", (uint8_t)m);
-    pu.end();
-    rlog("[CLIMATE] userMode saved=%d", (int)m);
+    // Defer both the main prefs and the "userMode" key to Core 1's flush.
+    // Previously these were written immediately from the WS callback (async_tcp task),
+    // which could preempt loop()'s flushPrefsIfDirty() mid-NVS-sequence.
+    _prefsDirty       = true;
+    _pendingUserMode  = (uint8_t)m;
+    _userModeDirty    = true;
+    rlog("[CLIMATE] setMode=%d (deferred NVS write)", (int)m);
 }
 
 void ClimateController::setDryingFast(bool fast) {
@@ -351,7 +361,7 @@ void ClimateController::setStageDay(uint32_t day) {
     time_t now = time(nullptr);
     if (now < 1000000000L || day < 1) return;
     _stageStartEpoch = (int64_t)now - (int64_t)(day - 1) * 86400LL;
-    savePrefs();
+    _prefsDirty = true;
 }
 
 void ClimateController::checkAutoTransition() {
@@ -485,9 +495,10 @@ void ClimateController::computeOutputs(const SensorData& sd) {
     }
 
     // ── Threshold flags ───────────────────────────────────────────────────────
-    // Temperature
+    // Temperature — heater target overrides profile tempMin when set
+    const float heatMin = (_heatTarget > 0.0f) ? _heatTarget : p.tempMin;
     const bool tempHigh = t > (p.tempMax + TEMP_HYST);
-    const bool tempLow  = t < (p.tempMin - heatBuf);
+    const bool tempLow  = t < (heatMin - heatBuf);
 
     // Humidity — hard profile limits (mold / plant stress)
     const bool humHigh  = h > (p.humMax + dehBuf);
@@ -532,8 +543,8 @@ void ClimateController::computeOutputs(const SensorData& sd) {
             // Exhaust
             if (tempHigh) {
                 want = true;                        // temp emergency — always exhaust
-            } else if (tempLow) {
-                want = false;                       // too cold — keep heat in
+            } else if (tempLow && !humHigh) {
+                want = false;                       // too cold — keep heat in; critical humidity overrides
             } else if (!lightsOn && fanShouldStop && !humHigh) {
                 // Lights OFF + air dry + no mold risk:
                 // stop exhausting so the humidifier can build moisture.
@@ -627,7 +638,7 @@ void ClimateController::computeOutputs(const SensorData& sd) {
     //   • Trigger: temp below tempMin OR humidity high while below tempMin
     //   • humColdAssist uses tempMin (not tempMax) — heater only helps when
     //     it is actually cold; never runs warm just because humidity is high
-    //   • Hard off checked FIRST: t ≥ 24 °C, lights, <30 min to lights-on,
+    //   • Hard off checked FIRST: t ≥ 24 °C, lights+temp≥min, <30 min to lights-on,
     //     A/C running/settling, outside air warmer, relay not installed
     //   • Pulse: HEAT_PULSE_ON_MS on → HEAT_PULSE_REST_MS off → repeat
     {
@@ -639,11 +650,11 @@ void ClimateController::computeOutputs(const SensorData& sd) {
                           (now - _acLastOffMs) < (unsigned long)_acHumDelaySec * 1000UL;
         bool hardOff = (t >= 24.0f)                   // user ceiling — never heat at/above 24 °C
                     || tempHigh
-                    || lightsOn
+                    || (lightsOn && t >= heatMin)     // lights + adequate temp → no heat; cold + lights → allow
                     || (_sched.remainingSec() < 1800U) // <30 min to lights-on
                     || !relays.get(HEAT_MAT).installed
                     || (intakeSensor.data().valid && intakeSensor.data().temperature >= t)
-                    || _acOn || acCooldown;
+                    || _acOn || acCooldown;           // never heat while A/C is running or cooling down
 
         if (hardOff) {
             // Reset pulse state cleanly — no log spam while blocked
@@ -662,7 +673,7 @@ void ClimateController::computeOutputs(const SensorData& sd) {
             if (needHeat) {
                 if (_heatPulseOn) {
                     // Currently in ON phase — keep until HEAT_PULSE_ON_MS elapsed
-                    if (now - _heatPulseStartMs >= HEAT_PULSE_ON_MS) {
+                    if (now - _heatPulseStartMs >= (unsigned long)_heatPulseOnSec * 1000UL) {
                         _heatPulseOn    = false;
                         _heatPulseOffMs = now;
                         want = false;
@@ -672,7 +683,7 @@ void ClimateController::computeOutputs(const SensorData& sd) {
                     }
                 } else {
                     // In rest (OFF) phase — fire when rest expires or on first trigger
-                    if (_heatPulseOffMs == 0 || (now - _heatPulseOffMs >= HEAT_PULSE_REST_MS)) {
+                    if (_heatPulseOffMs == 0 || (now - _heatPulseOffMs >= (unsigned long)_heatPulseRestSec * 1000UL)) {
                         _heatPulseOn      = true;
                         _heatPulseStartMs = now;
                         want = true;
@@ -735,28 +746,40 @@ void ClimateController::computeOutputs(const SensorData& sd) {
     }
 
     // A/C ↔ humidifier interlock
-    // In normal modes: block humidifier while A/C is ON or in post-off cooldown —
-    // running both causes large swings and wastes energy.
-    // In drying mode: A/C manages temperature while the humidifier targets the RH
-    // setpoint, so they may run together — but suppress the humidifier when A/C is
-    // within AC_PRESHUTDOWN_MARGIN of its shutoff point, because humidity spikes as
-    // soon as the A/C stops dehumidifying. Also keep the post-off cooldown guard so
-    // the environment settles before we add moisture again.
-    // Critical-low exception (h < 35 %): always allow humidifier regardless of mode.
-    {
+    // Flower / Late Flower: block humidifier while A/C is ON or cooling down —
+    // running both causes large RH swings and wastes energy.
+    // Seedling, Veg, Drying: high humidity is a priority; humidifier may run
+    // alongside A/C — but suppress it when A/C is within AC_PRESHUTDOWN_MARGIN of
+    // its shutoff point (humidity spikes as soon as A/C stops dehumidifying) and
+    // keep the post-off cooldown guard so the environment settles first.
+    // Stage-dependent behaviour:
+    //   Seedling / Veg: humidity is the top priority — the A/C interlock NEVER
+    //     blocks the humidifier. The main humidifier logic (humLow / vpdDry, with
+    //     the humHigh mold cutoff) is the sole authority, so it runs whenever RH
+    //     is low, even with the A/C running or cooling down.
+    //   Drying: moisture still matters, but respect the post-A/C RH spike — suppress
+    //     near the A/C shutoff / cooldown unless RH is below the profile minimum.
+    //   Flower / Late Flower: want LOW humidity and RH spikes the moment the A/C
+    //     stops dehumidifying, so hold the humidifier off near A/C events and only
+    //     release it on a true dry-out (hard 35 % floor).
+    bool acExempt = (_mode == GROW_SEEDLING || _mode == GROW_VEG);
+    if (!acExempt) {
         bool acCooldown = _acLastOffMs > 0 &&
                           (millis() - _acLastOffMs) < (unsigned long)_acHumDelaySec * 1000UL;
-        bool suppress;
+        bool  suppress;
+        float critLow;
         if (_mode == GROW_DRYING) {
             const float acLow_ = lightsOn ?
                 ((_acDayLow   > 0.0f) ? _acDayLow   : p.tempMin) :
                 ((_acNightLow > 0.0f) ? _acNightLow : p.tempMin);
             bool acNearOff = _acOn && (t <= acLow_ + AC_PRESHUTDOWN_MARGIN);
             suppress = acNearOff || acCooldown;
+            critLow  = p.humMin;     // humidify to target
         } else {
             suppress = _acOn || acCooldown;
+            critLow  = 35.0f;        // flower: only a true dry-out releases the block
         }
-        if (suppress && _humidifierOn && h >= 35.0f) {
+        if (suppress && _humidifierOn && h >= critLow) {
             relays.setAutoState(HUMIDIFIER, false);
             _humidifierOn = false;
         }
@@ -771,7 +794,7 @@ void ClimateController::setVpdTarget(bool enabled, float kpa, float buffer) {
     _vpdTarget.enabled = enabled;
     _vpdTarget.kpa     = kpa;
     _vpdTarget.buffer  = buffer;
-    savePrefs();
+    _prefsDirty = true;
 }
 
 void ClimateController::setAcTemps(float low, float high, bool night) {
@@ -782,12 +805,23 @@ void ClimateController::setAcTemps(float low, float high, bool night) {
         _acDayLow  = low;
         _acDayHigh = high;
     }
-    savePrefs();
+    _prefsDirty = true;
 }
 
 void ClimateController::setAcHumDelay(uint32_t sec) {
     _acHumDelaySec = sec;
-    savePrefs();
+    _prefsDirty = true;
+}
+
+void ClimateController::setHeatPulse(uint32_t onSec, uint32_t restSec, float target) {
+    if (onSec   < 5)    onSec   = 5;
+    if (onSec   > 3600) onSec   = 3600;
+    if (restSec < 30)   restSec = 30;
+    if (restSec > 7200) restSec = 7200;
+    _heatPulseOnSec   = onSec;
+    _heatPulseRestSec = restSec;
+    _heatTarget       = (target > 0.0f) ? target : 0.0f;
+    _prefsDirty = true;
 }
 
 // ─── Persistence ─────────────────────────────────────────────────────────────
@@ -805,6 +839,9 @@ void ClimateController::savePrefs() {
     p.putFloat  ("acNLow",    _acNightLow);
     p.putFloat  ("acNHigh",   _acNightHigh);
     p.putUInt   ("acDelay",   _acHumDelaySec);
+    p.putUInt   ("hpOnSec",  _heatPulseOnSec);
+    p.putUInt   ("hpRestSec",_heatPulseRestSec);
+    p.putFloat  ("hpTarget", _heatTarget);
     p.putLong64 ("stEpoch",   _stageStartEpoch);
     p.putBool   ("modeLocked", _userModeLocked);
     p.end();
@@ -832,6 +869,9 @@ void ClimateController::loadPrefs() {
     _acNightLow        = p.getFloat  ("acNLow",    0.0f);
     _acNightHigh       = p.getFloat  ("acNHigh",   0.0f);
     _acHumDelaySec     = p.getUInt   ("acDelay",   600);
+    _heatPulseOnSec    = p.getUInt   ("hpOnSec",  45);
+    _heatPulseRestSec  = p.getUInt   ("hpRestSec",420);
+    _heatTarget        = p.getFloat  ("hpTarget", 0.0f);
     _stageStartEpoch   = p.getLong64 ("stEpoch",   0LL);
     // If modeLocked key was never written (first boot on this firmware), infer it
     // from userMode: if the user previously set a non-flower stage, treat it as
@@ -908,9 +948,22 @@ void ClimateController::saveProfilePrefs() {
 }
 
 void ClimateController::flushPrefsIfDirty() {
-    if (!_prefsDirty) return;
-    _prefsDirty = false;
-    savePrefs();
+    // "userMode" key is written separately from savePrefs() so auto-transitions
+    // can never overwrite it (savePrefs() writes "mode"; "userMode" is only set
+    // when the user explicitly picks a stage).
+    if (_userModeDirty) {
+        _userModeDirty = false;
+        Preferences pu;
+        pu.begin("climate", false);
+        pu.putUChar("userMode", _pendingUserMode);
+        pu.end();
+        rlog("[CLIMATE] userMode flushed=%d", (int)_pendingUserMode);
+    }
+    if (_prefsDirty) {
+        _prefsDirty = false;
+        savePrefs();
+    }
+    _sched.flushIfDirty();  // light schedule NVS — must only write from Core 1
 }
 
 void ClimateController::flushProfilePrefsIfDirty() {

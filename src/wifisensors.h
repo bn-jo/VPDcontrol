@@ -3,7 +3,7 @@
 
 // ─── WiFi Sensor Manager ──────────────────────────────────────────────────────
 // Polls up to WIFI_SENSOR_MAX remote ESP nodes for temperature + humidity via HTTP.
-// Each node is identified by a sensor data URL (and optionally a camera stream URL).
+// Each node is identified by a sensor data URL.
 // Settings persist in NVS ("wsens" namespace). Update() must be called from loop()
 // on Core 1 — HTTPClient is not safe on Core 0.
 
@@ -12,14 +12,13 @@
 #define WIFI_SENSOR_URL_LEN   80
 
 #define WIFI_SENSOR_POLL_MS       30000UL   // normal poll interval (30 s)
-#define WIFI_SENSOR_TIMEOUT       2000      // HTTP connect + read timeout (ms)
+#define WIFI_SENSOR_TIMEOUT        800      // HTTP connect + read timeout (ms) — LAN sensors respond in <100 ms
 #define WIFI_SENSOR_BACKOFF       60000UL   // max back-off on repeated failure (60 s)
 #define WIFI_SENSOR_GRACE_FAILS   2         // failures before marking invalid (grace period)
 
 struct WifiSensor {
     char  name[WIFI_SENSOR_NAME_LEN] = {};
-    char  sensorUrl[WIFI_SENSOR_URL_LEN] = {};  // URL that returns {"temp":X,"hum":Y} — empty = camera-only
-    char  streamUrl[WIFI_SENSOR_URL_LEN] = {};  // MJPEG stream URL — empty = no camera
+    char  sensorUrl[WIFI_SENSOR_URL_LEN] = {};  // URL that returns {"temp":X,"hum":Y}
     bool  enabled      = false;  // entry is active (shown in list, sensor polled if sensorUrl set)
     bool  sensorActive = true;   // include T/H readings in climate calculations
 
@@ -42,8 +41,7 @@ public:
 
     // Management — all persist to NVS immediately.
     // add(): updates existing entry if name matches, else finds empty slot.
-    //        sensorUrl may be empty for camera-only entries.
-    bool add(const char* name, const char* sensorUrl, const char* streamUrl);
+    bool add(const char* name, const char* sensorUrl);
     bool remove(int id);
     bool setEnabled(int id, bool en);
     bool setSensorActive(int id, bool active);  // toggle T/H inclusion in climate calculations
@@ -56,11 +54,12 @@ public:
 
     void savePrefs();
     void loadPrefs();
+    void flushPrefsIfDirty();  // call from loop() on Core 1 — deferred NVS write
 
 private:
     WifiSensor _s[WIFI_SENSOR_MAX];
+    bool _prefsDirty = false;  // set by WS callbacks; flushed from loop()
     void _poll(int id);
-    void _ensureBuiltin();   // guarantees the built-in sensor is always registered
 };
 
 extern WifiSensorManager wifiSensors;
