@@ -33,7 +33,11 @@ dashboard, with no cloud dependency.
 
 ## Screenshots
 
-> _Add a dashboard screenshot / demo GIF here — e.g. `docs/dashboard.png`._
+![Web dashboard](docs/dashboard.png)
+
+*Live dashboard: sensor cards (T / RH / VPD / soil), grow-stage progress, 24 h
+history chart, VPD target and per-relay controls — served straight from the
+ESP32.*
 
 A full wiring diagram is included: [`wiring_diagram.svg`](wiring_diagram.svg).
 
@@ -146,4 +150,4 @@ reference, climate logic and the flash procedure.
 
 ## License
 
-_TODO: add a LICENSE file (MIT recommended for maximum reuse)._
+Released under the [MIT License](LICENSE) — free to use, modify and distribute.
