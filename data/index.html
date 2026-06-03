@@ -862,6 +862,29 @@ button, input, select, textarea { font-family: inherit; }
   }
 }
 
+/* ─── Split dashboard (Tent 1 | Tent 2) ─────────────────────────────────────── */
+#splitWrap { display:block; }
+#paneRight { display:none; }
+#splitBtn.active { border-color:var(--accent); color:var(--accent); }
+
+body.split-active #splitWrap { display:flex; align-items:stretch; height:100vh; overflow:hidden; }
+body.split-active #paneLeft  { flex:1 1 50%; min-width:0; height:100vh; overflow-y:auto; overflow-x:hidden; }
+body.split-active #paneRight { flex:1 1 50%; min-width:0; display:flex; flex-direction:column; height:100vh; border-left:2px solid var(--border); }
+body.split-active #tent2Bar  { display:flex; align-items:center; justify-content:space-between; gap:.5rem;
+  padding:.45rem .7rem; background:rgba(9,9,11,.92); backdrop-filter:blur(18px) saturate(1.5);
+  border-bottom:1px solid var(--border); font-size:.8rem; font-weight:600; color:var(--text); }
+body.split-active #tent2Frame { flex:1 1 auto; width:100%; border:0; background:var(--bg); }
+#tent2Bar button { background:transparent; border:1px solid var(--border); color:var(--muted);
+  border-radius:5px; cursor:pointer; padding:.15rem .45rem; font-size:.72rem; font-family:inherit; }
+#tent2Bar button:hover { border-color:var(--accent); color:var(--accent); }
+
+@media (max-width:780px) {
+  body.split-active #splitWrap { flex-direction:column; }
+  body.split-active #paneLeft,
+  body.split-active #paneRight { flex:1 1 50%; height:50vh; }
+  body.split-active #paneRight { border-left:0; border-top:2px solid var(--border); }
+}
+
 </style>
 </head>
 <body>
@@ -874,7 +897,7 @@ button, input, select, textarea { font-family: inherit; }
       You are changing from <strong id="mFromStage"></strong> to
       <strong id="mToStage"></strong>.<br><br>
       <span id="mModalBody">This <strong>cannot be undone</strong>. Wrong timing — especially
-      switching to Flowering early — can permanently harm your plants.
+      switching to Blooming early — can permanently harm your plants.
       Only proceed if you are certain.</span>
     </div>
     <div class="modal-actions">
@@ -884,6 +907,8 @@ button, input, select, textarea { font-family: inherit; }
   </div>
 </div>
 
+<div id="splitWrap">
+<div id="paneLeft">
 <header>
   <div class="logo"><span class="logo-plant">🌿</span> <span>Guetos</span> Systems</div>
   <span class="phase-badge" id="phaseBadge" style="display:none"></span>
@@ -901,12 +926,13 @@ button, input, select, textarea { font-family: inherit; }
     <select class="grow-mode" id="growMode" onchange="requestStageChange(parseInt(this.value))">
       <option value="0">🌱 Seedling</option>
       <option value="1">🍃 Vegetative</option>
-      <option value="2">🌸 Early Flower</option>
-      <option value="3">🌺 Late Flower</option>
+      <option value="2">🌸 Early Bloom</option>
+      <option value="3">🌺 Late Bloom</option>
       <option value="4">🍂 Drying</option>
     </select>
     <span id="stageDayBadge" style="font-size:.68rem;color:var(--muted);padding-right:.2rem"></span>
     <button onclick="rebootESP()" style="font-size:.62rem;padding:.15rem .5rem;background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:5px;cursor:pointer;align-self:flex-end" title="Restart ESP32">↺ Restart</button>
+    <button id="splitBtn" onclick="toggleSplit()" style="font-size:.62rem;padding:.15rem .5rem;background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:5px;cursor:pointer;align-self:flex-end" title="Split view: show Tent 2 alongside this dashboard">⊞ Tent 2</button>
     <div id="dryToggle" style="display:none;align-self:flex-end">
       <div class="dry-toggle">
         <button id="drySlowBtn" class="active" onclick="sendDryMode(false)">🍂 Slow</button>
@@ -1478,6 +1504,20 @@ button, input, select, textarea { font-family: inherit; }
 </div><!-- end #tab-profiles -->
 
 </main>
+</div><!-- /#paneLeft -->
+
+<div id="paneRight">
+  <div id="tent2Bar">
+    <span>🏠 Tent 2 · <span id="tent2Addr"></span></span>
+    <span style="display:flex;gap:.35rem">
+      <button onclick="editTent2()"      title="Change Tent 2 address">✎</button>
+      <button onclick="reloadTent2()"     title="Reload Tent 2">↺</button>
+      <button onclick="openTent2NewTab()" title="Open Tent 2 in a new tab">↗</button>
+    </span>
+  </div>
+  <iframe id="tent2Frame" title="Tent 2 dashboard" referrerpolicy="no-referrer"></iframe>
+</div>
+</div><!-- /#splitWrap -->
 
 <!-- Chart.js + date adapter + zoom plugin (requires internet) -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
@@ -1607,9 +1647,9 @@ function handleState(s) {
 }
 
 // ─── Grow-assist: stage progress + watering ETA ───────────────────────────────
-const _STAGE_NAMES     = ['Seedling','Vegetative','Early Flower','Late Flower','Drying'];
+const _STAGE_NAMES     = ['Seedling','Vegetative','Early Bloom','Late Bloom','Drying'];
 const _STAGE_AUTO_DAYS = [0, 0, 21, 0, 0];   // auto-transition trigger day per stage (0 = manual only)
-const _STAGE_NEXT_NAME = ['','','Late Flower','',''];
+const _STAGE_NEXT_NAME = ['','','Late Bloom','',''];
 
 function updateGrowProgress(s) {
   const sec = document.getElementById('growProgressSection');
@@ -1753,11 +1793,11 @@ function updateMetrics(s) {
   const labelEl = document.getElementById('label-stageday');
   const weekEl = document.getElementById('stageWeekBadge');
   if (day > 0) {
-    // Late Flower: add the 21 Early Flower days so counter shows total flower days
+    // Late Bloom: add the 21 Early Bloom days so counter shows total bloom days
     const dispDay = (s.growMode === 3) ? day + 21 : day;
-    if (labelEl) labelEl.textContent = (s.growMode === 3) ? 'Flower Day' : ('Grow Day ' + stageName);
+    if (labelEl) labelEl.textContent = (s.growMode === 3) ? 'Bloom Day' : ('Grow Day ' + stageName);
     setMetric('stageday', 'Day ' + dispDay, 'green', stageName);
-    // Week counter — shown for both flowering stages
+    // Week counter — shown for both blooming stages
     if (weekEl) {
       if (s.growMode === 2 || s.growMode === 3) {
         weekEl.textContent = 'Week ' + Math.ceil(dispDay / 7);
@@ -1771,7 +1811,7 @@ function updateMetrics(s) {
       if (s.growMode === 2 && day <= 21) {
         badgeText = 'Day ' + day + ' (→Late at 22)';
       } else if (s.growMode === 3) {
-        badgeText = 'Flowering day ' + dispDay + ' late flower';
+        badgeText = 'Blooming day ' + dispDay + ' late bloom';
       } else if (s.growMode === 4) {
         const fast = !!s.dryingFast;
         const totMin = fast ? 5 : 10;
@@ -2504,7 +2544,7 @@ function renderRelayCard(card, r, force) {
 }
 
 // ─── User actions → WebSocket ─────────────────────────────────────────────────
-const STAGE_NAMES = ['Seedling', 'Vegetative', 'Early Flower', 'Late Flower', 'Drying'];
+const STAGE_NAMES = ['Seedling', 'Vegetative', 'Early Bloom', 'Late Bloom', 'Drying'];
 let _pendingStage = null;
 
 function requestStageChange(newMode) {
@@ -2520,7 +2560,7 @@ function requestStageChange(newMode) {
   document.getElementById('mConfirmBtn').textContent = 'Change to ' + STAGE_NAMES[newMode];
   document.getElementById('mModalBody').innerHTML = (newMode === 4)
     ? 'Lights will turn <strong>OFF</strong> and the system will hold drying conditions. Use the <strong>Slow / Fast</strong> toggle to switch speed at any time — the day counter keeps running.'
-    : 'This <strong>cannot be undone</strong>. Wrong timing — especially switching to flowering early — can permanently harm your plants. Only proceed if you are certain.';
+    : 'This <strong>cannot be undone</strong>. Wrong timing — especially switching to blooming early — can permanently harm your plants. Only proceed if you are certain.';
   document.getElementById('stageModal').classList.add('visible');
   // Revert the dropdown — confirmed stage hasn't changed yet
   document.getElementById('growMode').value = String(_confirmedStage);
@@ -3825,7 +3865,7 @@ function updateIrrigationTab(s) {
   }
 
   const stLine = document.getElementById('irrigStatusLine');
-  const stageNames = ['Seedling','Veg','Flower','Drying'];
+  const stageNames = ['Seedling','Veg','Bloom','Drying'];
   if (stLine) stLine.textContent = irr.precisionEnabled
     ? 'Active — ' + (stageNames[irr.activeStage] || '') + ' profile'
     : 'Disabled — use Timer / Schedule on the Relay card';
@@ -4156,7 +4196,7 @@ function saveFlowRate(btn) {
 }
 
 // ─── Stage profiles table ──────────────────────────────────────────────────────
-const IRRIG_STAGE_NAMES = ['Seedling', 'Veg', 'Flower', 'Drying'];
+const IRRIG_STAGE_NAMES = ['Seedling', 'Veg', 'Bloom', 'Drying'];
 let _stageFlowML = 0;
 
 function _fmtMxMl(minutes, flowML) {
@@ -4517,7 +4557,7 @@ function mockSchedForMode(mode) {
 
 // ─── Profile editor ───────────────────────────────────────────────────────────
 const PROF_ICONS  = ['🌱','🍃','🌸','🌺','🍂'];
-const PROF_NAMES  = ['Seedling','Vegetative','Early Flower','Late Flower','Drying'];
+const PROF_NAMES  = ['Seedling','Vegetative','Early Bloom','Late Bloom','Drying'];
 let _dirtyProfileCards = new Set();  // cards with unsaved edits — skip auto-refresh
 
 // Mirrors PROFILE_DEFAULTS in climate.cpp — used to highlight customised values
@@ -4801,6 +4841,51 @@ connect();
     g.addEventListener('input', stamp);
     g.addEventListener('click', stamp);
   }
+})();
+
+// ─── Split dashboard: show Tent 2 alongside this one ────────────────────────
+const TENT2_DEFAULT_URL = 'http://192.168.1.207/';
+// True when this page is itself loaded inside the split iframe — hide the
+// split control there so a second tent can't recursively embed itself.
+const IS_EMBEDDED = (function () { try { return window.self !== window.top; } catch (e) { return true; } })();
+function tent2Url() { return localStorage.getItem('tent2Url') || TENT2_DEFAULT_URL; }
+function tent2Label() { return tent2Url().replace(/^https?:\/\//, '').replace(/\/$/, ''); }
+function refreshTent2Addr() {
+  const a = document.getElementById('tent2Addr');
+  if (a) a.textContent = tent2Label();
+}
+function applySplit(on) {
+  document.body.classList.toggle('split-active', on);
+  const btn = document.getElementById('splitBtn');
+  if (btn) { btn.classList.toggle('active', on); btn.innerHTML = on ? '⊟ Single' : '⊞ Tent 2'; }
+  const frame = document.getElementById('tent2Frame');
+  if (on && frame && !frame.getAttribute('src')) frame.setAttribute('src', tent2Url());  // lazy-load
+  refreshTent2Addr();
+}
+function toggleSplit() {
+  const on = !document.body.classList.contains('split-active');
+  localStorage.setItem('splitView', on ? '1' : '0');
+  applySplit(on);
+}
+function reloadTent2() {
+  const f = document.getElementById('tent2Frame');
+  if (f) f.src = tent2Url();
+}
+function openTent2NewTab() { window.open(tent2Url(), '_blank', 'noopener'); }
+function editTent2() {
+  let v = prompt('Tent 2 dashboard address:', tent2Url());
+  if (!v || !v.trim()) return;
+  v = v.trim();
+  if (!/^https?:\/\//.test(v)) v = 'http://' + v;
+  localStorage.setItem('tent2Url', v);
+  refreshTent2Addr();
+  const f = document.getElementById('tent2Frame');
+  if (f && f.getAttribute('src')) f.src = v;
+}
+(function initSplit() {
+  refreshTent2Addr();
+  if (IS_EMBEDDED) { const b = document.getElementById('splitBtn'); if (b) b.style.display = 'none'; return; }
+  if (localStorage.getItem('splitView') === '1') applySplit(true);
 })();
 </script>
 <!-- Dev mock data — file is gitignored; only loads on file:// previews -->

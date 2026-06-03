@@ -602,10 +602,10 @@ void RelayManager::setLightsOn(bool on) {
 }
 
 void RelayManager::setIrrigMode(uint8_t stage) {
-    // Map GrowMode enum → irrigation slot (4 buckets: 0=Seedling,1=Veg,2=Flower,3=Drying)
-    // GROW_LATE_FLOWER (3) shares the Flower irrigation profile.
+    // Map GrowMode enum → irrigation slot (4 buckets: 0=Seedling,1=Veg,2=Bloom,3=Drying)
+    // GROW_LATE_BLOOM (3) shares the Bloom irrigation profile.
     // GROW_DRYING is now enum value 4 → slot 3.
-    uint8_t irrigStage = (stage == 3) ? 2   // Late Flower → Flower irrigation
+    uint8_t irrigStage = (stage == 3) ? 2   // Late Bloom → Bloom irrigation
                        : (stage == 4) ? 3   // Drying → Drying irrigation
                        : stage;             // 0,1,2 direct
     if (irrigStage >= 4) return;

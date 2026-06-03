@@ -50,7 +50,7 @@ Six tabs, each with focused functionality:
 
 ## Mock Data (dev preview)
 
-`data/mock.js` (gitignored) injects realistic Early Flower state + 24h chart history when `index.html` is opened via `file://` or `localhost`. Never flashed to device — safe to run locally for UI development.
+`data/mock.js` (gitignored) injects realistic Early Bloom state + 24h chart history when `index.html` is opened via `file://` or `localhost`. Never flashed to device — safe to run locally for UI development.
 
 ## WebSocket API
 

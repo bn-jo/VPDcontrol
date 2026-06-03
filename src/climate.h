@@ -20,7 +20,7 @@ struct GrowProfile {
     uint8_t       lightOffHours;  // 0  = no off period
 };
 
-enum GrowMode : uint8_t { GROW_SEEDLING = 0, GROW_VEG, GROW_FLOWER, GROW_LATE_FLOWER, GROW_DRYING, NUM_GROW_MODES };
+enum GrowMode : uint8_t { GROW_SEEDLING = 0, GROW_VEG, GROW_BLOOM, GROW_LATE_BLOOM, GROW_DRYING, NUM_GROW_MODES };
 
 // ─── Manual VPD target (overrides grow-profile vpdMin/vpdMax when enabled) ───
 struct VpdTargetCfg {
@@ -145,7 +145,7 @@ private:
     float           _heatTarget       = 0.0f;  // turn ON below this °C; 0 = use profile tempMin
     unsigned long   _acLastOffMs   = 0;     // millis() when A/C last turned off (0 = never)
     int64_t         _stageStartEpoch;   // Unix epoch when current stage was last set
-    bool            _userModeLocked     = false;  // set when user explicitly picks any non-flower stage
+    bool            _userModeLocked     = false;  // set when user explicitly picks any non-bloom stage
     volatile bool   _prefsDirty         = false;  // deferred climate NVS write
     volatile bool   _profilePrefsDirty = false;  // deferred profile NVS write — flushed from Core 1
     volatile bool   _userModeDirty     = false;  // deferred "userMode" NVS key — separate from savePrefs()

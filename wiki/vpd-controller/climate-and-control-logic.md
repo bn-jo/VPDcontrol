@@ -26,8 +26,8 @@ Five grow modes, each with separate day/night target ranges (`DayNightRange` str
 |------|--------|------------|-------|
 | Seedling | 24/7 | Low | No light schedule; constant VPD |
 | Veg | 18h/6h | Medium | |
-| Flower | 12h/12h | Higher | |
-| Flush | 12h/12h | Similar to Flower | |
+| Bloom | 12h/12h | Higher | |
+| Flush | 12h/12h | Similar to Bloom | |
 | Drying | User-set | Humidity focus | Fast/Slow drying mode toggle |
 
 Mode and day-count persist in NVS; light schedule uses NTP epoch timestamps (never auto-resets on reboot).
@@ -61,7 +61,7 @@ ON when `humidity > humMax + HUMIDITY_HYST`.
 ## Light Schedule
 
 - Seedling: constant ON (no schedule)
-- Veg/Flower/Flush/Drying: NTP epoch timestamps for on/off boundaries
+- Veg/Bloom/Flush/Drying: NTP epoch timestamps for on/off boundaries
 - Schedule survives reboots (stored in NVS as epoch timestamps)
 - Alert `ALERT_SCHED_OVERDUE` fires if schedule is more than 1 hour past expected state
 - Alert `ALERT_NTP_MISSING` fires if NTP has never synced

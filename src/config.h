@@ -87,9 +87,9 @@
 #define AC_PRESHUTDOWN_MARGIN  2.0f   // °C
 
 
-// ─── Flowering sub-stages ─────────────────────────────────────────────────────
-// Days 1-FLOWER_EARLY_DAYS = Early Flower; Day FLOWER_EARLY_DAYS+1 = auto-switch to Late Flower
-#define FLOWER_EARLY_DAYS  21
+// ─── Blooming sub-stages ─────────────────────────────────────────────────────
+// Days 1-BLOOM_EARLY_DAYS = Early Bloom; Day BLOOM_EARLY_DAYS+1 = auto-switch to Late Bloom
+#define BLOOM_EARLY_DAYS  21
 
 // ─── Predictive VPD control ───────────────────────────────────────────────────
 // dVPD/dt is computed over a 60 s window (6 × SENSOR_INTERVAL_MS).
@@ -141,7 +141,7 @@ static const float SUBSTRATE_HOLD_CAP[3] = { 0.40f, 0.30f, 0.20f };
 
 // Substrate-aware defaults — IRRIG_DEFAULTS[substrate][stage]
 //   substrate: 0=Soil  1=Coco/Perlite  2=Perlite
-//   stage:     0=Seedling  1=Veg  2=Flower  3=Drying
+//   stage:     0=Seedling  1=Veg  2=Bloom  3=Drying
 // Night rest = 86400 s (24 h) → effectively no irrigation after lights-off.
 // Pulse/soak: valve opens for pulseOnSec, closes for pauseSec, repeats until
 //   soil hits target (checked only at end of each soak) or maxWaterSec on-time is used.
@@ -152,7 +152,7 @@ static const IrrigationProfile IRRIG_DEFAULTS[3][4] = {
   {
     { true,  35, 48,  60,  5400, 86400, 40, 60 },  // Seedling — gentle, ~2-3 shots/day
     { true,  30, 45, 120,  3600, 86400, 40, 60 },  // Veg      — moderate dry-back
-    { true,  28, 42, 180,  3600, 86400, 40, 60 },  // Flower   — deeper dry-back (generative)
+    { true,  28, 42, 180,  3600, 86400, 40, 60 },  // Bloom   — deeper dry-back (generative)
     { false,  0,  0,   0,     0,     0,  0,  0 },  // Drying   — off
   },
   // ── Coco / Perlite mix ────────────────────────────────────────────────────
@@ -160,7 +160,7 @@ static const IrrigationProfile IRRIG_DEFAULTS[3][4] = {
   {
     { true,  48, 62,  60,  3600, 86400, 20, 45 },  // Seedling — small shots, 1/h max
     { true,  50, 65, 120,  1800, 86400, 20, 45 },  // Veg      — frequent shots (6-8/day)
-    { true,  44, 62, 180,  1800, 86400, 20, 45 },  // Flower   — deeper dry-back for resin
+    { true,  44, 62, 180,  1800, 86400, 20, 45 },  // Bloom   — deeper dry-back for yield
     { false,  0,  0,   0,     0,     0,  0,  0 },  // Drying   — off
   },
   // ── Pure Perlite ──────────────────────────────────────────────────────────
@@ -168,7 +168,7 @@ static const IrrigationProfile IRRIG_DEFAULTS[3][4] = {
   {
     { true,  55, 70,  60,  2700, 86400, 15, 30 },  // Seedling
     { true,  52, 68,  90,  1800, 86400, 15, 30 },  // Veg
-    { true,  48, 65, 120,  1800, 86400, 15, 30 },  // Flower
+    { true,  48, 65, 120,  1800, 86400, 15, 30 },  // Bloom
     { false,  0,  0,   0,     0,     0,  0,  0 },  // Drying   — off
   },
 };

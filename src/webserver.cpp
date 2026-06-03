@@ -396,7 +396,7 @@ static void onWsEvent(AsyncWebSocket*       server,
         if (m >= 0 && m < NUM_GROW_MODES) {
             climate.setMode((GrowMode)m);
             static const char* stageNames[] = {
-                "Seedling","Veg","Early Flower","Late Flower","Drying"
+                "Seedling","Veg","Early Bloom","Late Bloom","Drying"
             };
             char evtBuf[48];
             snprintf(evtBuf, sizeof(evtBuf), "%s (user)", stageNames[m]);

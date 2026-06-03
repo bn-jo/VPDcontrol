@@ -37,7 +37,7 @@ wiring_diagram.svg          Full wiring diagram — single 8-channel relay modul
 - 12-sample rolling average on temp/hum/VPD (≈120 s smoothing window) before any control logic
 - GrowProfile has separate day/night target ranges (DayNightRange structs)
 - LightSchedule: NTP-backed epoch timestamps, survives reboots, NEVER resets automatically
-- Seedling = 24/7 lights (no schedule); Veg = 18h/6h; Flower = 12h/12h
+- Seedling = 24/7 lights (no schedule); Veg = 18h/6h; Bloom = 12h/12h
 - Mode change (Option A): keeps running clock, just applies new phase lengths
 - Alert system: ALERT_NTP_MISSING and ALERT_SCHED_OVERDUE shown as banner in UI
 - Humidifier runs 24/7 (no night suppression) — night VPD targets are lower so it naturally activates less

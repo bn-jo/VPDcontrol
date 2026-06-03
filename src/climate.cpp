@@ -269,21 +269,21 @@ ClimateController::ClimateController()
         18, 6
     };
 
-    // ── Early Flowering (Days 1-21) ───────────────────────────────────────────
+    // ── Early Blooming (Days 1-21) ───────────────────────────────────────────
     // Stretch phase. Higher RH (45-55%) tolerated; VPD 1.0-1.4 kPa (Aroya/Pulse standard).
-    // Auto-transitions to Late Flower at Day FLOWER_EARLY_DAYS+1.
-    _profiles[GROW_FLOWER] = {
-        "Early Flower",
+    // Auto-transitions to Late Bloom at Day BLOOM_EARLY_DAYS+1.
+    _profiles[GROW_BLOOM] = {
+        "Early Bloom",
         { 22.0f, 26.0f, 45.0f, 55.0f, 1.00f, 1.40f, 1.20f },  // day  12 h
         { 18.0f, 22.0f, 45.0f, 55.0f, 0.80f, 1.10f, 0.95f },  // night 12 h
         12, 12
     };
 
-    // ── Late Flowering (Day 22+ — auto-set from Early Flower) ────────────────
-    // Bud-fattening phase. Lower RH (35-45%) prevents botrytis; VPD 1.3-1.8 kPa
-    // to maximise resin and water transport (Aroya/Pulse/AC Infinity guidelines).
-    _profiles[GROW_LATE_FLOWER] = {
-        "Late Flower",
+    // ── Late Blooming (Day 22+ — auto-set from Early Bloom) ────────────────
+    // Bloom-fattening phase. Lower RH (35-45%) prevents mould; VPD 1.3-1.8 kPa
+    // to maximise yield and water transport (Aroya/Pulse/AC Infinity guidelines).
+    _profiles[GROW_LATE_BLOOM] = {
+        "Late Bloom",
         { 20.0f, 25.0f, 35.0f, 45.0f, 1.30f, 1.80f, 1.55f },  // day  12 h
         { 16.0f, 21.0f, 35.0f, 45.0f, 1.00f, 1.40f, 1.20f },  // night 12 h
         12, 12
@@ -324,9 +324,9 @@ void ClimateController::setMode(GrowMode m) {
     // Drying: force watering relay out of any manual/timer/schedule mode so it
     // can't keep running after the stage switch.
     if (m == GROW_DRYING) relays.setMode(WATERING, RELAY_AUTO);
-    // Lock the auto-transition as long as the user is NOT in Early Flower.
+    // Lock the auto-transition as long as the user is NOT in Early Bloom.
     // checkAutoTransition() checks this flag first and returns early if set.
-    _userModeLocked = (m != GROW_FLOWER);
+    _userModeLocked = (m != GROW_BLOOM);
     // Record when this stage started (requires NTP; stored as 0 if not yet synced)
     time_t now = time(nullptr);
     _stageStartEpoch = (now > 1000000000L) ? (int64_t)now : 0;
@@ -369,7 +369,7 @@ void ClimateController::checkAutoTransition() {
     // Guards the edge case where _userModeLocked was not set by loadPrefs() —
     // e.g. first boot on a firmware that added modeLocked/userMode, or any
     // scenario where the two keys diverged from in-memory state.
-    // Only GROW_FLOWER and GROW_LATE_FLOWER are not "user-locked" — all other
+    // Only GROW_BLOOM and GROW_LATE_BLOOM are not "user-locked" — all other
     // stages (Seedling, Veg, Drying) represent an explicit user choice that must
     // survive reboots without the auto-transition overwriting them.
     static bool nvsVerified = false;
@@ -381,11 +381,11 @@ void ClimateController::checkAutoTransition() {
         uint8_t umMode = pv.getUChar("userMode", 0xFF);
         pv.end();
         bool nvLock = nvMode < NUM_GROW_MODES
-                   && nvMode != (uint8_t)GROW_FLOWER
-                   && nvMode != (uint8_t)GROW_LATE_FLOWER;
+                   && nvMode != (uint8_t)GROW_BLOOM
+                   && nvMode != (uint8_t)GROW_LATE_BLOOM;
         bool umLock = umMode < NUM_GROW_MODES
-                   && umMode != (uint8_t)GROW_FLOWER
-                   && umMode != (uint8_t)GROW_LATE_FLOWER;
+                   && umMode != (uint8_t)GROW_BLOOM
+                   && umMode != (uint8_t)GROW_LATE_BLOOM;
         if (nvLock || umLock) {
             _userModeLocked = true;
             rlog("[CLIMATE] auto-transition locked by NVS: mode=%d userMode=%d",
@@ -394,19 +394,19 @@ void ClimateController::checkAutoTransition() {
         }
     }
     if (_userModeLocked) return;
-    if (_mode == GROW_FLOWER && stageDay() > FLOWER_EARLY_DAYS) {
-        rlog("[CLIMATE] Day %lu: auto-transition Early Flower → Late Flower",
+    if (_mode == GROW_BLOOM && stageDay() > BLOOM_EARLY_DAYS) {
+        rlog("[CLIMATE] Day %lu: auto-transition Early Bloom → Late Bloom",
              (unsigned long)stageDay());
-        int64_t continuousStart = _stageStartEpoch + (int64_t)FLOWER_EARLY_DAYS * 86400LL;
-        _sched.onModeChange(GROW_LATE_FLOWER, _profiles);
-        _mode = GROW_LATE_FLOWER;
-        relays.setIrrigMode((uint8_t)GROW_LATE_FLOWER);
+        int64_t continuousStart = _stageStartEpoch + (int64_t)BLOOM_EARLY_DAYS * 86400LL;
+        _sched.onModeChange(GROW_LATE_BLOOM, _profiles);
+        _mode = GROW_LATE_BLOOM;
+        relays.setIrrigMode((uint8_t)GROW_LATE_BLOOM);
         _stageStartEpoch = continuousStart;
         // Persist via the dirty flag so loop()'s flushPrefsIfDirty() writes the
         // new mode to NVS on the next tick. This prevents the same transition from
-        // re-firing on every subsequent reboot when NVS still shows GROW_FLOWER.
+        // re-firing on every subsequent reboot when NVS still shows GROW_BLOOM.
         // Full savePrefs() is safe here: we only reach this path when _mode was
-        // GROW_FLOWER AND _userModeLocked is false — the user never explicitly set
+        // GROW_BLOOM AND _userModeLocked is false — the user never explicitly set
         // a protected stage, so overwriting "mode" is correct.
         _prefsDirty = true;
     }
@@ -746,7 +746,7 @@ void ClimateController::computeOutputs(const SensorData& sd) {
     }
 
     // A/C ↔ humidifier interlock
-    // Flower / Late Flower: block humidifier while A/C is ON or cooling down —
+    // Bloom / Late Bloom: block humidifier while A/C is ON or cooling down —
     // running both causes large RH swings and wastes energy.
     // Seedling, Veg, Drying: high humidity is a priority; humidifier may run
     // alongside A/C — but suppress it when A/C is within AC_PRESHUTDOWN_MARGIN of
@@ -759,7 +759,7 @@ void ClimateController::computeOutputs(const SensorData& sd) {
     //     is low, even with the A/C running or cooling down.
     //   Drying: moisture still matters, but respect the post-A/C RH spike — suppress
     //     near the A/C shutoff / cooldown unless RH is below the profile minimum.
-    //   Flower / Late Flower: want LOW humidity and RH spikes the moment the A/C
+    //   Bloom / Late Bloom: want LOW humidity and RH spikes the moment the A/C
     //     stops dehumidifying, so hold the humidifier off near A/C events and only
     //     release it on a true dry-out (hard 35 % floor).
     bool acExempt = (_mode == GROW_SEEDLING || _mode == GROW_VEG);
@@ -777,7 +777,7 @@ void ClimateController::computeOutputs(const SensorData& sd) {
             critLow  = p.humMin;     // humidify to target
         } else {
             suppress = _acOn || acCooldown;
-            critLow  = 35.0f;        // flower: only a true dry-out releases the block
+            critLow  = 35.0f;        // bloom: only a true dry-out releases the block
         }
         if (suppress && _humidifierOn && h >= critLow) {
             relays.setAutoState(HUMIDIFIER, false);
@@ -852,9 +852,9 @@ void ClimateController::loadPrefs() {
     p.begin("climate", true);
     uint8_t m  = p.getUChar("mode",     (uint8_t)GROW_VEG);
     uint8_t um = p.getUChar("userMode", 0xFF);   // 0xFF = key not written yet
-    // If the user explicitly set a non-flower mode, trust that over "mode"
+    // If the user explicitly set a non-bloom mode, trust that over "mode"
     // which may have been overwritten by the auto-transition on a previous boot.
-    if (um < NUM_GROW_MODES && (GrowMode)um != GROW_FLOWER) {
+    if (um < NUM_GROW_MODES && (GrowMode)um != GROW_BLOOM) {
         m = um;
         rlog("[CLIMATE] loadPrefs userMode override=%d", (int)um);
     }
@@ -874,11 +874,11 @@ void ClimateController::loadPrefs() {
     _heatTarget        = p.getFloat  ("hpTarget", 0.0f);
     _stageStartEpoch   = p.getLong64 ("stEpoch",   0LL);
     // If modeLocked key was never written (first boot on this firmware), infer it
-    // from userMode: if the user previously set a non-flower stage, treat it as
+    // from userMode: if the user previously set a non-bloom stage, treat it as
     // locked so checkAutoTransition() cannot override it on this boot.
     bool inferLocked = (um < NUM_GROW_MODES &&
-                        (GrowMode)um != GROW_FLOWER &&
-                        (GrowMode)um != GROW_LATE_FLOWER);
+                        (GrowMode)um != GROW_BLOOM &&
+                        (GrowMode)um != GROW_LATE_BLOOM);
     _userModeLocked    = p.getBool   ("modeLocked", inferLocked);
     p.end();
 }
@@ -893,10 +893,10 @@ static const struct { DayNightRange day, night; } PROFILE_DEFAULTS[NUM_GROW_MODE
     // GROW_VEG
     { { 20.0f, 26.0f, 50.0f, 70.0f, 0.80f, 1.20f, 1.00f },
       { 18.0f, 22.0f, 50.0f, 68.0f, 0.50f, 0.90f, 0.70f } },
-    // GROW_FLOWER (Early)
+    // GROW_BLOOM (Early)
     { { 22.0f, 26.0f, 45.0f, 55.0f, 1.00f, 1.40f, 1.20f },
       { 18.0f, 22.0f, 45.0f, 55.0f, 0.80f, 1.10f, 0.95f } },
-    // GROW_LATE_FLOWER
+    // GROW_LATE_BLOOM
     { { 20.0f, 25.0f, 35.0f, 45.0f, 1.30f, 1.80f, 1.55f },
       { 16.0f, 21.0f, 35.0f, 45.0f, 1.00f, 1.40f, 1.20f } },
     // GROW_DRYING (slow — fast mode overrides at runtime)
