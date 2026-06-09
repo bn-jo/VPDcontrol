@@ -862,7 +862,7 @@ button, input, select, textarea { font-family: inherit; }
   }
 }
 
-/* ─── Split dashboard (Tent 1 | Tent 2) ─────────────────────────────────────── */
+/* ─── Split dashboard (Grow Room 1 | Grow Room 2) ─────────────────────────────────────── */
 #splitWrap { display:block; }
 #paneRight { display:none; }
 #splitBtn.active { border-color:var(--accent); color:var(--accent); }
@@ -887,7 +887,7 @@ body.split-active #tent2Frame { flex:1 1 auto; width:100%; border:0; background:
 
 /* When split, the left pane is only ~half the viewport, but @media breakpoints
    track the full viewport — so the live dashboard would stay in the wide desktop
-   layout while the Tent-2 iframe (its own viewport) compacts. Make the left pane
+   layout while the Grow Room-2 iframe (its own viewport) compacts. Make the left pane
    a query container so it responds to its OWN width and compacts to match. */
 body.split-active #paneLeft { container: paneLeft / inline-size; }
 body.split-active #paneLeft main { max-width:none; }
@@ -955,7 +955,7 @@ body.split-active #paneLeft main { max-width:none; }
     </select>
     <span id="stageDayBadge" style="font-size:.68rem;color:var(--muted);padding-right:.2rem"></span>
     <button onclick="rebootESP()" style="font-size:.62rem;padding:.15rem .5rem;background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:5px;cursor:pointer;align-self:flex-end" title="Restart ESP32">↺ Restart</button>
-    <button id="splitBtn" onclick="toggleSplit()" style="font-size:.62rem;padding:.15rem .5rem;background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:5px;cursor:pointer;align-self:flex-end" title="Split view: show Tent 2 alongside this dashboard">⊞ Tent 2</button>
+    <button id="splitBtn" onclick="toggleSplit()" style="font-size:.62rem;padding:.15rem .5rem;background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:5px;cursor:pointer;align-self:flex-end" title="Split view: show Grow Room 2 alongside this dashboard">⊞ Grow Room 2</button>
     <div id="dryToggle" style="display:none;align-self:flex-end">
       <div class="dry-toggle">
         <button id="drySlowBtn" class="active" onclick="sendDryMode(false)">🍂 Slow</button>
@@ -1548,14 +1548,14 @@ body.split-active #paneLeft main { max-width:none; }
 
 <div id="paneRight">
   <div id="tent2Bar">
-    <span>🏠 Tent 2 · <span id="tent2Addr"></span></span>
+    <span>🏠 Grow Room 2 · <span id="tent2Addr"></span></span>
     <span style="display:flex;gap:.35rem">
-      <button onclick="editTent2()"      title="Change Tent 2 address">✎</button>
-      <button onclick="reloadTent2()"     title="Reload Tent 2">↺</button>
-      <button onclick="openTent2NewTab()" title="Open Tent 2 in a new tab">↗</button>
+      <button onclick="editTent2()"      title="Change Grow Room 2 address">✎</button>
+      <button onclick="reloadTent2()"     title="Reload Grow Room 2">↺</button>
+      <button onclick="openTent2NewTab()" title="Open Grow Room 2 in a new tab">↗</button>
     </span>
   </div>
-  <iframe id="tent2Frame" title="Tent 2 dashboard" referrerpolicy="no-referrer"></iframe>
+  <iframe id="tent2Frame" title="Grow Room 2 dashboard" referrerpolicy="no-referrer"></iframe>
 </div>
 </div><!-- /#splitWrap -->
 
@@ -2330,12 +2330,12 @@ function renderRelayCard(card, r, force) {
       // Max-off row — shown for exhaust fans only (negative pressure guard)
       const maxOffRow = (isFan && !fanIntake) ? `
           <div class="tuning-row" style="padding-top:.35rem;border-top:1px solid var(--border)">
-            <label title="Fan forced back ON after being off this long — keeps tent under negative pressure so smell can't escape">Max OFF</label>
+            <label title="Fan forced back ON after being off this long — keeps grow room under negative pressure so smell can't escape">Max OFF</label>
             <input type="number" id="mxof_${r.id}" value="${maxOff}" min="0" max="3600">
             <span>sec (0=off)</span>
           </div>
           <div style="font-size:.68rem;color:var(--muted);padding:.1rem 0 .3rem 0;line-height:1.4">
-            Tent pressure guard — fan forced back ON after this many seconds off.
+            Grow Room pressure guard — fan forced back ON after this many seconds off.
             Recommended: 60 s (negative pressure lost in ~10 s without exhaust).
           </div>` : '';
       body = `${fanDirRow}<span class="auto-note">Controlled by climate logic</span>
@@ -4941,10 +4941,10 @@ connect();
   }
 })();
 
-// ─── Split dashboard: show Tent 2 alongside this one ────────────────────────
+// ─── Split dashboard: show Grow Room 2 alongside this one ────────────────────────
 const TENT2_DEFAULT_URL = 'http://192.168.1.207/';
 // True when this page is itself loaded inside the split iframe — hide the
-// split control there so a second tent can't recursively embed itself.
+// split control there so a second grow room can't recursively embed itself.
 const IS_EMBEDDED = (function () { try { return window.self !== window.top; } catch (e) { return true; } })();
 function tent2Url() { return localStorage.getItem('tent2Url') || TENT2_DEFAULT_URL; }
 function tent2Label() { return tent2Url().replace(/^https?:\/\//, '').replace(/\/$/, ''); }
@@ -4955,7 +4955,7 @@ function refreshTent2Addr() {
 function applySplit(on) {
   document.body.classList.toggle('split-active', on);
   const btn = document.getElementById('splitBtn');
-  if (btn) { btn.classList.toggle('active', on); btn.innerHTML = on ? '⊟ Single' : '⊞ Tent 2'; }
+  if (btn) { btn.classList.toggle('active', on); btn.innerHTML = on ? '⊟ Single' : '⊞ Grow Room 2'; }
   const frame = document.getElementById('tent2Frame');
   if (on && frame && !frame.getAttribute('src')) frame.setAttribute('src', tent2Url());  // lazy-load
   refreshTent2Addr();
@@ -4973,7 +4973,7 @@ function reloadTent2() {
 }
 function openTent2NewTab() { window.open(tent2Url(), '_blank', 'noopener'); }
 function editTent2() {
-  let v = prompt('Tent 2 dashboard address:', tent2Url());
+  let v = prompt('Grow Room 2 dashboard address:', tent2Url());
   if (!v || !v.trim()) return;
   v = v.trim();
   if (!/^https?:\/\//.test(v)) v = 'http://' + v;

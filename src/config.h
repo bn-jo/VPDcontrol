@@ -22,7 +22,7 @@
 // ─── IR LED (A/C remote control — IRremoteESP8266, GPIO 23 former TX pin) ────
 #define IR_LED_PIN   23   // GPIO 23 — IR LED anode via 33Ω resistor + transistor
 
-// ─── Intake air sensor (DHT11 — room outside the tent) ───────────────────────
+// ─── Intake air sensor (DHT11 — room outside the grow room) ───────────────────────
 // Wired to GPIO16 (free general-purpose IO; GPIO15 has pull-down that blocks DHT).
 #define INTAKE_SENSOR_PIN          16
 #define INTAKE_SENSOR_INTERVAL_MS  30000UL   // read every 30 s (DHT11 min ~1 s)
@@ -69,7 +69,7 @@
 // ─── Ceramic heater pulse (night auto mode) ───────────────────────────────────
 // When lights are OFF and temp is low or humidity is high, the heater runs in
 // short pulses instead of sustained ON to prevent overshoot.
-// Tune these if the tent reacts too fast or too slow.
+// Tune these if the grow room reacts too fast or too slow.
 #define HEAT_PULSE_ON_MS    45000UL   //  45 s  ON  per pulse
 #define HEAT_PULSE_REST_MS 420000UL   //   7 min OFF between pulses
 

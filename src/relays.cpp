@@ -354,7 +354,7 @@ void RelayManager::update() {
                         _r[i].lastMaxOnMs = millis();
                         applyPhysical(idx, false);
                     } else {
-                        // Max-off guard: force ON if off too long (e.g. exhaust fan for tent pressure)
+                        // Max-off guard: force ON if off too long (e.g. exhaust fan for grow room pressure)
                         //
                         // Filter / smell burst only in Bloom and Drying. The A/C is now
                         // split across two tents, so cold air is precious — in Seedling/Veg

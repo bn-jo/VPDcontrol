@@ -1,5 +1,5 @@
 // ============================================================
-//  VPD Grow-Tent Controller — Arduino IDE entry point
+//  VPD Grow Room Controller — Arduino IDE entry point
 //
 //  Board      : ESP32 Dev Module
 //  Partition  : Default 4MB with spiffs

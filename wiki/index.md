@@ -2,7 +2,7 @@
 
 ## vpd-controller
 
-ESP32 grow-tent climate controller — architecture, hardware, control logic, UI, and development workflow.
+ESP32 grow room climate controller — architecture, hardware, control logic, UI, and development workflow.
 
 | Article | Summary | Updated |
 |---------|---------|---------|

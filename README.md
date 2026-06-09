@@ -1,9 +1,9 @@
-# VPD Grow-Tent Climate Controller
+# VPD Grow Room Climate Controller
 
-An ESP32-based, fully autonomous climate controller for an indoor grow tent. It
+An ESP32-based, fully autonomous climate controller for an indoor grow room. It
 reads temperature, humidity and soil moisture, computes **VPD (Vapour Pressure
 Deficit)**, and drives fans, a humidifier, a dehumidifier, a heat mat, lights,
-A/C and irrigation to keep the tent inside a target range — all from a live web
+A/C and irrigation to keep the grow room inside a target range — all from a live web
 dashboard, with no cloud dependency.
 
 > Runs entirely on a ~$5 microcontroller. Real-time control loop, embedded web
@@ -77,7 +77,7 @@ A full wiring diagram is included: [`wiring_diagram.svg`](wiring_diagram.svg).
 
 | Function            | Component                         | GPIO |
 |---------------------|-----------------------------------|------|
-| Tent T/RH sensor    | DHT22                             | 4    |
+| Grow Room T/RH sensor    | DHT22                             | 4    |
 | Intake/room sensor  | DHT11                             | 16   |
 | Soil moisture       | Capacitive probe (ADC1)           | 35   |
 | Relay 1 — Top fan   | 8-channel relay board             | 26   |

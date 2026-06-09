@@ -5,7 +5,7 @@
 
 ## Overview
 
-An ESP32-based grow-tent climate controller that automates VPD (Vapour Pressure Deficit), temperature, humidity, and soil moisture management via 8 relay outputs. The system runs a custom real-time firmware with a browser-based web UI accessible over WiFi.
+An ESP32-based grow room climate controller that automates VPD (Vapour Pressure Deficit), temperature, humidity, and soil moisture management via 8 relay outputs. The system runs a custom real-time firmware with a browser-based web UI accessible over WiFi.
 
 ## Dual-Core Architecture
 

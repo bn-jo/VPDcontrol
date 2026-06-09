@@ -1,14 +1,14 @@
-# VPD Grow-Tent Controller — Project Overview
+# VPD Grow Room Controller — Project Overview
 
 > Source: /Users/liat/Documents/VPDcontrol (codebase + memory/project_vpd_control.md)
 > Collected: 2026-05-21
 > Published: Unknown
 
-Full ESP32 grow-tent climate control system built in /Users/liat/Documents/VPDcontrol.
+Full ESP32 grow room climate control system built in /Users/liat/Documents/VPDcontrol.
 
 ## Purpose
 
-Automated VPD (Vapour Pressure Deficit), temperature, and humidity management for a grow tent with 8 relay outputs and soil moisture monitoring.
+Automated VPD (Vapour Pressure Deficit), temperature, and humidity management for a grow room with 8 relay outputs and soil moisture monitoring.
 
 ## File Layout
 
@@ -32,7 +32,7 @@ wiring_diagram.svg          Full wiring diagram — single 8-channel relay modul
 - Control task on Core 0; WiFi/web server on Core 1
 - Relay hysteresis: asymmetric thresholds (different turn-on vs turn-off bands)
 - Minimum relay ON/OFF time = 30 seconds (configurable in config.h)
-- Bottom fan pushes tent air INTO THE ROOM (energy recycling of grow-light heat); NOT an intake
+- Bottom fan pushes grow room air INTO THE ROOM (energy recycling of grow-light heat); NOT an intake
 - VPD = SVP(leaf temp) − actual vapour pressure; leaf temp = air − 2°C offset
 - 12-sample rolling average on temp/hum/VPD (≈120 s smoothing window) before any control logic
 - GrowProfile has separate day/night target ranges (DayNightRange structs)

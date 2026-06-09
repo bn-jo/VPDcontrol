@@ -81,7 +81,7 @@ struct RelayState {
     uint32_t maxOnRestSec;   // forced rest after Max ON fires (0 = use minOffSec only)
     unsigned long lastMaxOnMs; // millis() when Max ON last triggered
     uint32_t maxOffSec;      // max OFF duration in AUTO — fan forced back ON after this (0 = disabled)
-                             // Use for exhaust fan to maintain negative tent pressure
+                             // Use for exhaust fan to maintain negative grow room pressure
 
     // Soil-triggered auto watering (WATERING relay only)
     uint8_t  soilThreshold;    // % — legacy: open valve when soil drops below this (0 = disabled)
@@ -112,10 +112,10 @@ struct RelayState {
     unsigned long totalPulseOnMs;   // cumulative valve-open ms this session
 
     // Fan direction — TOP_FAN and BOTTOM_FAN only
-    // false = exhaust (removes air from tent); true = intake (brings air in)
+    // false = exhaust (removes air from grow room); true = intake (brings air in)
     bool fanIntake;
 
-    // Physically connected to the tent — if false, AUTO logic skips this relay
+    // Physically connected to the grow room — if false, AUTO logic skips this relay
     // and the GPIO is never toggled. Set via the UI checkbox "Installed".
     bool installed = true;
 };

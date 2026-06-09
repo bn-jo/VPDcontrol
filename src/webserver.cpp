@@ -114,7 +114,7 @@ static void buildStateJson(char* buf, size_t bufSize) {
     hpObj["target"]         = climate.heatTarget();
     acObj["delay"]          = climate.acHumDelaySec();
 
-    // Intake air sensor (DHT11 outside grow tent)
+    // Intake air sensor (DHT11 outside grow room)
     const IntakeData& isd = intakeSensor.data();
     JsonObject intake      = doc["intake"].to<JsonObject>();
     intake["temp"]         = isd.temperature;

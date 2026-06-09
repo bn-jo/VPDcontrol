@@ -10,7 +10,7 @@
 |-----|-----------|-------|
 | GPIO 4 | DHT22 temperature/humidity sensor | Using DHTesp library |
 | GPIO 26 | Relay 1 — Top Fan | |
-| GPIO 27 | Relay 2 — Bottom Fan | Pushes air OUT of tent (heat recycling) |
+| GPIO 27 | Relay 2 — Bottom Fan | Pushes air OUT of grow room (heat recycling) |
 | GPIO 14 | Relay 3 — Humidifier | Runs 24/7; night VPD targets suppress it naturally |
 | GPIO 22 | Relay 4 — Lights | Was GPIO 12 (boot strapping pin — changed) |
 | GPIO 25 | Relay 5 — A/C | Physical relay for A/C unit; was "Dehumidifier" |

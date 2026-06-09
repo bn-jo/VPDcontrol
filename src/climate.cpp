@@ -579,7 +579,7 @@ void ClimateController::computeOutputs(const SensorData& sd) {
                 // Lights OFF + air dry + no mold risk:
                 // stop exhausting so the humidifier can build moisture.
                 // When lights are ON we never stop the fan for VPD — lights heat
-                // the tent and airflow is needed; the humidifier compensates instead.
+                // the grow room and airflow is needed; the humidifier compensates instead.
                 want = false;
             } else if (_topFanOn) {
                 // Was ON: keep running when humid, mold risk, or lights are on (heat exhaust).
@@ -604,7 +604,7 @@ void ClimateController::computeOutputs(const SensorData& sd) {
 
     // ── BOTTOM FAN ───────────────────────────────────────────────────────────
     // Secondary fan — responds primarily to temperature, not VPD.
-    // Exhaust (default): assists when tent is hot or when humidity is dangerously
+    // Exhaust (default): assists when grow room is hot or when humidity is dangerously
     //   high AND top fan is already running (cascade assist).
     // Intake: brings cooler room air in; hard stop when cold.
     {
@@ -612,7 +612,7 @@ void ClimateController::computeOutputs(const SensorData& sd) {
         const bool tempHighBF = t > (p.tempMax + botBuf);
 
         if (bottomIntake) {
-            if (tempLow)  want = false;          // hard stop — don't chill tent
+            if (tempLow)  want = false;          // hard stop — don't chill grow room
             else          want = tempHighBF;      // thermal regulation only
         } else {
             // Exhaust
@@ -647,7 +647,7 @@ void ClimateController::computeOutputs(const SensorData& sd) {
             want = (vpdDry || humLow) && !humHigh;
         }
         // Pre-humidify before the A/C kicks in (all stages except Bloom / Late
-        // Bloom). The A/C dries the tent hard the instant it starts, so add
+        // Bloom). The A/C dries the grow room hard the instant it starts, so add
         // moisture first to soften the RH drop. Never override the mold cutoff.
         if (acAboutToStart && !bloomStage && !humHigh) want = true;
         if (!relays.get(HUMIDIFIER).installed) want = false;
@@ -674,7 +674,7 @@ void ClimateController::computeOutputs(const SensorData& sd) {
     }
 
     // ── CERAMIC HEATER (Heat Mat relay) ──────────────────────────────────────
-    // Powerful ceramic heater inside the tent — sustained ON risks overshoot.
+    // Powerful ceramic heater inside the grow room — sustained ON risks overshoot.
     // Strategy: PULSED heating at night.
     //   • Trigger: temp below tempMin OR humidity high while below tempMin
     //   • humColdAssist uses tempMin (not tempMax) — heater only helps when
@@ -707,7 +707,7 @@ void ClimateController::computeOutputs(const SensorData& sd) {
             _heatPulseOffMs   = 0;
         } else {
             // humColdAssist: only when temp is genuinely low (below tempMin),
-            // not just below tempMax — avoids heating a warm tent to fight humidity
+            // not just below tempMax — avoids heating a warm grow room to fight humidity
             const bool humColdAssist = humHigh && t < p.tempMin;
             const bool needHeat = tempLow || humColdAssist;
 
