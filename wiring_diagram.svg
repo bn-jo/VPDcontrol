@@ -247,10 +247,10 @@
 <text x="567" y="587" text-anchor="end" fill="#fbbf24" font-size="10" font-family="'Courier New',monospace">NO8</text>
 <circle cx="575" cy="583" r="4" fill="#ca8a04"/>
 
-<!-- Isolation note -->
-<rect x="355" y="545" width="268" height="40" rx="6" fill="#1c1c0a" stroke="#d97706" stroke-width="1"/>
-<text x="489" y="561" text-anchor="middle" fill="#d97706" font-size="9.5" font-weight="bold" font-family="'Courier New',monospace">Remove VCC–JD-VCC jumper</text>
-<text x="489" y="576" text-anchor="middle" fill="#92400e" font-size="9" font-family="'Courier New',monospace">Opto (3.3V) isolated from coil (12V)</text>
+<!-- Isolation note (moved below the relay module so it never covers the IN7/IN8/CH8 pins) -->
+<rect x="355" y="632" width="268" height="40" rx="6" fill="#1c1c0a" stroke="#d97706" stroke-width="1"/>
+<text x="489" y="648" text-anchor="middle" fill="#d97706" font-size="9.5" font-weight="bold" font-family="'Courier New',monospace">Remove VCC–JD-VCC jumper</text>
+<text x="489" y="663" text-anchor="middle" fill="#92400e" font-size="9" font-family="'Courier New',monospace">Opto (3.3V) isolated from coil (12V)</text>
 
 
 <!-- ════════════════════════════════════════════════════════════
@@ -373,16 +373,16 @@
 <text x="248" y="580" fill="#a855f7" font-size="8.5" font-family="'Courier New',monospace">pull-up</text>
 <text x="248" y="590" fill="#a855f7" font-size="8.5" font-family="'Courier New',monospace">to 3V3</text>
 
-<!-- GPIO → IN wires (orange) — near-horizontal -->
-<line x1="225" y1="225" x2="355" y2="295" stroke="#f97316" stroke-width="2"/>
-<line x1="225" y1="270" x2="355" y2="335" stroke="#f97316" stroke-width="2"/>
-<line x1="225" y1="315" x2="355" y2="375" stroke="#f97316" stroke-width="2"/>
-<line x1="225" y1="360" x2="355" y2="415" stroke="#f97316" stroke-width="2"/>
-<line x1="225" y1="405" x2="355" y2="455" stroke="#f97316" stroke-width="2"/>
-<line x1="225" y1="450" x2="355" y2="495" stroke="#f97316" stroke-width="2"/>
-<line x1="225" y1="495" x2="355" y2="535" stroke="#f97316" stroke-width="2"/>
+<!-- GPIO → IN wires (orange) — orthogonal comb, each in its own channel -->
+<polyline points="225,225 250,225 250,295 355,295" fill="none" stroke="#f97316" stroke-width="2"/>
+<polyline points="225,270 262,270 262,335 355,335" fill="none" stroke="#f97316" stroke-width="2"/>
+<polyline points="225,315 274,315 274,375 355,375" fill="none" stroke="#f97316" stroke-width="2"/>
+<polyline points="225,360 286,360 286,415 355,415" fill="none" stroke="#f97316" stroke-width="2"/>
+<polyline points="225,405 298,405 298,455 355,455" fill="none" stroke="#f97316" stroke-width="2"/>
+<polyline points="225,450 310,450 310,495 355,495" fill="none" stroke="#f97316" stroke-width="2"/>
+<polyline points="225,495 322,495 322,535 355,535" fill="none" stroke="#f97316" stroke-width="2"/>
 <!-- GPIO 13 → IN8 Extra -->
-<line x1="225" y1="540" x2="355" y2="575" stroke="#f97316" stroke-width="2"/>
+<polyline points="225,540 334,540 334,575 355,575" fill="none" stroke="#f97316" stroke-width="2"/>
 <!-- GPIO 35 → Soil sensor (cyan, left side) -->
 <polyline points="23,555 8,555 8,772 55,772" fill="none" stroke="#06b6d4" stroke-width="1.5" stroke-dasharray="5,3"/>
 
@@ -442,24 +442,27 @@
 <!-- NEUTRAL bus: Mains N → vertical at x=770 → all load N pins -->
 <polyline points="790,195 770,195" fill="none" stroke="#1d4ed8" stroke-width="2.5"/>
 <line x1="770" y1="195" x2="770" y2="900" stroke="#1d4ed8" stroke-width="3"/>
-<line x1="770" y1="198" x2="1115" y2="198" stroke="#1d4ed8" stroke-width="2"/>
-<line x1="770" y1="313" x2="1115" y2="313" stroke="#1d4ed8" stroke-width="2"/>
-<line x1="770" y1="428" x2="1115" y2="428" stroke="#1d4ed8" stroke-width="2"/>
-<line x1="770" y1="543" x2="1115" y2="543" stroke="#1d4ed8" stroke-width="2"/>
-<line x1="770" y1="673" x2="1115" y2="673" stroke="#1d4ed8" stroke-width="2"/>
-<line x1="770" y1="783" x2="1115" y2="783" stroke="#1d4ed8" stroke-width="2"/>
-<line x1="770" y1="893" x2="1115" y2="893" stroke="#1d4ed8" stroke-width="2"/>
+<!-- Neutral feeds run 6px ABOVE each load row, then a short jog to the N pin,
+     so they never sit on top of the switched-Live (which stays on the row). -->
+<polyline points="770,192 1115,192 1115,198" fill="none" stroke="#1d4ed8" stroke-width="2"/>
+<polyline points="770,307 1115,307 1115,313" fill="none" stroke="#1d4ed8" stroke-width="2"/>
+<polyline points="770,422 1115,422 1115,428" fill="none" stroke="#1d4ed8" stroke-width="2"/>
+<polyline points="770,537 1115,537 1115,543" fill="none" stroke="#1d4ed8" stroke-width="2"/>
+<polyline points="770,667 1115,667 1115,673" fill="none" stroke="#1d4ed8" stroke-width="2"/>
+<polyline points="770,777 1115,777 1115,783" fill="none" stroke="#1d4ed8" stroke-width="2"/>
+<polyline points="770,887 1115,887 1115,893" fill="none" stroke="#1d4ed8" stroke-width="2"/>
 
 <!-- EARTH bus: Mains PE → vertical at x=780 → all load PE pins -->
 <polyline points="790,220 780,220" fill="none" stroke="#15803d" stroke-width="2"/>
 <line x1="780" y1="220" x2="780" y2="900" stroke="#15803d" stroke-width="2"/>
-<line x1="780" y1="198" x2="1155" y2="198" stroke="#15803d" stroke-width="1.5" opacity="0.7"/>
-<line x1="780" y1="313" x2="1155" y2="313" stroke="#15803d" stroke-width="1.5" opacity="0.7"/>
-<line x1="780" y1="428" x2="1155" y2="428" stroke="#15803d" stroke-width="1.5" opacity="0.7"/>
-<line x1="780" y1="543" x2="1155" y2="543" stroke="#15803d" stroke-width="1.5" opacity="0.7"/>
-<line x1="780" y1="673" x2="1155" y2="673" stroke="#15803d" stroke-width="1.5" opacity="0.7"/>
-<line x1="780" y1="783" x2="1155" y2="783" stroke="#15803d" stroke-width="1.5" opacity="0.7"/>
-<line x1="780" y1="893" x2="1155" y2="893" stroke="#15803d" stroke-width="1.5" opacity="0.7"/>
+<!-- Earth feeds run 6px BELOW each load row, then a short jog up to the PE pin. -->
+<polyline points="780,204 1155,204 1155,198" fill="none" stroke="#15803d" stroke-width="1.5" opacity="0.7"/>
+<polyline points="780,319 1155,319 1155,313" fill="none" stroke="#15803d" stroke-width="1.5" opacity="0.7"/>
+<polyline points="780,434 1155,434 1155,428" fill="none" stroke="#15803d" stroke-width="1.5" opacity="0.7"/>
+<polyline points="780,549 1155,549 1155,543" fill="none" stroke="#15803d" stroke-width="1.5" opacity="0.7"/>
+<polyline points="780,679 1155,679 1155,673" fill="none" stroke="#15803d" stroke-width="1.5" opacity="0.7"/>
+<polyline points="780,789 1155,789 1155,783" fill="none" stroke="#15803d" stroke-width="1.5" opacity="0.7"/>
+<polyline points="780,899 1155,899 1155,893" fill="none" stroke="#15803d" stroke-width="1.5" opacity="0.7"/>
 
 
 <!-- ════════════════════════════════════════════════════════════
@@ -504,9 +507,9 @@
 <text x="766" y="587" text-anchor="middle" fill="#ca8a04" font-size="8" font-family="'Courier New',monospace">F8</text>
 <!-- COM8 branch from live bus -->
 <polyline points="755,565 623,565 575,565" fill="none" stroke="#b45309" stroke-width="2.5" stroke-dasharray="8,4"/>
-<!-- N and PE for Extra load -->
-<line x1="770" y1="1003" x2="1115" y2="1003" stroke="#1d4ed8" stroke-width="2" stroke-dasharray="8,4"/>
-<line x1="780" y1="1003" x2="1155" y2="1003" stroke="#15803d" stroke-width="1.5" stroke-dasharray="8,4" opacity="0.7"/>
+<!-- N and PE for Extra load (offset above/below the row, matching the others) -->
+<polyline points="770,997 1115,997 1115,1003" fill="none" stroke="#1d4ed8" stroke-width="2" stroke-dasharray="8,4"/>
+<polyline points="780,1009 1155,1009 1155,1003" fill="none" stroke="#15803d" stroke-width="1.5" stroke-dasharray="8,4" opacity="0.7"/>
 
 <!-- Live bus extension for COM8 -->
 <line x1="755" y1="530" x2="755" y2="570" stroke="#b45309" stroke-width="3" stroke-dasharray="8,4"/>
