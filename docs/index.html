@@ -87,16 +87,29 @@
   .stat .n{font-size:1.35rem; font-weight:800; color:var(--green-br); line-height:1.1}
   .stat .l{font-size:.74rem; color:var(--muted); text-transform:uppercase; letter-spacing:.06em}
 
-  /* Screenshot */
-  .shot{margin:3.5rem auto 0; max-width:960px}
-  .shot-frame{
+  /* Screenshots: desktop browser frame with a phone overlapping its corner */
+  .shots{position:relative; margin:3.5rem auto 0; max-width:1000px; padding-right:60px; padding-bottom:40px}
+  .browser{
     border:1px solid var(--border2); border-radius:var(--radius); overflow:hidden;
     background:var(--card2); box-shadow:0 30px 80px -30px rgba(0,0,0,.8), 0 0 0 1px rgba(16,185,129,.05);
   }
-  .shot-bar{display:flex; gap:.4rem; padding:.6rem .9rem; border-bottom:1px solid var(--border); background:var(--bg2)}
-  .shot-bar i{width:11px;height:11px;border-radius:50%;background:#2a3936;display:inline-block}
-  .shot-bar i:first-child{background:#f87171aa}.shot-bar i:nth-child(2){background:#fbbf24aa}.shot-bar i:nth-child(3){background:#4ade80aa}
-  .shot img{display:block; width:100%; height:auto}
+  .browser-bar{display:flex; align-items:center; gap:.4rem; padding:.6rem .9rem; border-bottom:1px solid var(--border); background:var(--bg2)}
+  .browser-bar i{width:11px;height:11px;border-radius:50%;background:#2a3936;display:inline-block}
+  .browser-bar i:first-child{background:#f87171aa}.browser-bar i:nth-child(2){background:#fbbf24aa}.browser-bar i:nth-child(3){background:#4ade80aa}
+  .browser-bar .url{margin-left:.7rem; font-size:.72rem; color:var(--dim); background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:.12rem .6rem}
+  .browser img{display:block; width:100%; height:auto}
+  /* Phone */
+  .phone{
+    position:absolute; right:0; bottom:0; width:188px;
+    border:6px solid #0c1311; border-radius:26px; overflow:hidden; background:#0c1311;
+    box-shadow:0 24px 60px -18px rgba(0,0,0,.85), 0 0 0 1px var(--border2);
+  }
+  .phone::before{content:""; position:absolute; top:7px; left:50%; transform:translateX(-50%); width:46px; height:5px; border-radius:3px; background:#1e2a27; z-index:2}
+  .phone img{display:block; width:100%; height:auto}
+  @media(max-width:640px){
+    .shots{padding:0; display:flex; flex-direction:column; align-items:center; gap:1.2rem}
+    .phone{position:static; width:220px}
+  }
 
   /* Sections */
   section{padding:4.5rem 0}
@@ -200,10 +213,13 @@
       <div class="stat"><div class="n">OTA</div><div class="l">wireless updates</div></div>
     </div>
 
-    <div class="shot reveal">
-      <div class="shot-frame">
-        <div class="shot-bar"><i></i><i></i><i></i></div>
-        <img src="dashboard.png" alt="VPD controller web dashboard: sensor cards, grow-stage progress, history chart and per-relay controls" loading="lazy">
+    <div class="shots reveal">
+      <div class="browser">
+        <div class="browser-bar"><i></i><i></i><i></i><span class="url">grow-room.local</span></div>
+        <img src="dashboard.png" alt="VPD controller web dashboard on desktop: sensor cards, grow-stage progress, history chart and per-relay controls" loading="lazy">
+      </div>
+      <div class="phone">
+        <img src="dashboard-mobile.png" alt="VPD controller dashboard on a phone — responsive layout" loading="lazy">
       </div>
     </div>
   </div>
