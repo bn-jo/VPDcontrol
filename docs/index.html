@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VPD Grow-Tent Controller — autonomous ESP32 climate control</title>
+<meta name="description" content="An ESP32-based, fully autonomous grow-tent climate controller. VPD-driven relay logic, precision irrigation, a live web dashboard and OTA updates — no cloud, no account.">
+<meta property="og:title" content="VPD Grow-Tent Climate Controller">
+<meta property="og:description" content="Autonomous ESP32 climate control: VPD logic, precision irrigation, live web dashboard, OTA updates. No cloud.">
+<meta property="og:image" content="dashboard.png">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌿</text></svg>">
+<style>
+  :root{
+    --bg:#0a0e0d; --bg2:#0f1513; --card:#121a18; --card2:#0d1311;
+    --border:#1e2a27; --border2:#273733;
+    --text:#e8efec; --muted:#8ba096; --dim:#5f726c;
+    --green:#10b981; --green-br:#4ade80; --blue:#38bdf8; --amber:#f59e0b;
+    --radius:16px; --max:1080px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:'Inter',system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    line-height:1.6; -webkit-font-smoothing:antialiased;
+    background-image:
+      radial-gradient(900px 500px at 80% -10%, rgba(16,185,129,.10), transparent 60%),
+      radial-gradient(700px 500px at -10% 10%, rgba(56,189,248,.06), transparent 55%);
+  }
+  a{color:inherit}
+  .wrap{max-width:var(--max); margin:0 auto; padding:0 1.25rem}
+
+  /* Nav */
+  nav{
+    position:sticky; top:0; z-index:50;
+    backdrop-filter:blur(10px); background:rgba(10,14,13,.72);
+    border-bottom:1px solid var(--border);
+  }
+  nav .wrap{display:flex; align-items:center; justify-content:space-between; height:60px}
+  .brand{display:flex; align-items:center; gap:.55rem; font-weight:700; letter-spacing:-.01em}
+  .brand .leaf{font-size:1.3rem}
+  .brand b{color:var(--green-br)}
+  .nav-links{display:flex; gap:1.4rem; align-items:center; font-size:.9rem; color:var(--muted)}
+  .nav-links a{text-decoration:none; transition:color .15s}
+  .nav-links a:hover{color:var(--text)}
+  @media(max-width:680px){ .nav-links a:not(.btn){display:none} }
+
+  .btn{
+    display:inline-flex; align-items:center; gap:.5rem;
+    padding:.6rem 1.05rem; border-radius:10px; font-weight:600; font-size:.9rem;
+    text-decoration:none; border:1px solid var(--border2); transition:all .15s; white-space:nowrap;
+  }
+  .btn-primary{background:var(--green); color:#04140e; border-color:transparent}
+  .btn-primary:hover{background:var(--green-br); transform:translateY(-1px)}
+  .btn-ghost{background:transparent; color:var(--text)}
+  .btn-ghost:hover{border-color:var(--green); color:var(--green-br)}
+
+  /* Hero */
+  header.hero{padding:5rem 0 3rem; text-align:center}
+  .pill{
+    display:inline-flex; align-items:center; gap:.5rem; font-size:.78rem; font-weight:600;
+    color:var(--green-br); background:rgba(16,185,129,.10);
+    border:1px solid rgba(16,185,129,.28); padding:.32rem .8rem; border-radius:999px; margin-bottom:1.4rem;
+  }
+  .pill .dot{width:7px;height:7px;border-radius:50%;background:var(--green-br);box-shadow:0 0 8px var(--green-br)}
+  h1{
+    font-size:clamp(2.2rem,5.5vw,3.7rem); line-height:1.08; margin:.2rem 0 1rem;
+    font-weight:800; letter-spacing:-.025em;
+  }
+  h1 .grad{
+    background:linear-gradient(120deg,var(--green-br),var(--green) 55%,var(--blue));
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+  }
+  .sub{font-size:clamp(1.02rem,2.2vw,1.22rem); color:var(--muted); max-width:680px; margin:0 auto 2rem}
+  .sub b{color:var(--text); font-weight:600}
+  .cta{display:flex; gap:.8rem; justify-content:center; flex-wrap:wrap}
+
+  /* Stat strip */
+  .stats{
+    display:flex; flex-wrap:wrap; justify-content:center; gap:.7rem; margin-top:2.6rem;
+  }
+  .stat{
+    background:var(--card); border:1px solid var(--border); border-radius:12px;
+    padding:.7rem 1.1rem; min-width:120px;
+  }
+  .stat .n{font-size:1.35rem; font-weight:800; color:var(--green-br); line-height:1.1}
+  .stat .l{font-size:.74rem; color:var(--muted); text-transform:uppercase; letter-spacing:.06em}
+
+  /* Screenshot */
+  .shot{margin:3.5rem auto 0; max-width:960px}
+  .shot-frame{
+    border:1px solid var(--border2); border-radius:var(--radius); overflow:hidden;
+    background:var(--card2); box-shadow:0 30px 80px -30px rgba(0,0,0,.8), 0 0 0 1px rgba(16,185,129,.05);
+  }
+  .shot-bar{display:flex; gap:.4rem; padding:.6rem .9rem; border-bottom:1px solid var(--border); background:var(--bg2)}
+  .shot-bar i{width:11px;height:11px;border-radius:50%;background:#2a3936;display:inline-block}
+  .shot-bar i:first-child{background:#f87171aa}.shot-bar i:nth-child(2){background:#fbbf24aa}.shot-bar i:nth-child(3){background:#4ade80aa}
+  .shot img{display:block; width:100%; height:auto}
+
+  /* Sections */
+  section{padding:4.5rem 0}
+  .eyebrow{color:var(--green-br); font-weight:700; font-size:.8rem; letter-spacing:.12em; text-transform:uppercase; text-align:center}
+  h2{font-size:clamp(1.7rem,3.6vw,2.4rem); text-align:center; margin:.5rem 0 .6rem; font-weight:800; letter-spacing:-.02em}
+  .lead{text-align:center; color:var(--muted); max-width:620px; margin:0 auto 2.8rem}
+
+  .grid{display:grid; grid-template-columns:repeat(3,1fr); gap:1rem}
+  @media(max-width:860px){ .grid{grid-template-columns:repeat(2,1fr)} }
+  @media(max-width:560px){ .grid{grid-template-columns:1fr} }
+  .feat{
+    background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+    padding:1.5rem; transition:border-color .18s, transform .18s;
+  }
+  .feat:hover{border-color:var(--border2); transform:translateY(-3px)}
+  .feat .ico{font-size:1.5rem; margin-bottom:.7rem; display:block}
+  .feat h3{margin:0 0 .4rem; font-size:1.05rem; font-weight:700}
+  .feat p{margin:0; color:var(--muted); font-size:.92rem}
+
+  /* Architecture */
+  .arch{
+    background:var(--card2); border:1px solid var(--border); border-radius:var(--radius);
+    padding:1.6rem; overflow-x:auto;
+  }
+  .arch pre{
+    margin:0; font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    font-size:.82rem; line-height:1.5; color:var(--muted); white-space:pre;
+  }
+  .arch pre b{color:var(--green-br)}
+
+  /* Hardware list */
+  .hw{display:grid; grid-template-columns:repeat(2,1fr); gap:.6rem 2rem; max-width:760px; margin:0 auto}
+  @media(max-width:560px){ .hw{grid-template-columns:1fr} }
+  .hw .row{display:flex; justify-content:space-between; gap:1rem; padding:.6rem 0; border-bottom:1px solid var(--border)}
+  .hw .row span:first-child{color:var(--text); font-weight:600}
+  .hw .row span:last-child{color:var(--muted); text-align:right; font-size:.9rem}
+
+  /* Quick start */
+  .code{
+    background:#06100d; border:1px solid var(--border); border-radius:var(--radius);
+    padding:1.3rem 1.4rem; max-width:760px; margin:0 auto; overflow-x:auto;
+  }
+  .code pre{margin:0; font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size:.86rem; line-height:1.75}
+  .code .c{color:var(--dim)}
+  .code .g{color:var(--green-br)}
+
+  /* CTA band */
+  .band{
+    text-align:center; background:
+      radial-gradient(600px 300px at 50% 0%, rgba(16,185,129,.12), transparent 70%);
+    border:1px solid var(--border); border-radius:24px; padding:3.2rem 1.5rem; margin:1rem 0;
+  }
+  .band h2{margin-bottom:.4rem}
+  .band p{color:var(--muted); margin:0 auto 1.8rem; max-width:520px}
+
+  footer{border-top:1px solid var(--border); padding:2.5rem 0; color:var(--dim); font-size:.85rem}
+  footer .wrap{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem}
+  footer a{color:var(--muted); text-decoration:none}
+  footer a:hover{color:var(--green-br)}
+
+  /* reveal */
+  .reveal{opacity:0; transform:translateY(16px); transition:opacity .6s ease, transform .6s ease}
+  .reveal.in{opacity:1; transform:none}
+  @media(prefers-reduced-motion:reduce){ .reveal{opacity:1;transform:none;transition:none} }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <div class="brand"><span class="leaf">🌿</span> Guetos <b>VPD</b> Control</div>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#hardware">Hardware</a>
+      <a href="#start">Get started</a>
+      <a class="btn btn-ghost" href="https://github.com/bn-jo/VPDcontrol">GitHub ↗</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="pill"><span class="dot"></span> Runs entirely on a ~$5 microcontroller</span>
+    <h1>Autonomous grow-tent<br><span class="grad">climate control</span>, on an ESP32</h1>
+    <p class="sub">
+      Reads temperature, humidity and soil moisture, computes <b>VPD (Vapour Pressure
+      Deficit)</b>, and drives fans, humidifier, heat mat, lights, A/C and irrigation to
+      hold your tent in range — from a <b>live web dashboard</b>, with <b>no cloud</b> and no account.
+    </p>
+    <div class="cta">
+      <a class="btn btn-primary" href="https://github.com/bn-jo/VPDcontrol">★ View on GitHub</a>
+      <a class="btn btn-ghost" href="#start">Get started →</a>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="n">~100 ms</div><div class="l">control loop</div></div>
+      <div class="stat"><div class="n">8 ch</div><div class="l">relay control</div></div>
+      <div class="stat"><div class="n">2 s</div><div class="l">live telemetry</div></div>
+      <div class="stat"><div class="n">7 day</div><div class="l">on-device history</div></div>
+      <div class="stat"><div class="n">OTA</div><div class="l">wireless updates</div></div>
+    </div>
+
+    <div class="shot reveal">
+      <div class="shot-frame">
+        <div class="shot-bar"><i></i><i></i><i></i></div>
+        <img src="dashboard.png" alt="VPD controller web dashboard: sensor cards, grow-stage progress, history chart and per-relay controls" loading="lazy">
+      </div>
+    </div>
+  </div>
+</header>
+
+<section id="features">
+  <div class="wrap">
+    <p class="eyebrow">What it does</p>
+    <h2>Everything the tent needs, on the device</h2>
+    <p class="lead">A real-time control loop, an embedded single-page dashboard and over-the-air updates — no Raspberry Pi, no external server.</p>
+    <div class="grid">
+      <div class="feat reveal"><span class="ico">🌡️</span><h3>VPD-based control</h3><p>Temperature and humidity are fused into VPD and regulated with asymmetric hysteresis and per-stage day/night targets.</p></div>
+      <div class="feat reveal"><span class="ico">🌱</span><h3>Grow-stage profiles</h3><p>Seedling → Vegetative → Bloom → Drying, each with its own targets, photoperiod and irrigation — auto-advancing on an NTP clock.</p></div>
+      <div class="feat reveal"><span class="ico">💧</span><h3>Precision irrigation</h3><p>Pulse/soak watering with substrate profiles (soil, coco, perlite) and dry-back targets, logged to flash.</p></div>
+      <div class="feat reveal"><span class="ico">📊</span><h3>Live web dashboard</h3><p>Single-page UI served straight from the ESP32, with WebSocket telemetry every 2 s and a zoomable history chart.</p></div>
+      <div class="feat reveal"><span class="ico">🔌</span><h3>8-channel relays</h3><p>Fans, humidifier, dehumidifier, heat mat, lights, watering and A/C — each with minimum on/off timers and safety interlocks.</p></div>
+      <div class="feat reveal"><span class="ico">🛡️</span><h3>Resilient by design</h3><p>Dual-core FreeRTOS, non-blocking 100 ms loop, hardware watchdog, NVS-persisted settings and brown-out-safe scheduling.</p></div>
+      <div class="feat reveal"><span class="ico">📡</span><h3>Remote-friendly</h3><p>Over-the-air firmware updates, optional DuckDNS dynamic DNS and HTTP Basic Auth for access from outside the LAN.</p></div>
+      <div class="feat reveal"><span class="ico">🔒</span><h3>No cloud, no account</h3><p>Everything runs on the device. Your data never leaves your network — fully self-hosted.</p></div>
+      <div class="feat reveal"><span class="ico">🌬️</span><h3>A/C integration</h3><p>Climate interlocks and adjustable thresholds keep temperature in range while coordinating humidity and airflow.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="architecture" style="background:var(--bg2)">
+  <div class="wrap">
+    <p class="eyebrow">Under the hood</p>
+    <h2>Two cores, zero blocking</h2>
+    <p class="lead">Core 0 runs the deterministic control loop; Core 1 handles WiFi, the web server and storage — so the UI never stalls the relays.</p>
+    <div class="arch reveal">
+<pre>            ┌──────────────────────── <b>ESP32</b> ────────────────────────┐
+            │                                                        │
+  Sensors ──┤  <b>Core 0</b>: control task (FreeRTOS, ~100 ms tick)         │
+  DHT22     │    sensor read → rolling average → VPD → relay logic   │
+  DHT11     │                                                        ├── 8× Relays
+  Soil ADC  │  <b>Core 1</b>: WiFi · AsyncWebServer · WebSocket broadcast   │   (fans, RH,
+  WiFi nodes│    serves gzip-embedded SPA · OTA · NVS/LittleFS I/O   │    heat, A/C,
+            │                                                        │    lights, pump)
+            └────────────────────────────────────────────────────────┘
+                         │                         │
+                  Web dashboard            logs.csv / irrig.csv
+                 (browser, LAN)             (LittleFS, 7-day history)</pre>
+    </div>
+  </div>
+</section>
+
+<section id="hardware">
+  <div class="wrap">
+    <p class="eyebrow">Bill of materials</p>
+    <h2>Built from commodity parts</h2>
+    <p class="lead">A handful of inexpensive modules — no proprietary hardware.</p>
+    <div class="hw">
+      <div class="row"><span>ESP32 dev board</span><span>dual-core MCU + WiFi</span></div>
+      <div class="row"><span>DHT22 / DHT11</span><span>temp + humidity</span></div>
+      <div class="row"><span>Capacitive soil probe</span><span>ADC moisture</span></div>
+      <div class="row"><span>8-channel relay board</span><span>active-low, opto-isolated</span></div>
+      <div class="row"><span>Fans · humidifier · heat mat</span><span>switched loads</span></div>
+      <div class="row"><span>A/C · grow lights · pump</span><span>switched loads</span></div>
+    </div>
+    <p style="text-align:center;margin-top:1.6rem">
+      <a class="btn btn-ghost" href="https://github.com/bn-jo/VPDcontrol/blob/main/wiring_diagram.svg">📐 Full wiring diagram</a>
+    </p>
+  </div>
+</section>
+
+<section id="start" style="background:var(--bg2)">
+  <div class="wrap">
+    <p class="eyebrow">Get started</p>
+    <h2>Flash it in minutes</h2>
+    <p class="lead">Built with PlatformIO. Add your WiFi and credentials to a gitignored <code>secrets.h</code>, then flash over USB or the air.</p>
+    <div class="code reveal">
+<pre><span class="c"># 1 · clone</span>
+git clone https://github.com/bn-jo/VPDcontrol.git && cd VPDcontrol
+
+<span class="c"># 2 · add your secrets (kept out of the repo)</span>
+cp src/secrets.h.example src/secrets.h
+<span class="c">#   edit src/secrets.h → WiFi SSID/password, web-auth + OTA password</span>
+
+<span class="c"># 3 · flash over USB (first time)</span>
+<span class="g">pio run -e esp32dev --target upload</span>
+
+<span class="c"># 4 · thereafter, update wirelessly</span>
+<span class="g">pio run -e ota --target upload</span>
+
+<span class="c"># open http://&lt;device-ip&gt;/ — the dashboard is served from the ESP32</span></pre>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="band reveal">
+      <h2>Self-hosted climate control, end to end</h2>
+      <p>Open source under the MIT license. Clone it, flash it, and grow.</p>
+      <div class="cta">
+        <a class="btn btn-primary" href="https://github.com/bn-jo/VPDcontrol">★ Star on GitHub</a>
+        <a class="btn btn-ghost" href="https://github.com/bn-jo/VPDcontrol#readme">Read the docs →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="brand"><span class="leaf">🌿</span> Guetos <b>VPD</b> Control</div>
+    <div>
+      <a href="https://github.com/bn-jo/VPDcontrol">GitHub</a> ·
+      <a href="https://github.com/bn-jo/VPDcontrol/blob/main/LICENSE">MIT License</a> ·
+      <span>Built on ESP32 · No cloud</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Lightweight reveal-on-scroll
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+  }, { threshold: 0.12 });
+  document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+</script>
+</body>
+</html>
