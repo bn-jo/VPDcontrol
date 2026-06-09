@@ -84,6 +84,29 @@
 // humidity will spike; adding moisture now makes the spike worse.
 #define AC_PRESHUTDOWN_MARGIN  2.0f   // °C
 
+// ─── Predictive A/C (learned hot-hours window) ───────────────────────────────
+// The controller scans logs.csv to find each day's hot window — the contiguous
+// hours whose average temperature is within AC_HOT_BAND of the daily peak — then
+// runs the A/C continuously from AC_WINDOW_MARGIN_MIN before it starts to the same
+// margin after it ends. This pre-cools ahead of the heat and rides through it
+// instead of short-cycling. Outside the window the A/C uses normal hysteresis.
+#define AC_HOT_BAND            1.5f         // °C below the daily peak still counts as "hot"
+#define AC_WINDOW_MARGIN_MIN   30           // run this many minutes before/after the hot hours
+#define AC_WINDOW_MIN_HOURS    16           // need ≥ this many hours of data to trust the profile
+#define AC_WINDOW_RECALC_MS    21600000UL   // recompute the window every 6 h
+
+// When the A/C is within this margin of its turn-on temperature, pre-run the
+// humidifier (all stages except Bloom / Late Bloom) to buffer the sharp RH drop
+// the A/C causes the moment it starts dehumidifying.
+#define AC_PRESTART_MARGIN     1.0f   // °C below the A/C turn-on point
+
+// ─── Proactive restart guard ─────────────────────────────────────────────────
+// The 01:20 / 13:20 safe restarts are skipped if the device booted less than this
+// long ago — prevents a restart loop when a reboot lands back inside the same
+// minute window (boot + WiFi + NTP can complete in < 10 s). The restart is also
+// deferred while the A/C relay is energised so a reboot never cuts cooling power.
+#define PROACTIVE_RESTART_MIN_UPTIME_MS  300000UL   // 5 min
+
 
 // ─── Blooming sub-stages ─────────────────────────────────────────────────────
 // Days 1-BLOOM_EARLY_DAYS = Early Bloom; Day BLOOM_EARLY_DAYS+1 = auto-switch to Late Bloom

@@ -386,6 +386,18 @@ void loop() {
         }
     }
 
+    // ── Predictive A/C hot-hours window (Core 1: reads logs.csv) ──────────────
+    // Recompute shortly after NTP sync, then every AC_WINDOW_RECALC_MS. Kept on
+    // Core 1 so the full-file scan never touches the control loop on Core 0.
+    {
+        static unsigned long lastAcWinMs = 0;
+        if (time(nullptr) > 1000000000L &&
+            (lastAcWinMs == 0 || millis() - lastAcWinMs >= AC_WINDOW_RECALC_MS)) {
+            lastAcWinMs = millis();
+            climate.recomputeAcWindow();
+        }
+    }
+
     // ── Track light state + grow stage changes → event log ────────────────────
     {
         bool lightsNow = climate.isLightsOn();
@@ -419,7 +431,13 @@ void loop() {
             localtime_r(&nowT, &lt);
             bool inNightWindow = (lt.tm_hour == 1  && lt.tm_min == 20);
             bool inNoonWindow  = (lt.tm_hour == 13 && lt.tm_min == 20);
-            if (inNightWindow && !dailyRestartDone) {
+            // Don't restart while the A/C is running (a reboot would cut cooling),
+            // and not until the device has been up long enough — otherwise a reboot
+            // that lands back inside the same minute window restarts again, looping.
+            bool acRunning = relays.get(DEHUMIDIFIER).physicalOn;
+            bool uptimeOk  = millis() > PROACTIVE_RESTART_MIN_UPTIME_MS;
+            bool mayRestart = uptimeOk && !acRunning;
+            if (inNightWindow && !dailyRestartDone && mayRestart) {
                 dailyRestartDone = true;
                 climate.flushPrefsIfDirty();
                 climate.flushProfilePrefsIfDirty();
@@ -433,7 +451,7 @@ void loop() {
                 delay(200);
                 ESP.restart();
             }
-            if (inNoonWindow && !noonRestartDone) {
+            if (inNoonWindow && !noonRestartDone && mayRestart) {
                 noonRestartDone = true;
                 climate.flushPrefsIfDirty();
                 climate.flushProfilePrefsIfDirty();

@@ -113,6 +113,15 @@ public:
     void                  setAcHumDelay(uint32_t sec);
     uint32_t              acHumDelaySec()  const { return _acHumDelaySec; }
 
+    // Predictive A/C hot-hours window — learned from logs.csv, recomputed on Core 1.
+    // Inside the window the A/C runs continuously (down to its temperature floor);
+    // outside it falls back to normal hysteresis. Times are minutes since local
+    // midnight; -1 = no window (insufficient history).
+    void                  recomputeAcWindow();   // call from Core 1 loop (LittleFS read)
+    bool                  acWindowValid() const { return _acHotStartMin >= 0 && _acHotEndMin >= 0; }
+    int                   acHotStartMin() const { return _acHotStartMin; }
+    int                   acHotEndMin()   const { return _acHotEndMin; }
+
     // Heater pulse timing + trigger target (configurable via UI)
     void                  setHeatPulse(uint32_t onSec, uint32_t restSec, float target = 0.0f);
     uint32_t              heatPulseOnSec()   const { return _heatPulseOnSec; }
@@ -140,6 +149,8 @@ private:
     float           _acNightLow   = 0.0f;   // 0 = follow night profile tempMin
     float           _acNightHigh  = 0.0f;   // 0 = follow night profile tempMax
     uint32_t        _acHumDelaySec    = 600;   // seconds humidifier/heat-mat stay suppressed after A/C turns off
+    volatile int    _acHotStartMin    = -1;    // predictive hot-window start (min since local midnight; -1 = none)
+    volatile int    _acHotEndMin      = -1;    // predictive hot-window end   (min since local midnight; -1 = none)
     uint32_t        _heatPulseOnSec   = 45;    // heater pulse ON duration (seconds)
     uint32_t        _heatPulseRestSec = 420;   // heater rest between pulses (seconds)
     float           _heatTarget       = 0.0f;  // turn ON below this °C; 0 = use profile tempMin

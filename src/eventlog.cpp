@@ -59,6 +59,14 @@ void eventlog(const char* type, const char* detail) {
     rlog("[EVT] %s: %s", type, safe);
 }
 
+// ─── Clear the persistent event log ───────────────────────────────────────────
+// Removes /events.csv and resets the counter. Core 1 only (loop), same as the
+// writers — this guarantees it never preempts an in-progress eventlog() append.
+void eventlogClear() {
+    LittleFS.remove(EVENTLOG_FILE);
+    _evtCount = 0;
+}
+
 // ─── Serialize last 60 entries → JSON — reads from file tail, no static ring ──
 int eventlogGetJson(char* buf, size_t bufSize) {
     File f = LittleFS.open(EVENTLOG_FILE, "r");

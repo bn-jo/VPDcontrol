@@ -86,6 +86,23 @@ void crashlogOnNtpSync() {
     p.end();
 }
 
+// ─── Clear all counters (RAM + NVS) ──────────────────────────────────────────
+// Core 1 only (called from webBroadcast via the deferred flag) — wipes the NVS
+// namespace so flash isn't written from the async_tcp WS callback.
+void crashlogClear() {
+    for (uint8_t i = 0; i < CRASHLOG_DAYS; i++) {
+        crashDays[i].date     = 0;
+        crashDays[i].panic    = 0;
+        crashDays[i].brownout = 0;
+        crashDays[i].watchdog = 0;
+    }
+    crashSlot = 0;
+    Preferences p;
+    p.begin("crashlog", false);
+    p.clear();
+    p.end();
+}
+
 // ─── Serialize oldest → newest (skips empty slots) ──────────────────────────
 int crashlogGetJson(char* buf, size_t bufSize) {
     size_t w = 0;

@@ -20,6 +20,7 @@ struct CrashDay {
 void crashlogBegin(esp_reset_reason_t reason);  // call at boot with esp_reset_reason()
 void crashlogOnNtpSync();                        // call once after NTP becomes ready
 int  crashlogGetJson(char* buf, size_t bufSize); // serialize history → JSON array
+void crashlogClear();                            // wipe all counters (NVS + RAM); Core 1 only
 
 extern CrashDay crashDays[CRASHLOG_DAYS]; // exposed for direct read if needed
 extern uint8_t  crashSlot;               // current day's slot index

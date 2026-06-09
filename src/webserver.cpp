@@ -30,6 +30,14 @@ static SemaphoreHandle_t _jsonMux      = nullptr;
 static char              _stateJsonBuf[8192];
 static char              _wsSensBuf[WIFI_SENSOR_MAX * 220 + 8];
 
+// Set from the WS handler (async_tcp); the actual wipe runs in webBroadcast()
+// on Core 1 (loop) so it never preempts an in-progress eventlog()/NVS flash write.
+// Bitmask: which logs to clear on the next loop tick.
+#define CLEAR_SYS    0x01
+#define CLEAR_EVENT  0x02
+#define CLEAR_CRASH  0x04
+static volatile uint8_t  _clearPending = 0;
+
 // ─── Auth helper ──────────────────────────────────────────────────────────────
 // Always require HTTP Basic Auth — credentials defined in config.h.
 static bool checkAuth(AsyncWebServerRequest* req) {
@@ -554,6 +562,14 @@ static void onWsEvent(AsyncWebSocket*       server,
         int  id     = doc["id"]     | -1;
         bool active = doc["active"] | true;
         if (id >= 0) wifiSensors.setSensorActive(id, active);
+    } else if (strcmp(msgType, "clearLogs") == 0) {
+        // Deferred to Core 1 (webBroadcast) — these touch flash/NVS. `what`
+        // selects the target box; omitted/"all" clears everything.
+        const char* what = doc["what"] | "all";
+        if      (strcmp(what, "sys")   == 0) _clearPending |= CLEAR_SYS;
+        else if (strcmp(what, "event") == 0) _clearPending |= CLEAR_EVENT;
+        else if (strcmp(what, "crash") == 0) _clearPending |= CLEAR_CRASH;
+        else                                 _clearPending |= (CLEAR_SYS | CLEAR_EVENT | CLEAR_CRASH);
     }
 
     // Echo updated state back to the requesting client only.
@@ -570,6 +586,28 @@ static void onWsEvent(AsyncWebSocket*       server,
 // ─── Log API handler ──────────────────────────────────────────────────────────
 static char logBuf[LOG_RESPONSE_BUF];
 
+// Stream a NUL-terminated static buffer to the client in small chunks instead of
+// copying it into a heap String. The String copy of a full 24 KB /api/logs reply
+// is a large, variable-sized, contiguous allocation — fired on every UI open — and
+// after a day of uptime the fragmented heap can't satisfy it (or AsyncTCP's own
+// buffers right after), which is the PANIC-on-open. The filler copies ≤maxLen
+// bytes per TCP ack, so no large allocation is ever needed.
+//
+// IMPORTANT: `src` must stay valid and unchanged for the whole async send. Each
+// streamed endpoint therefore owns a dedicated static buffer that no other handler
+// touches; the only residual race is two concurrent requests to the *same*
+// endpoint, which at worst garbles one reply (the client refetches) — never a crash.
+static AsyncWebServerResponse* streamStatic(AsyncWebServerRequest* req,
+                                            const char* src, size_t len) {
+    return req->beginResponse("application/json", len,
+        [src, len](uint8_t* buffer, size_t maxLen, size_t index) -> size_t {
+            size_t remaining = len - index;
+            size_t chunk     = remaining < maxLen ? remaining : maxLen;
+            if (chunk) memcpy(buffer, src + index, chunk);
+            return chunk;
+        });
+}
+
 static void handleLogRequest(AsyncWebServerRequest* req) {
     int hours = 24;
     if (req->hasParam("hours")) {
@@ -585,9 +623,9 @@ static void handleLogRequest(AsyncWebServerRequest* req) {
         step = req->getParam("step")->value().toInt();
         step = constrain(step, 1, 60);
     }
-    logger.getJsonLast(hours, logBuf, sizeof(logBuf), since, step);
+    int len = logger.getJsonLast(hours, logBuf, sizeof(logBuf), since, step);
 
-    AsyncWebServerResponse* resp = req->beginResponse(200, "application/json", logBuf);
+    AsyncWebServerResponse* resp = streamStatic(req, logBuf, (size_t)len);
     resp->addHeader("Cache-Control", "no-cache");
     req->send(resp);
 }
@@ -750,8 +788,8 @@ void webBegin() {
     server.on("/api/syslog", HTTP_GET, [](AsyncWebServerRequest* req) {
         if (!checkAuth(req)) return;
         static char syslogBuf[SYSLOG_LINES * (SYSLOG_LINE_LEN + 4) + 256];
-        syslogGetJson(syslogBuf, sizeof(syslogBuf));
-        AsyncWebServerResponse* resp = req->beginResponse(200, "application/json", syslogBuf);
+        int len = syslogGetJson(syslogBuf, sizeof(syslogBuf));
+        AsyncWebServerResponse* resp = streamStatic(req, syslogBuf, (size_t)len);
         resp->addHeader("Cache-Control", "no-cache");
         req->send(resp);
     });
@@ -769,9 +807,11 @@ void webBegin() {
     // ── Persistent event log ─────────────────────────────────────────────────
     server.on("/api/events", HTTP_GET, [](AsyncWebServerRequest* req) {
         if (!checkAuth(req)) return;
-        // Reuse logBuf — async_tcp is single-threaded, no overlap with /api/logs
-        eventlogGetJson(logBuf, sizeof(logBuf));
-        AsyncWebServerResponse* resp = req->beginResponse(200, "application/json", logBuf);
+        // Dedicated buffer (not logBuf): the streamed response keeps reading its
+        // source after the handler returns, so it must not share with /api/logs.
+        static char eventBuf[10000];   // 60 events × ~130 B JSON + margin
+        int len = eventlogGetJson(eventBuf, sizeof(eventBuf));
+        AsyncWebServerResponse* resp = streamStatic(req, eventBuf, (size_t)len);
         resp->addHeader("Cache-Control", "no-cache");
         req->send(resp);
     });
@@ -1021,6 +1061,21 @@ void webBegin() {
 
 // ─── Broadcast (called from main loop) ────────────────────────────────────────
 void webBroadcast() {
+    // Process pending log-clear requests here (Core 1 / loop context) — the WS
+    // handler only sets the bits so the flash/NVS writes never race the writers.
+    if (_clearPending) {
+        uint8_t what = _clearPending;
+        _clearPending = 0;
+        if (what & CLEAR_EVENT) eventlogClear();
+        if (what & CLEAR_CRASH) crashlogClear();
+        // Clear the in-RAM syslog last so the confirmation line below survives.
+        if (what & CLEAR_SYS)   syslogClear();
+        rlog("[LOG] Cleared by user:%s%s%s",
+             (what & CLEAR_SYS)   ? " sys"   : "",
+             (what & CLEAR_EVENT) ? " event" : "",
+             (what & CLEAR_CRASH) ? " crash" : "");
+    }
+
     if (!ws.count()) return;
     ws.cleanupClients();
 

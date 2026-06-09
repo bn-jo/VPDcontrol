@@ -355,7 +355,17 @@ void RelayManager::update() {
                         applyPhysical(idx, false);
                     } else {
                         // Max-off guard: force ON if off too long (e.g. exhaust fan for tent pressure)
-                        bool forceOn = !_r[i].physicalOn
+                        //
+                        // Filter / smell burst only in Bloom and Drying. The A/C is now
+                        // split across two tents, so cold air is precious — in Seedling/Veg
+                        // we keep the exhaust closed and skip the forced negative-pressure
+                        // burst. Only Bloom (odour-heavy) and Drying need to pull air
+                        // through the carbon filter, so the maxOffSec guard runs only then.
+                        // _currentMode irrigation slot: 0=Seedling 1=Veg 2=Bloom 3=Drying
+                        // (GROW_LATE_BLOOM maps to slot 2, so both bloom phases qualify).
+                        bool filterStage = (_currentMode == 2 || _currentMode == 3);
+                        bool forceOn = filterStage
+                                    && !_r[i].physicalOn
                                     && _r[i].maxOffSec > 0
                                     && _r[i].lastOffMs > 0
                                     && (millis() - _r[i].lastOffMs) >= (unsigned long)_r[i].maxOffSec * 1000UL;

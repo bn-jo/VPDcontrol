@@ -80,6 +80,14 @@ void rlog(const char* fmt, ...) {
     if (_count < SYSLOG_LINES) _count++;
 }
 
+// ─── Clear the in-RAM ring buffer ────────────────────────────────────────────
+// Only resets the indices; old line contents are simply no longer serialized.
+// Call from Core 1 (loop) only — same constraint as rlog's writers.
+void syslogClear() {
+    _head  = 0;
+    _count = 0;
+}
+
 // ─── Serialize to JSON ────────────────────────────────────────────────────────
 // Returns array: [ { "t": "...", "l": "line" }, ... ] oldest → newest
 int syslogGetJson(char* buf, size_t bufSize) {

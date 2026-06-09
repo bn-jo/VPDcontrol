@@ -14,3 +14,4 @@
 void eventlogBegin();                              // call after LittleFS is mounted
 void eventlog(const char* type, const char* detail); // append one entry
 int  eventlogGetJson(char* buf, size_t bufSize);   // last 60 events → JSON array
+void eventlogClear();                              // delete the log file (Core 1 only)

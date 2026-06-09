@@ -3,7 +3,9 @@
 #include <LittleFS.h>
 #include <string.h>
 #include <stdio.h>
+#include <math.h>
 #include <time.h>
+#include <esp_task_wdt.h>
 
 DataLogger logger;
 
@@ -117,6 +119,47 @@ int DataLogger::getJsonLast(int hours, char* buf, size_t bufSize, long since, in
     buf[w++] = ']';
     buf[w]   = '\0';
     return (int)w;
+}
+
+// ─── Hourly temperature profile (for predictive A/C window) ───────────────────
+int DataLogger::getHourlyTempAvg(float avg[24]) {
+    double   sum[24] = {0};
+    uint32_t cnt[24] = {0};
+    for (int h = 0; h < 24; h++) avg[h] = NAN;
+
+    File f = LittleFS.open(LOG_FILE_PATH, "r");
+    if (!f) return 0;
+
+    char line[96];
+    int  byteCnt = 0;
+    while (f.available()) {
+        int n = f.readBytesUntil('\n', line, sizeof(line) - 1);
+        byteCnt += n + 1;
+        if (n > 0) {
+            line[n] = '\0';
+            long  ts;
+            float T, H, V, S;
+            int fields = sscanf(line, "%ld,%f,%f,%f,%f", &ts, &T, &H, &V, &S);
+            if (fields >= 4 && (time_t)ts >= 1000000000L) {
+                struct tm lt;
+                time_t tt = (time_t)ts;
+                localtime_r(&tt, &lt);
+                if (lt.tm_hour >= 0 && lt.tm_hour < 24) {
+                    sum[lt.tm_hour] += T;
+                    cnt[lt.tm_hour]++;
+                }
+            }
+        }
+        // Yield + pet the WDT every 4 KB — the full-file scan runs on Core 1 (loop)
+        if (byteCnt >= 4096) { byteCnt = 0; esp_task_wdt_reset(); vTaskDelay(1); }
+    }
+    f.close();
+
+    int filled = 0;
+    for (int h = 0; h < 24; h++) {
+        if (cnt[h] > 0) { avg[h] = (float)(sum[h] / (double)cnt[h]); filled++; }
+    }
+    return filled;
 }
 
 // ─── Private helpers ──────────────────────────────────────────────────────────

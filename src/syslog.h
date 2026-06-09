@@ -18,6 +18,7 @@
 
 void syslogBegin();                              // load previous crash info from NVS
 void rlog(const char* fmt, ...);                 // log a line (Serial + ring buffer)
+void syslogClear();                              // wipe the in-RAM ring buffer
 int  syslogGetJson(char* buf, size_t bufSize);   // serialize ring buffer → JSON
 void syslogSaveCrashInfo(const char* reason);    // persist crash stamp to NVS
 void syslogFixEpoch();                           // call once after NTP sync — fixes epoch in NVS + RAM

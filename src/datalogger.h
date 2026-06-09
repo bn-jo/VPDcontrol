@@ -17,6 +17,12 @@ public:
     // Returns number of characters written. buf is always null-terminated.
     int  getJsonLast(int hours, char* buf, size_t bufSize, long since = 0, int step = 1);
 
+    // Build a 24-bin average-temperature-by-hour-of-day profile from logs.csv.
+    // avg[h] = mean temperature recorded during local hour h (NAN if no samples).
+    // Returns the number of hours (0–24) that have at least one sample.
+    // Core-1 only: does a full-file LittleFS read and yields/pets the WDT.
+    int  getHourlyTempAvg(float avg[24]);
+
     // ── Irrigation event log (/irrig.csv) ─────────────────────────────────────
     void logIrrigation(time_t ts, float before, float after, uint32_t durSec, uint32_t ml, uint8_t src = 0);
     int  getIrrigationJson(char* buf, size_t bufSize);

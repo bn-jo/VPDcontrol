@@ -2,8 +2,10 @@
 #include "config.h"
 #include "syslog.h"
 #include "intakesensor.h"
+#include "datalogger.h"
 #include <Preferences.h>
 #include <LittleFS.h>
+#include <math.h>
 #include <time.h>
 
 ClimateController climate;
@@ -514,6 +516,34 @@ void ClimateController::computeOutputs(const SensorData& sd) {
     const bool vpdDry        = vpdP > (vpdMax + humBuf);   // outer band → humidifier ON
     const bool vpdWet        = vpdP < (vpdMin - fanBuf);   // outer band → exhaust fan ON
 
+    // ── A/C thresholds + predictive hot-hours window ──────────────────────────
+    // Computed up here (before the humidifier) so the pre-humidify boost can see
+    // whether the A/C is about to start. Inside the learned hot window the A/C
+    // engages as soon as temp reaches its floor (acLow) and rides through the heat
+    // continuously; outside it kicks in only at the ceiling (acHigh) as before.
+    const float acLow  = lightsOn ?
+        ((_acDayLow    > 0.0f) ? _acDayLow    : p.tempMin) :
+        ((_acNightLow  > 0.0f) ? _acNightLow  : p.tempMin);
+    const float acHigh = lightsOn ?
+        ((_acDayHigh   > 0.0f) ? _acDayHigh   : p.tempMax) :
+        ((_acNightHigh > 0.0f) ? _acNightHigh : p.tempMax);
+
+    bool inAcWindow = false;
+    if (acWindowValid()) {
+        time_t nowW = time(nullptr);
+        if (nowW > 1000000000L) {
+            struct tm lt;
+            localtime_r(&nowW, &lt);
+            int nowMin = lt.tm_hour * 60 + lt.tm_min;
+            int s = _acHotStartMin, e = _acHotEndMin;
+            inAcWindow = (s <= e) ? (nowMin >= s && nowMin <= e)
+                                  : (nowMin >= s || nowMin <= e);
+        }
+    }
+    const float acTurnOn      = inAcWindow ? acLow : acHigh;
+    const bool  acAboutToStart = !_acOn && (t >= acTurnOn - AC_PRESTART_MARGIN);
+    const bool  bloomStage     = (_mode == GROW_BLOOM || _mode == GROW_LATE_BLOOM);
+
     // ── LIGHTS ───────────────────────────────────────────────────────────────
     relays.setAutoState(LIGHTS, lightsOn);
 
@@ -560,6 +590,13 @@ void ClimateController::computeOutputs(const SensorData& sd) {
                 want = vpdWet || humHigh;
             }
         }
+        // A/C efficiency interlock: while the A/C is actively cooling, idle the top
+        // fan — in exhaust it blows the chilled air straight out, in intake it draws
+        // warm room air in; either way it throws away the A/C's cooling power (which
+        // is now split across two tents, so it's precious). Mold safety (humHigh)
+        // still forces it on, and RelayManager's maxOffSec smell-burst still gives
+        // Bloom/Drying its periodic exhaust through the carbon filter.
+        if (relays.get(DEHUMIDIFIER).physicalOn && !humHigh) want = false;
         if (!relays.get(TOP_FAN).installed) want = false;
         _topFanOn = want;
         relays.setAutoState(TOP_FAN, want);
@@ -609,6 +646,10 @@ void ClimateController::computeOutputs(const SensorData& sd) {
         } else {
             want = (vpdDry || humLow) && !humHigh;
         }
+        // Pre-humidify before the A/C kicks in (all stages except Bloom / Late
+        // Bloom). The A/C dries the tent hard the instant it starts, so add
+        // moisture first to soften the RH drop. Never override the mold cutoff.
+        if (acAboutToStart && !bloomStage && !humHigh) want = true;
         if (!relays.get(HUMIDIFIER).installed) want = false;
         _humidifierOn = want;
         relays.setAutoState(HUMIDIFIER, want);
@@ -710,24 +751,18 @@ void ClimateController::computeOutputs(const SensorData& sd) {
     relays.setAutoState(WATERING, false);
 
     // ── A/C (relay 5 / DEHUMIDIFIER index) ───────────────────────────────────
-    // Physical relay cuts/restores A/C mains power.
-    // Wide hysteresis using full profile range — A/C takes time to start cooling:
-    //   Turn ON  when temp ≥ acHigh (default = profile tempMax)
-    //   Turn OFF when temp ≤ acLow  (default = profile tempMin)
-    // Both thresholds can be overridden via UI (0 = use profile value).
+    // Physical relay cuts/restores A/C mains power. Thresholds (acLow/acHigh) and
+    // the predictive hot-hours window were computed above.
+    //   Turn ON  when temp ≥ acTurnOn  (acHigh normally; acLow inside the window,
+    //            so it pre-cools ahead of the heat and runs continuously through it)
+    //   Turn OFF when temp ≤ acLow      (floor — protects against over-cooling)
     // Hard interlock: never runs simultaneously with heat mat.
     {
-        const float acLow  = lightsOn ?
-            ((_acDayLow    > 0.0f) ? _acDayLow    : p.tempMin) :
-            ((_acNightLow  > 0.0f) ? _acNightLow  : p.tempMin);
-        const float acHigh = lightsOn ?
-            ((_acDayHigh   > 0.0f) ? _acDayHigh   : p.tempMax) :
-            ((_acNightHigh > 0.0f) ? _acNightHigh : p.tempMax);
         bool want;
         if (_acOn) {
-            want = t > acLow;   // running: keep going until floor is reached
+            want = t > acLow;       // running: keep going until floor is reached
         } else {
-            want = t >= acHigh; // idle: kick in as soon as ceiling is hit
+            want = t >= acTurnOn;   // idle: kick in at ceiling, or at floor inside hot window
         }
         if (_heatMatOn) want = false;
         if (!relays.get(DEHUMIDIFIER).installed) want = false;
@@ -769,10 +804,7 @@ void ClimateController::computeOutputs(const SensorData& sd) {
         bool  suppress;
         float critLow;
         if (_mode == GROW_DRYING) {
-            const float acLow_ = lightsOn ?
-                ((_acDayLow   > 0.0f) ? _acDayLow   : p.tempMin) :
-                ((_acNightLow > 0.0f) ? _acNightLow : p.tempMin);
-            bool acNearOff = _acOn && (t <= acLow_ + AC_PRESHUTDOWN_MARGIN);
+            bool acNearOff = _acOn && (t <= acLow + AC_PRESHUTDOWN_MARGIN);
             suppress = acNearOff || acCooldown;
             critLow  = p.humMin;     // humidify to target
         } else {
@@ -811,6 +843,54 @@ void ClimateController::setAcTemps(float low, float high, bool night) {
 void ClimateController::setAcHumDelay(uint32_t sec) {
     _acHumDelaySec = sec;
     _prefsDirty = true;
+}
+
+// ─── Predictive A/C hot-hours window ──────────────────────────────────────────
+// Learn the daily hot window from logged temperature history and store it as a
+// minute-of-day range. Called from Core 1 (loop) — does a full logs.csv read.
+// Outside the window the A/C uses normal hysteresis; inside it runs continuously.
+void ClimateController::recomputeAcWindow() {
+    float avg[24];
+    int filled = logger.getHourlyTempAvg(avg);
+    if (filled < AC_WINDOW_MIN_HOURS) {
+        rlog("[AC-WIN] Not enough history (%d/24 h) — hysteresis only", filled);
+        _acHotStartMin = -1;
+        _acHotEndMin   = -1;
+        return;
+    }
+
+    // Daily peak among hours that have data
+    int   peakH = -1;
+    float peakT = -1000.0f;
+    for (int h = 0; h < 24; h++) {
+        if (!isnan(avg[h]) && avg[h] > peakT) { peakT = avg[h]; peakH = h; }
+    }
+    if (peakH < 0) { _acHotStartMin = -1; _acHotEndMin = -1; return; }
+
+    const float thresh = peakT - AC_HOT_BAND;
+
+    // Grow the window outward from the peak hour while still "hot" (wraps midnight).
+    int startH = peakH, endH = peakH;
+    for (int i = 1; i < 24; i++) {
+        int h = (peakH - i + 24) % 24;
+        if (!isnan(avg[h]) && avg[h] >= thresh) startH = h; else break;
+    }
+    for (int i = 1; i < 24; i++) {
+        int h = (peakH + i) % 24;
+        if (!isnan(avg[h]) && avg[h] >= thresh) endH = h; else break;
+    }
+
+    // Hour bins [startH:00 .. endH:59], padded each side by the margin.
+    int startMin = startH * 60 - AC_WINDOW_MARGIN_MIN;
+    int endMin   = endH * 60 + 60 + AC_WINDOW_MARGIN_MIN;
+    startMin = (startMin % 1440 + 1440) % 1440;
+    endMin   = (endMin   % 1440 + 1440) % 1440;
+
+    _acHotStartMin = startMin;
+    _acHotEndMin   = endMin;
+    rlog("[AC-WIN] Hot window %02d:%02d-%02d:%02d (peak %.1f C @ %02d:00, %d/24 h)",
+         startMin / 60, startMin % 60, endMin / 60, endMin % 60,
+         (double)peakT, peakH, filled);
 }
 
 void ClimateController::setHeatPulse(uint32_t onSec, uint32_t restSec, float target) {
