@@ -117,7 +117,10 @@ def build(crop):
             "ntMin": st["nT"][0], "ntMax": st["nT"][1],
             "nhMin": nHmin,       "nhMax": nHmax,
             "nvMin": night(dVmin),"nvMax": night(dVmax),
-            "lOn":   st["L"][0],  "lOff":  st["L"][1],
+            # NOTE: light hours (lOn/lOff) are intentionally omitted — the
+            # controller's /api/restore applies only the climate ranges, so we
+            # don't ship fields it would silently ignore. Photoperiod stays as
+            # the grower has it. (st["L"] kept in data for reference only.)
         })
     return {
         "version": 1,

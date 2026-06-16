@@ -292,6 +292,8 @@
       <div class="feat reveal"><span class="ico">🔒</span><h3>No cloud, no account</h3><p>Everything runs on the device. Your data never leaves your network — fully self-hosted.</p></div>
       <div class="feat reveal"><span class="ico">🌬️</span><h3>A/C integration</h3><p>Climate interlocks and adjustable thresholds keep temperature in range while coordinating humidity and airflow.</p></div>
       <div class="feat reveal"><span class="ico">🏠</span><h3>Scale to many rooms</h3><p>Run one ESP32 per grow room — each with its own stage, targets and schedule — then watch them side by side in one split-screen dashboard.</p></div>
+      <div class="feat reveal"><span class="ico">📈</span><h3>On-device history</h3><p>Seven days of temperature, humidity, VPD and soil moisture logged to flash, with a zoomable multi-line chart — no external database or cloud.</p></div>
+      <div class="feat reveal"><span class="ico">💾</span><h3>Backup &amp; restore</h3><p>Export every setting to a single JSON file, reload it after a reflash, or drop in a ready-made crop profile to retune the whole room in one click.</p></div>
     </div>
   </div>
 </section>
@@ -319,69 +321,7 @@
   </div>
 </section>
 
-<section id="profiles" style="background:var(--bg2)">
-  <div class="wrap">
-    <p class="eyebrow">Ready-made grow profiles</p>
-    <h2>Download a profile for your crop</h2>
-    <p class="lead">Climate presets for 9 common fruiting vegetables — day/night temperature, humidity and VPD targets across every stage from seedling to flower and fruit. Download one and load it onto your controller in seconds.</p>
-    <div class="crops">
-      <div class="crop reveal">
-        <div class="crop-top"><span class="ico">🍅</span><div><h3>Tomato</h3><div class="kind">Warm-season fruiting</div></div></div>
-        <p>Warm · 22–27 °C day / 16–18 °C night · VPD 0.8–1.3 kPa.</p>
-        <a class="dl" href="profiles/tomato.json" download="tomato-vpd-profile.json">⬇ Download profile</a>
-      </div>
-      <div class="crop reveal">
-        <div class="crop-top"><span class="ico">🥒</span><div><h3>Cucumber</h3><div class="kind">Warm, humidity-loving</div></div></div>
-        <p>Warm & humid · 24–28 °C · VPD 0.4–1.15 kPa.</p>
-        <a class="dl" href="profiles/cucumber.json" download="cucumber-vpd-profile.json">⬇ Download profile</a>
-      </div>
-      <div class="crop reveal">
-        <div class="crop-top"><span class="ico">🫑</span><div><h3>Bell Pepper</h3><div class="kind">Warm-season fruiting</div></div></div>
-        <p>Warm · 22–28 °C · VPD 0.8–1.3 kPa.</p>
-        <a class="dl" href="profiles/bell-pepper.json" download="bell-pepper-vpd-profile.json">⬇ Download profile</a>
-      </div>
-      <div class="crop reveal">
-        <div class="crop-top"><span class="ico">🌶️</span><div><h3>Chili Pepper</h3><div class="kind">Hot & dry tolerant</div></div></div>
-        <p>Hot & drier · 24–30 °C · VPD 0.9–1.5 kPa.</p>
-        <a class="dl" href="profiles/chili-pepper.json" download="chili-pepper-vpd-profile.json">⬇ Download profile</a>
-      </div>
-      <div class="crop reveal">
-        <div class="crop-top"><span class="ico">🍆</span><div><h3>Eggplant</h3><div class="kind">Warm-season fruiting</div></div></div>
-        <p>Warm · 24–29 °C · VPD 0.8–1.3 kPa.</p>
-        <a class="dl" href="profiles/eggplant.json" download="eggplant-vpd-profile.json">⬇ Download profile</a>
-      </div>
-      <div class="crop reveal">
-        <div class="crop-top"><span class="ico">🎃</span><div><h3>Zucchini / Squash</h3><div class="kind">Warm-season fruiting</div></div></div>
-        <p>Warm · 21–28 °C · VPD 0.45–1.3 kPa.</p>
-        <a class="dl" href="profiles/zucchini.json" download="zucchini-vpd-profile.json">⬇ Download profile</a>
-      </div>
-      <div class="crop reveal">
-        <div class="crop-top"><span class="ico">🫘</span><div><h3>Green Beans</h3><div class="kind">Warm-season podding</div></div></div>
-        <p>Warm · 18–27 °C · VPD 0.45–1.15 kPa.</p>
-        <a class="dl" href="profiles/green-beans.json" download="green-beans-vpd-profile.json">⬇ Download profile</a>
-      </div>
-      <div class="crop reveal">
-        <div class="crop-top"><span class="ico">🍈</span><div><h3>Melon</h3><div class="kind">Warm-season fruiting</div></div></div>
-        <p>Warm · 24–30 °C · VPD 0.5–1.5 kPa.</p>
-        <a class="dl" href="profiles/melon.json" download="melon-vpd-profile.json">⬇ Download profile</a>
-      </div>
-      <div class="crop reveal">
-        <div class="crop-top"><span class="ico">🍓</span><div><h3>Strawberry</h3><div class="kind">Cool-season fruiting</div></div></div>
-        <p>Cool · 17–23 °C · VPD 0.45–1.15 kPa.</p>
-        <a class="dl" href="profiles/strawberry.json" download="strawberry-vpd-profile.json">⬇ Download profile</a>
-      </div>
-    </div>
-
-    <div class="howto">
-      <div class="step reveal"><span class="num">1</span><h4>Download</h4><p>Pick your crop above and save its <code>.json</code> profile — day/night temp, humidity and VPD for all five stages.</p></div>
-      <div class="step reveal"><span class="num">2</span><h4>Open the Syslog tab</h4><p>On your controller dashboard, open the <strong>Syslog</strong> tab and find the <strong>Backup &amp; Restore</strong> card.</p></div>
-      <div class="step reveal"><span class="num">3</span><h4>Restore from Backup</h4><p>Click <strong>⬆ Restore from Backup</strong>, pick the file. The device reboots and applies the crop's stage targets — WiFi, relays and irrigation stay as they are.</p></div>
-    </div>
-    <p class="lead" style="margin:2rem auto 0; font-size:.85rem; color:var(--dim)">Starting points from greenhouse / CEA horticulture references — always fine-tune to your cultivar and room. Stage slots: Seedling → Vegetative → Early Bloom → Late Bloom → Harvest.</p>
-  </div>
-</section>
-
-<section id="architecture">
+<section id="architecture" style="background:var(--bg2)">
   <div class="wrap">
     <p class="eyebrow">Under the hood</p>
     <h2>Two cores, zero blocking</h2>
@@ -456,6 +396,68 @@ cp src/secrets.h.example src/secrets.h
         <a class="btn btn-ghost" href="https://github.com/bn-jo/VPDcontrol#readme">Read the docs →</a>
       </div>
     </div>
+  </div>
+</section>
+
+<section id="profiles" style="background:var(--bg2)">
+  <div class="wrap">
+    <p class="eyebrow">Ready-made grow profiles</p>
+    <h2>Download a profile for your crop</h2>
+    <p class="lead">Climate presets for 9 common fruiting vegetables — day/night temperature, humidity and VPD targets across every stage from seedling to flower and fruit. Download one and load it onto your controller in seconds.</p>
+    <div class="crops">
+      <div class="crop reveal">
+        <div class="crop-top"><span class="ico">🍅</span><div><h3>Tomato</h3><div class="kind">Warm-season fruiting</div></div></div>
+        <p>Warm · 22–27 °C day / 16–18 °C night · VPD 0.8–1.3 kPa.</p>
+        <a class="dl" href="profiles/tomato.json" download="tomato-vpd-profile.json">⬇ Download profile</a>
+      </div>
+      <div class="crop reveal">
+        <div class="crop-top"><span class="ico">🥒</span><div><h3>Cucumber</h3><div class="kind">Warm, humidity-loving</div></div></div>
+        <p>Warm & humid · 24–28 °C · VPD 0.4–1.15 kPa.</p>
+        <a class="dl" href="profiles/cucumber.json" download="cucumber-vpd-profile.json">⬇ Download profile</a>
+      </div>
+      <div class="crop reveal">
+        <div class="crop-top"><span class="ico">🫑</span><div><h3>Bell Pepper</h3><div class="kind">Warm-season fruiting</div></div></div>
+        <p>Warm · 22–28 °C · VPD 0.8–1.3 kPa.</p>
+        <a class="dl" href="profiles/bell-pepper.json" download="bell-pepper-vpd-profile.json">⬇ Download profile</a>
+      </div>
+      <div class="crop reveal">
+        <div class="crop-top"><span class="ico">🌶️</span><div><h3>Chili Pepper</h3><div class="kind">Hot & dry tolerant</div></div></div>
+        <p>Hot & drier · 24–30 °C · VPD 0.9–1.5 kPa.</p>
+        <a class="dl" href="profiles/chili-pepper.json" download="chili-pepper-vpd-profile.json">⬇ Download profile</a>
+      </div>
+      <div class="crop reveal">
+        <div class="crop-top"><span class="ico">🍆</span><div><h3>Eggplant</h3><div class="kind">Warm-season fruiting</div></div></div>
+        <p>Warm · 24–29 °C · VPD 0.8–1.3 kPa.</p>
+        <a class="dl" href="profiles/eggplant.json" download="eggplant-vpd-profile.json">⬇ Download profile</a>
+      </div>
+      <div class="crop reveal">
+        <div class="crop-top"><span class="ico">🎃</span><div><h3>Zucchini / Squash</h3><div class="kind">Warm-season fruiting</div></div></div>
+        <p>Warm · 21–28 °C · VPD 0.45–1.3 kPa.</p>
+        <a class="dl" href="profiles/zucchini.json" download="zucchini-vpd-profile.json">⬇ Download profile</a>
+      </div>
+      <div class="crop reveal">
+        <div class="crop-top"><span class="ico">🫘</span><div><h3>Green Beans</h3><div class="kind">Warm-season podding</div></div></div>
+        <p>Warm · 18–27 °C · VPD 0.45–1.15 kPa.</p>
+        <a class="dl" href="profiles/green-beans.json" download="green-beans-vpd-profile.json">⬇ Download profile</a>
+      </div>
+      <div class="crop reveal">
+        <div class="crop-top"><span class="ico">🍈</span><div><h3>Melon</h3><div class="kind">Warm-season fruiting</div></div></div>
+        <p>Warm · 24–30 °C · VPD 0.5–1.5 kPa.</p>
+        <a class="dl" href="profiles/melon.json" download="melon-vpd-profile.json">⬇ Download profile</a>
+      </div>
+      <div class="crop reveal">
+        <div class="crop-top"><span class="ico">🍓</span><div><h3>Strawberry</h3><div class="kind">Cool-season fruiting</div></div></div>
+        <p>Cool · 17–23 °C · VPD 0.45–1.15 kPa.</p>
+        <a class="dl" href="profiles/strawberry.json" download="strawberry-vpd-profile.json">⬇ Download profile</a>
+      </div>
+    </div>
+
+    <div class="howto">
+      <div class="step reveal"><span class="num">1</span><h4>Download</h4><p>Pick your crop above and save its <code>.json</code> profile — day/night temp, humidity and VPD for all five stages.</p></div>
+      <div class="step reveal"><span class="num">2</span><h4>Open the Profiles tab</h4><p>On your controller dashboard, open the <strong>Profiles</strong> tab and click <strong>⬆ Load downloaded profile</strong>.</p></div>
+      <div class="step reveal"><span class="num">3</span><h4>Pick the file</h4><p>Select the profile you downloaded. The device applies the crop's stage targets and reboots — WiFi, relays and irrigation stay as they are.</p></div>
+    </div>
+    <p class="lead" style="margin:2rem auto 0; font-size:.85rem; color:var(--dim)">Starting points from greenhouse / CEA horticulture references — always fine-tune to your cultivar and room. Stage slots: Seedling → Vegetative → Early Bloom → Late Bloom → Harvest.</p>
   </div>
 </section>
 

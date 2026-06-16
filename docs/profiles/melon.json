@@ -24,9 +24,7 @@
       "nhMin": 70,
       "nhMax": 80,
       "nvMin": 0.3,
-      "nvMax": 0.65,
-      "lOn": 16,
-      "lOff": 8
+      "nvMax": 0.65
     },
     {
       "dtMin": 24,
@@ -40,9 +38,7 @@
       "nhMin": 65,
       "nhMax": 75,
       "nvMin": 0.6,
-      "nvMax": 0.9,
-      "lOn": 16,
-      "lOff": 8
+      "nvMax": 0.9
     },
     {
       "dtMin": 25,
@@ -56,9 +52,7 @@
       "nhMin": 60,
       "nhMax": 70,
       "nvMin": 0.7,
-      "nvMax": 1.05,
-      "lOn": 14,
-      "lOff": 10
+      "nvMax": 1.05
     },
     {
       "dtMin": 24,
@@ -72,9 +66,7 @@
       "nhMin": 50,
       "nhMax": 65,
       "nvMin": 0.9,
-      "nvMax": 1.3,
-      "lOn": 14,
-      "lOff": 10
+      "nvMax": 1.3
     },
     {
       "dtMin": 24,
@@ -88,9 +80,7 @@
       "nhMin": 50,
       "nhMax": 65,
       "nvMin": 0.9,
-      "nvMax": 1.3,
-      "lOn": 12,
-      "lOff": 12
+      "nvMax": 1.3
     }
   ]
 }
