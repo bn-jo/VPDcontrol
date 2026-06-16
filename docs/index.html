@@ -111,6 +111,27 @@
     .phone{position:static; width:220px}
   }
 
+  /* Multi-room split-view showcase */
+  .split-shot{max-width:980px; margin:2.6rem auto 0}
+  .split-frame{display:flex; min-width:0}
+  .split-pane{flex:1 1 50%; min-width:0; display:flex; flex-direction:column; background:var(--card2)}
+  .split-pane + .split-pane{border-left:2px solid var(--border2)}
+  .pane-bar{
+    display:flex; align-items:center; gap:.45rem; padding:.5rem .75rem;
+    background:var(--bg2); border-bottom:1px solid var(--border);
+    font-size:.76rem; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden;
+  }
+  .pane-bar .dot{width:7px;height:7px;border-radius:50%;background:var(--green-br);box-shadow:0 0 8px var(--green-br);flex:none}
+  .pane-bar .room-stage{color:var(--muted); font-weight:500}
+  .pane-view{position:relative; height:300px; overflow:hidden}
+  .pane-view img{position:absolute; top:0; left:0; width:100%; height:auto; display:block}
+  .split-pane:nth-child(2) .pane-view img{top:-36px}
+  @media(max-width:640px){
+    .split-frame{flex-direction:column}
+    .split-pane + .split-pane{border-left:0; border-top:2px solid var(--border2)}
+    .pane-view{height:240px}
+  }
+
   /* Sections */
   section{padding:4.5rem 0}
   .eyebrow{color:var(--green-br); font-weight:700; font-size:.8rem; letter-spacing:.12em; text-transform:uppercase; text-align:center}
@@ -240,6 +261,30 @@
       <div class="feat reveal"><span class="ico">📡</span><h3>Remote-friendly</h3><p>Over-the-air firmware updates, optional DuckDNS dynamic DNS and HTTP Basic Auth for access from outside the LAN.</p></div>
       <div class="feat reveal"><span class="ico">🔒</span><h3>No cloud, no account</h3><p>Everything runs on the device. Your data never leaves your network — fully self-hosted.</p></div>
       <div class="feat reveal"><span class="ico">🌬️</span><h3>A/C integration</h3><p>Climate interlocks and adjustable thresholds keep temperature in range while coordinating humidity and airflow.</p></div>
+      <div class="feat reveal"><span class="ico">🏠</span><h3>Scale to many rooms</h3><p>Run one ESP32 per grow room — each with its own stage, targets and schedule — then watch them side by side in one split-screen dashboard.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="multiroom">
+  <div class="wrap">
+    <p class="eyebrow">More than one room</p>
+    <h2>One controller per room. One dashboard for all.</h2>
+    <p class="lead">Each grow room runs its own ESP32 with independent stages, VPD targets and schedules. Flip on split view to monitor a second room right beside the first — no extra app, no cloud.</p>
+    <div class="split-shot reveal">
+      <div class="browser">
+        <div class="browser-bar"><i></i><i></i><i></i><span class="url">grow-room.local — split view ⊞</span></div>
+        <div class="split-frame">
+          <div class="split-pane">
+            <div class="pane-bar"><span class="dot"></span> 🌿 Grow Room 1 <span class="room-stage">· Vegetative</span></div>
+            <div class="pane-view"><img src="dashboard.png" alt="Grow Room 1 dashboard in split view" loading="lazy"></div>
+          </div>
+          <div class="split-pane">
+            <div class="pane-bar"><span class="dot"></span> 🌸 Grow Room 2 <span class="room-stage">· Bloom</span></div>
+            <div class="pane-view"><img src="dashboard.png" alt="Grow Room 2 dashboard in split view" loading="lazy"></div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
