@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  :root{
+    --bg:#0a0e0d; --bg2:#0f1513; --card:#121a18; --border:#1e2a27; --border2:#273733;
+    --text:#e8efec; --muted:#8ba096; --dim:#5f726c;
+    --green:#10b981; --green-br:#4ade80; --blue:#38bdf8; --amber:#f59e0b; --violet:#a78bfa;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  body{
+    width:1100px; background:var(--bg); color:var(--text);
+    font-family:'Inter',system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased; padding:46px 40px 40px;
+    background-image:
+      radial-gradient(1000px 540px at 82% -8%, rgba(16,185,129,.12), transparent 60%),
+      radial-gradient(760px 520px at -8% 8%, rgba(56,189,248,.07), transparent 55%);
+  }
+  .head{text-align:center; margin-bottom:8px}
+  .brand{display:inline-flex; align-items:center; gap:.5rem; font-weight:700; font-size:1.05rem; letter-spacing:-.01em; color:var(--muted)}
+  .brand b{color:var(--green-br)}
+  h1{font-size:2.6rem; font-weight:800; letter-spacing:-.025em; margin:.5rem 0 .3rem}
+  h1 .grad{background:linear-gradient(120deg,var(--green-br),var(--green) 55%,var(--blue));
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent}
+  .sub{color:var(--muted); font-size:1.02rem; margin-bottom:1.3rem}
+  .stats{display:flex; justify-content:center; gap:.6rem; margin-bottom:1.1rem}
+  .stat{background:var(--card); border:1px solid var(--border); border-radius:11px; padding:.55rem 1.1rem}
+  .stat .n{font-size:1.3rem; font-weight:800; color:var(--green-br); line-height:1.1}
+  .stat .l{font-size:.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:.06em}
+  .legend{display:flex; justify-content:center; gap:1.1rem; margin-bottom:1.6rem; font-size:.78rem; color:var(--muted)}
+  .legend span{display:inline-flex; align-items:center; gap:.4rem}
+  .legend i{width:10px; height:10px; border-radius:3px; display:inline-block}
+  .i-feat{background:var(--green-br)} .i-hard{background:var(--blue)} .i-fix{background:var(--amber)} .i-rel{background:var(--violet)}
+
+  .timeline{position:relative; padding:8px 0}
+  .timeline::before{content:""; position:absolute; left:50%; top:0; bottom:0; width:3px; transform:translateX(-50%);
+    background:linear-gradient(180deg, var(--violet), var(--green) 18%, var(--green-br) 92%, transparent);
+    border-radius:3px; box-shadow:0 0 16px rgba(74,222,128,.35)}
+
+  .month{position:relative; text-align:center; margin:14px 0 6px}
+  .month span{display:inline-block; background:var(--bg2); border:1px solid var(--border2); color:var(--text);
+    font-weight:700; font-size:.82rem; letter-spacing:.04em; padding:.28rem .9rem; border-radius:999px; position:relative; z-index:2}
+
+  .row{display:grid; grid-template-columns:1fr 44px 1fr; align-items:center; margin:12px 0}
+  .card{background:var(--card); border:1px solid var(--border); border-radius:13px; padding:.8rem 1rem; position:relative;
+    box-shadow:0 14px 30px -22px rgba(0,0,0,.8)}
+  .row.left  .card{grid-column:1}
+  .row.right .card{grid-column:3}
+  .row.left  .card{text-align:right}
+  .date{font-size:.72rem; color:var(--dim); font-weight:600; letter-spacing:.03em}
+  .card h3{font-size:.98rem; font-weight:700; margin:.12rem 0 .35rem; line-height:1.25}
+  .tag{display:inline-block; font-size:.64rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
+    padding:.16rem .5rem; border-radius:6px}
+  .tag.feat{color:var(--green-br); background:rgba(16,185,129,.12); border:1px solid rgba(16,185,129,.3)}
+  .tag.hard{color:var(--blue);     background:rgba(56,189,248,.12); border:1px solid rgba(56,189,248,.3)}
+  .tag.fix{ color:var(--amber);    background:rgba(245,158,11,.12); border:1px solid rgba(245,158,11,.3)}
+  .tag.rel{ color:var(--violet);   background:rgba(167,139,250,.14);border:1px solid rgba(167,139,250,.34)}
+
+  .dot{grid-column:2; justify-self:center; width:18px; height:18px; border-radius:50%;
+    background:var(--green-br); border:3px solid var(--bg); box-shadow:0 0 0 2px var(--green-br), 0 0 14px var(--green-br); z-index:2}
+  .dot.hard{background:var(--blue); box-shadow:0 0 0 2px var(--blue), 0 0 14px var(--blue)}
+  .dot.fix{ background:var(--amber);box-shadow:0 0 0 2px var(--amber),0 0 14px var(--amber)}
+  .dot.rel{ background:var(--violet);box-shadow:0 0 0 2px var(--violet),0 0 16px var(--violet)}
+  .foot{text-align:center; color:var(--dim); font-size:.8rem; margin-top:1.8rem}
+</style>
+</head>
+<body>
+  <div class="head">
+    <div class="brand">🌿 Guetos <b>VPD</b> Control</div>
+    <h1>Firmware <span class="grad">evolution</span></h1>
+    <div class="sub">Continuously tested, hardened and improved — from first boot to a multi-room platform.</div>
+    <div class="stats">
+      <div class="stat"><div class="n">48</div><div class="l">commits</div></div>
+      <div class="stat"><div class="n">12 wk</div><div class="l">Mar → Jun 2026</div></div>
+      <div class="stat"><div class="n">4</div><div class="l">build phases</div></div>
+      <div class="stat"><div class="n">100%</div><div class="l">on-device, no cloud</div></div>
+    </div>
+    <div class="legend">
+      <span><i class="i-rel"></i> Release</span>
+      <span><i class="i-feat"></i> Feature</span>
+      <span><i class="i-hard"></i> Hardening / security</span>
+      <span><i class="i-fix"></i> Stability fix</span>
+    </div>
+  </div>
+
+  <div class="timeline" id="tl"></div>
+  <div class="foot">Generated from the project's git history · github.com/bn-jo/VPDcontrol</div>
+
+<script>
+  // [date, title, type]  type: rel | feat | hard | fix ; month headers as {m:'...'}
+  const items = [
+    {m:'March 2026 — Foundation'},
+    ['Mar 24', 'v1.0 — ESP32 VPD grow controller', 'rel'],
+    ['Mar 28', 'Predictive VPD control + per-relay tuning', 'feat'],
+    ['Mar 29', 'Auto-tune, remote-sensor averaging, Web OTA', 'feat'],
+    ['Mar 30', 'Harvest stage (slow / fast) + filesystem OTA', 'feat'],
+    ['Mar 31', 'Intake-air sensor (DHT11) added', 'feat'],
+    {m:'April 2026 — Irrigation, security & A/C'},
+    ['Apr 01', 'Watering-volume estimation; HTTP Basic Auth', 'hard'],
+    ['Apr 02', 'Auth required on every connection', 'hard'],
+    ['Apr 05', 'Precision irrigation, soil calibration, WiFi roaming', 'feat'],
+    ['Apr 05', 'History graph: zoom, fullscreen, crosshair', 'feat'],
+    ['Apr 17', 'A/C integration — climate interlocks & thresholds', 'feat'],
+    {m:'May 2026 — Redesign & hardening'},
+    ['May 21', 'UI redesign, grow-assist features, web-security hardening', 'feat'],
+    {m:'June 2026 — Stability & platform'},
+    ['Jun 03', 'LittleFS partition-label fix (reliable fresh flash)', 'fix'],
+    ['Jun 04', 'Secrets moved to gitignored file; MIT license', 'hard'],
+    ['Jun 09', 'Fix PANIC crash on UI open; log-management UI', 'fix'],
+    ['Jun 09', 'Public project landing page (GitHub Pages)', 'feat'],
+    ['Jun 16', 'Multi-room split view + downloadable crop profiles', 'feat'],
+  ];
+  const tl = document.getElementById('tl');
+  let side = 'left';
+  const label = {rel:'Release', feat:'Feature', hard:'Hardening', fix:'Fix'};
+  items.forEach(it => {
+    if (it.m){ tl.insertAdjacentHTML('beforeend', `<div class="month"><span>${it.m}</span></div>`); return; }
+    const [date,title,type] = it;
+    tl.insertAdjacentHTML('beforeend',
+      `<div class="row ${side}">
+         <div class="card">
+           <div class="date">${date} 2026</div>
+           <h3>${title}</h3>
+           <span class="tag ${type}">${label[type]}</span>
+         </div>
+         <div class="dot ${type}"></div>
+       </div>`);
+    side = side === 'left' ? 'right' : 'left';
+  });
+</script>
+</body>
+</html>
