@@ -161,6 +161,29 @@
   .howto .step h4{margin:0 0 .25rem; font-size:.92rem; font-weight:700}
   .howto .step p{margin:0; color:var(--muted); font-size:.84rem}
 
+  /* Firmware history (collapsible) */
+  .fwhist{padding:3rem 0 4rem}
+  .fwhist details{max-width:860px; margin:0 auto}
+  .fwhist summary{
+    list-style:none; cursor:pointer; display:inline-flex; align-items:center; gap:.5rem;
+    margin:0 auto; padding:.7rem 1.2rem; border-radius:11px; font-weight:600; font-size:.92rem;
+    border:1px solid var(--border2); background:var(--card); color:var(--text);
+    transition:all .15s; width:fit-content;
+  }
+  .fwhist summary::-webkit-details-marker{display:none}
+  .fwhist summary:hover{border-color:var(--green); color:var(--green-br)}
+  .fwhist summary .chev{transition:transform .2s; color:var(--green-br)}
+  .fwhist details[open] summary .chev{transform:rotate(180deg)}
+  .fwhist .lbl-hide{display:none}
+  .fwhist details[open] .lbl-show{display:none}
+  .fwhist details[open] .lbl-hide{display:inline}
+  .fwhist .summary-wrap{text-align:center}
+  .fwhist .fw-img{
+    margin:1.6rem auto 0; border:1px solid var(--border2); border-radius:16px; overflow:hidden;
+    box-shadow:0 30px 80px -34px rgba(0,0,0,.85); max-width:760px;
+  }
+  .fwhist .fw-img img{display:block; width:100%; height:auto}
+
   /* Sections */
   section{padding:4.5rem 0}
   .eyebrow{color:var(--green-br); font-weight:700; font-size:.8rem; letter-spacing:.12em; text-transform:uppercase; text-align:center}
@@ -458,6 +481,22 @@ cp src/secrets.h.example src/secrets.h
       <div class="step reveal"><span class="num">3</span><h4>Pick the file</h4><p>Select the profile you downloaded. The device applies the crop's stage targets and reboots — WiFi, relays and irrigation stay as they are.</p></div>
     </div>
     <p class="lead" style="margin:2rem auto 0; font-size:.85rem; color:var(--dim)">Starting points from greenhouse / CEA horticulture references — always fine-tune to your cultivar and room. Stage slots: Seedling → Vegetative → Early Bloom → Late Bloom → Harvest.</p>
+  </div>
+</section>
+
+<section class="fwhist">
+  <div class="wrap">
+    <p class="eyebrow">How it evolved</p>
+    <h2>Tested &amp; improved over time</h2>
+    <p class="lead">48 commits across 12 weeks — features, security hardening and stability fixes, from v1.0 to a multi-room platform.</p>
+    <div class="summary-wrap">
+      <details>
+        <summary><span class="chev">▾</span> <span class="lbl-show">Show firmware history</span><span class="lbl-hide">Hide firmware history</span></summary>
+        <div class="fw-img">
+          <img src="firmware-history.png" alt="Firmware evolution timeline — milestones from v1.0 to multi-room, colour-coded by release, feature, hardening and stability fix" loading="lazy">
+        </div>
+      </details>
+    </div>
   </div>
 </section>
 
