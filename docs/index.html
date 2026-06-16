@@ -136,6 +136,10 @@
   .mini-stage-top .ph{color:var(--muted); font-weight:600}
   .mini-bar{height:6px; background:var(--bg); border-radius:4px; overflow:hidden}
   .mini-bar span{display:block; height:100%; background:linear-gradient(90deg,var(--green),var(--green-br))}
+  .mini-chart{background:var(--card); border:1px solid var(--border); border-radius:10px; padding:.55rem .7rem .35rem}
+  .mini-chart-head{display:flex; justify-content:space-between; align-items:center; font-size:.64rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin-bottom:.3rem}
+  .mini-chart-head .ph{color:var(--dim); font-weight:600}
+  .mini-chart svg{width:100%; height:auto; display:block}
   @media(max-width:640px){
     .split-frame{flex-direction:column}
     .split-pane + .split-pane{border-left:0; border-top:2px solid var(--border2)}
@@ -293,6 +297,14 @@
                 <div class="m"><span class="ml">VPD</span><span class="mv">0.98<i>kPa</i></span><span class="ms">In range</span></div>
                 <div class="m"><span class="ml">Soil</span><span class="mv">61<i>%</i></span><span class="ms">Moist</span></div>
               </div>
+              <div class="mini-chart">
+                <div class="mini-chart-head"><span>VPD · 24 h</span><span class="ph">0.80 – 1.10 kPa</span></div>
+                <svg viewBox="0 0 320 80" preserveAspectRatio="none" role="img" aria-label="Grow Room 1 VPD history, gently undulating">
+                  <defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#10b981" stop-opacity=".35"/><stop offset="1" stop-color="#10b981" stop-opacity="0"/></linearGradient></defs>
+                  <path d="M0,52 27,48 53,55 80,46 107,50 133,43 160,49 187,42 213,50 240,45 267,40 293,47 320,44 L320,80 0,80 Z" fill="url(#g1)"/>
+                  <polyline points="0,52 27,48 53,55 80,46 107,50 133,43 160,49 187,42 213,50 240,45 267,40 293,47 320,44" fill="none" stroke="#4ade80" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+                </svg>
+              </div>
               <div class="mini-stage">
                 <div class="mini-stage-top"><span>🍃 Vegetative · Day 21</span><span class="ph">18 / 6</span></div>
                 <div class="mini-bar"><span style="width:42%"></span></div>
@@ -307,6 +319,14 @@
                 <div class="m"><span class="ml">Humidity</span><span class="mv">51<i>%</i></span><span class="ms warn">Low</span></div>
                 <div class="m"><span class="ml">VPD</span><span class="mv">1.41<i>kPa</i></span><span class="ms">In range</span></div>
                 <div class="m"><span class="ml">Soil</span><span class="mv">43<i>%</i></span><span class="ms warn">Dry-back</span></div>
+              </div>
+              <div class="mini-chart">
+                <div class="mini-chart-head"><span>VPD · 24 h</span><span class="ph">1.20 – 1.50 kPa</span></div>
+                <svg viewBox="0 0 320 80" preserveAspectRatio="none" role="img" aria-label="Grow Room 2 VPD history, climbing with a late-day dry-back">
+                  <defs><linearGradient id="g2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#38bdf8" stop-opacity=".32"/><stop offset="1" stop-color="#38bdf8" stop-opacity="0"/></linearGradient></defs>
+                  <path d="M0,58 27,50 53,53 80,42 107,46 133,33 160,38 187,27 213,32 240,22 267,28 293,18 320,24 L320,80 0,80 Z" fill="url(#g2)"/>
+                  <polyline points="0,58 27,50 53,53 80,42 107,46 133,33 160,38 187,27 213,32 240,22 267,28 293,18 320,24" fill="none" stroke="#7dd3fc" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+                </svg>
               </div>
               <div class="mini-stage">
                 <div class="mini-stage-top"><span>🌺 Late Bloom · Day 48</span><span class="ph">12 / 12</span></div>
