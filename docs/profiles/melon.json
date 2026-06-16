@@ -6,9 +6,9 @@
   "stageMap": [
     "Seedling",
     "Vegetative",
-    "Early Fruit/Flower",
-    "Late Fruit/Harvest",
-    "Hold/Dry"
+    "Early Bloom",
+    "Late Bloom",
+    "Harvest"
   ],
   "note": "Climate profile for the VPD Grow Room Controller. Upload via Dashboard -> Restore (device reboots to apply). Only climate stage targets are changed; WiFi, relays and irrigation are left untouched. Tune to your cultivar.",
   "profiles": [

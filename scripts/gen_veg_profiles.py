@@ -6,8 +6,8 @@ accepts: it contains only the `profiles` array (5 stage slots) plus a light
 schedule, so uploading it via Dashboard -> Restore loads the crop's climate
 targets without touching WiFi, relays, irrigation or calibration.
 
-The controller has 5 fixed stage slots. For vegetables they map as:
-  0 Seedling  ->  1 Vegetative  ->  2 Early Fruit/Flower  ->  3 Late Fruit/Harvest  ->  4 Hold/Dry
+The controller has 5 fixed stage slots:
+  0 Seedling  ->  1 Vegetative  ->  2 Early Bloom  ->  3 Late Bloom  ->  4 Harvest
 
 Setpoints are drawn from greenhouse / controlled-environment horticulture
 references (USDA Shamshiri 2018 microclimate review; Bayer protected-culture
@@ -78,14 +78,6 @@ CROPS = [
         dict(dT=(18,26), nT=(15,18), dH=(50,65), dV=(0.85,1.15), L=(14,10)),
         dict(dT=(18,26), nT=(15,18), dH=(50,65), dV=(0.85,1.15), L=(12,12)),
      ]),
-    ("peas", "Peas", "\U0001FADB", "Cool-season podding",
-     "Cool · 13-21 °C · VPD 0.45-1.05 kPa", [
-        dict(dT=(15,20), nT=(8,12), dH=(60,70), dV=(0.45,0.75), L=(12,12)),
-        dict(dT=(15,21), nT=(8,13), dH=(55,70), dV=(0.70,0.95), L=(14,10)),
-        dict(dT=(14,20), nT=(7,12), dH=(55,65), dV=(0.75,1.00), L=(13,11)),
-        dict(dT=(13,20), nT=(6,11), dH=(50,65), dV=(0.80,1.05), L=(13,11)),
-        dict(dT=(13,20), nT=(6,11), dH=(50,65), dV=(0.80,1.05), L=(12,12)),
-     ]),
     ("melon", "Melon", "\U0001F348", "Warm-season fruiting",
      "Warm · 24-30 °C · VPD 0.5-1.5 kPa", [
         dict(dT=(24,28), nT=(18,21), dH=(65,75), dV=(0.50,0.85), L=(16,8)),
@@ -104,7 +96,7 @@ CROPS = [
      ]),
 ]
 
-STAGE_LABELS = ["Seedling", "Vegetative", "Early Fruit/Flower", "Late Fruit/Harvest", "Hold/Dry"]
+STAGE_LABELS = ["Seedling", "Vegetative", "Early Bloom", "Late Bloom", "Harvest"]
 
 
 def night(dv):

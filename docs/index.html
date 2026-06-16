@@ -283,7 +283,7 @@
     <p class="lead">A real-time control loop, an embedded single-page dashboard and over-the-air updates — no Raspberry Pi, no external server.</p>
     <div class="grid">
       <div class="feat reveal"><span class="ico">🌡️</span><h3>VPD-based control</h3><p>Temperature and humidity are fused into VPD and regulated with asymmetric hysteresis and per-stage day/night targets.</p></div>
-      <div class="feat reveal"><span class="ico">🌱</span><h3>Grow-stage profiles</h3><p>Seedling → Vegetative → Bloom → Drying, each with its own targets, photoperiod and irrigation — auto-advancing on an NTP clock.</p></div>
+      <div class="feat reveal"><span class="ico">🌱</span><h3>Grow-stage profiles</h3><p>Seedling → Vegetative → Bloom → Harvest, each with its own targets, photoperiod and irrigation — auto-advancing on an NTP clock.</p></div>
       <div class="feat reveal"><span class="ico">💧</span><h3>Precision irrigation</h3><p>Pulse/soak watering with substrate profiles (soil, coco, perlite) and dry-back targets, logged to flash.</p></div>
       <div class="feat reveal"><span class="ico">📊</span><h3>Live web dashboard</h3><p>Single-page UI served straight from the ESP32, with WebSocket telemetry every 2 s and a zoomable history chart.</p></div>
       <div class="feat reveal"><span class="ico">🔌</span><h3>8-channel relays</h3><p>Fans, humidifier, dehumidifier, heat mat, lights, watering and A/C — each with minimum on/off timers and safety interlocks.</p></div>
@@ -323,7 +323,7 @@
   <div class="wrap">
     <p class="eyebrow">Ready-made grow profiles</p>
     <h2>Download a profile for your crop</h2>
-    <p class="lead">Climate presets for 10 common fruiting vegetables — day/night temperature, humidity and VPD targets across every stage from seedling to flower and fruit. Download one and load it onto your controller in seconds.</p>
+    <p class="lead">Climate presets for 9 common fruiting vegetables — day/night temperature, humidity and VPD targets across every stage from seedling to flower and fruit. Download one and load it onto your controller in seconds.</p>
     <div class="crops">
       <div class="crop reveal">
         <div class="crop-top"><span class="ico">🍅</span><div><h3>Tomato</h3><div class="kind">Warm-season fruiting</div></div></div>
@@ -361,11 +361,6 @@
         <a class="dl" href="profiles/green-beans.json" download="green-beans-vpd-profile.json">⬇ Download profile</a>
       </div>
       <div class="crop reveal">
-        <div class="crop-top"><span class="ico">🫛</span><div><h3>Peas</h3><div class="kind">Cool-season podding</div></div></div>
-        <p>Cool · 13–21 °C · VPD 0.45–1.05 kPa.</p>
-        <a class="dl" href="profiles/peas.json" download="peas-vpd-profile.json">⬇ Download profile</a>
-      </div>
-      <div class="crop reveal">
         <div class="crop-top"><span class="ico">🍈</span><div><h3>Melon</h3><div class="kind">Warm-season fruiting</div></div></div>
         <p>Warm · 24–30 °C · VPD 0.5–1.5 kPa.</p>
         <a class="dl" href="profiles/melon.json" download="melon-vpd-profile.json">⬇ Download profile</a>
@@ -382,7 +377,7 @@
       <div class="step reveal"><span class="num">2</span><h4>Open the Syslog tab</h4><p>On your controller dashboard, open the <strong>Syslog</strong> tab and find the <strong>Backup &amp; Restore</strong> card.</p></div>
       <div class="step reveal"><span class="num">3</span><h4>Restore from Backup</h4><p>Click <strong>⬆ Restore from Backup</strong>, pick the file. The device reboots and applies the crop's stage targets — WiFi, relays and irrigation stay as they are.</p></div>
     </div>
-    <p class="lead" style="margin:2rem auto 0; font-size:.85rem; color:var(--dim)">Starting points from greenhouse / CEA horticulture references — always fine-tune to your cultivar and room. Stage slots map: Seedling → Vegetative → Early Fruit → Late Fruit → Hold/Dry.</p>
+    <p class="lead" style="margin:2rem auto 0; font-size:.85rem; color:var(--dim)">Starting points from greenhouse / CEA horticulture references — always fine-tune to your cultivar and room. Stage slots: Seedling → Vegetative → Early Bloom → Late Bloom → Harvest.</p>
   </div>
 </section>
 

@@ -381,6 +381,17 @@ section { margin-bottom:1rem; }
 
 /* Schedule section */
 .sched-body { display: flex; flex-direction: column; gap: .4rem; }
+.sched-summary {
+  font-size: .78rem; color: var(--muted); line-height: 1.4;
+  background: var(--bg); border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  border-radius: 6px; padding: .4rem .55rem;
+}
+.sched-summary.on { border-left-color: var(--green); }
+.sched-edit-label {
+  font-size: .68rem; color: var(--muted); text-transform: uppercase;
+  letter-spacing: .05em; margin-top: .15rem;
+}
 .sched-slot { display: flex; align-items: center; gap: .28rem; }
 .sched-slot input[type=number]::-webkit-outer-spin-button,
 .sched-slot input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
@@ -951,7 +962,7 @@ body.split-active #paneLeft main { max-width:none; }
       <option value="1">🍃 Vegetative</option>
       <option value="2">🌸 Early Bloom</option>
       <option value="3">🌺 Late Bloom</option>
-      <option value="4">🍂 Drying</option>
+      <option value="4">🍂 Harvest</option>
     </select>
     <span id="stageDayBadge" style="font-size:.68rem;color:var(--muted);padding-right:.2rem"></span>
     <button onclick="rebootESP()" style="font-size:.62rem;padding:.15rem .5rem;background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:5px;cursor:pointer;align-self:flex-end" title="Restart ESP32">↺ Restart</button>
@@ -1539,6 +1550,18 @@ body.split-active #paneLeft main { max-width:none; }
 
 <!-- ─── Profiles tab ──────────────────────────────────────────────────────────── -->
 <div id="tab-profiles" style="display:none;padding:.5rem 0">
+  <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin:.2rem 0 .75rem">
+    <label style="cursor:pointer" title="Load a crop profile downloaded from the project landing page. The device applies the stage targets and reboots.">
+      <input type="file" id="loadProfileFile" accept=".json" style="display:none"
+             onchange="uploadRestore(this,'profileLoadStatus')">
+      <span class="btn-sm" style="background:var(--green,#16a34a);color:#fff;font-size:.82rem;cursor:pointer">
+        ⬆ Load downloaded profile
+      </span>
+    </label>
+    <span id="profileLoadStatus" style="font-size:.8rem;color:var(--muted)"></span>
+    <a href="https://bn-jo.github.io/VPDcontrol/#profiles" target="_blank" rel="noopener"
+       style="font-size:.78rem;color:var(--blue);text-decoration:none;margin-left:auto">Get crop profiles ↗</a>
+  </div>
   <div class="section-title" style="margin:.2rem 0 .75rem">Grow Stage Profiles — edit targets, save to persist</div>
   <div id="profileGrid" style="display:grid;gap:.75rem"></div>
 </div><!-- end #tab-profiles -->
@@ -1696,7 +1719,7 @@ function handleState(s) {
 }
 
 // ─── Grow-assist: stage progress + watering ETA ───────────────────────────────
-const _STAGE_NAMES     = ['Seedling','Vegetative','Early Bloom','Late Bloom','Drying'];
+const _STAGE_NAMES     = ['Seedling','Vegetative','Early Bloom','Late Bloom','Harvest'];
 const _STAGE_AUTO_DAYS = [0, 0, 21, 0, 0];   // auto-transition trigger day per stage (0 = manual only)
 const _STAGE_NEXT_NAME = ['','','Late Bloom','',''];
 
@@ -1973,6 +1996,55 @@ function fmtDuration(sec) {
   return `${s}s`;
 }
 
+// Compute the live status of a saved relay schedule — mirrors firmware tickSchedule().
+// sc = { slots:[{sh,sm,eh,em}], days } with days bit0=Mon … bit6=Sun.
+// Returns { active, html } or null when there is no schedule to describe.
+function schedStatus(sc) {
+  const slots = (sc && sc.slots && sc.slots.length) ? sc.slots : null;
+  const days  = sc ? (sc.days || 0) : 0;
+  if (!slots) return null;
+  if (days === 0) return { active: false, html: 'No days selected — schedule inactive' };
+
+  const p2     = n => String(n).padStart(2, '0');
+  const now    = new Date();
+  const dayBit = d => (d.getDay() === 0) ? 6 : d.getDay() - 1;   // Sun→6, Mon→0
+  const nowSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+  const DOW    = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+  // Currently inside a window? (today's day bit set, with midnight-wrap rule)
+  if (days & (1 << dayBit(now))) {
+    for (const sl of slots) {
+      const st = sl.sh * 3600 + sl.sm * 60;
+      const en = sl.eh * 3600 + sl.em * 60;
+      const inWin = (en <= st) ? (nowSec >= st || nowSec < en) : (nowSec >= st && nowSec < en);
+      if (inWin) {
+        let rem = en - nowSec; if (rem <= 0) rem += 86400;
+        return { active: true,
+          html: `<span style="color:var(--green);font-weight:700">● ON now</span> · off at ${p2(sl.eh)}:${p2(sl.em)} (${fmtDuration(rem)} left)` };
+      }
+    }
+  }
+
+  // Otherwise find the soonest upcoming turn-on within the next 7 days
+  let best = null;
+  for (let ahead = 0; ahead < 8; ahead++) {
+    const d = new Date(now); d.setDate(now.getDate() + ahead);
+    const bit = dayBit(d);
+    if (!(days & (1 << bit))) continue;
+    for (const sl of slots) {
+      const evSec = ahead * 86400 + (sl.sh * 3600 + sl.sm * 60) - nowSec;
+      if (evSec <= 0) continue;                       // already passed
+      if (best === null || evSec < best.secs) {
+        const when = ahead === 0 ? 'today' : ahead === 1 ? 'tomorrow' : DOW[bit];
+        best = { secs: evSec, when, hh: sl.sh, mm: sl.sm };
+      }
+    }
+  }
+  if (!best) return { active: false, html: 'No upcoming start time' };
+  return { active: false,
+    html: `Next ON: <strong style="color:var(--text)">${best.when} ${p2(best.hh)}:${p2(best.mm)}</strong> · in ${fmtDuration(best.secs)}` };
+}
+
 // ─── Phase badge (header) ─────────────────────────────────────────────────────
 function updatePhaseBadge(ls) {
   const el = document.getElementById('phaseBadge');
@@ -1981,7 +2053,7 @@ function updatePhaseBadge(ls) {
   if (ls.onHours === 0) {
     // Drying: lights always off
     el.className = 'phase-badge night';
-    el.textContent = '🌑 Drying';
+    el.textContent = '🌑 Harvest';
   } else if (ls.onHours === 24) {
     // Seedling 24/7
     el.className = 'phase-badge day';
@@ -2508,6 +2580,9 @@ function renderRelayCard(card, r, force) {
     const schedPendingNote = isPending
       ? `<div style="font-size:.72rem;color:var(--yellow);margin-bottom:.4rem">&#9888; Not active yet — click Apply to start</div>`
       : '';
+    // Saved-schedule summary: shows when the relay next turns on (or that it's on now)
+    const ss          = isPending ? null : schedStatus(sc);
+    const schedSummary = ss ? `<div class="sched-summary${ss.active ? ' on' : ''}">${ss.html}</div>` : '';
 
     let slotRows, schedExtra = '';
     if (r.id === WATERING_ID) {
@@ -2563,6 +2638,8 @@ function renderRelayCard(card, r, force) {
     }
     body = `<div class="sched-body">
       ${schedPendingNote}
+      ${schedSummary}
+      <div class="sched-edit-label">Edit schedule</div>
       ${slotRows}
       ${schedExtra}
       ${slots.length < 4 ? `<button class="sched-add" onclick="addSchedSlot(${r.id})">+ Add time</button>` : ''}
@@ -2593,7 +2670,7 @@ function renderRelayCard(card, r, force) {
 }
 
 // ─── User actions → WebSocket ─────────────────────────────────────────────────
-const STAGE_NAMES = ['Seedling', 'Vegetative', 'Early Bloom', 'Late Bloom', 'Drying'];
+const STAGE_NAMES = ['Seedling', 'Vegetative', 'Early Bloom', 'Late Bloom', 'Harvest'];
 let _pendingStage = null;
 
 function requestStageChange(newMode) {
@@ -2608,7 +2685,7 @@ function requestStageChange(newMode) {
   document.getElementById('mToStage').textContent    = STAGE_NAMES[newMode];
   document.getElementById('mConfirmBtn').textContent = 'Change to ' + STAGE_NAMES[newMode];
   document.getElementById('mModalBody').innerHTML = (newMode === 4)
-    ? 'Lights will turn <strong>OFF</strong> and the system will hold drying conditions. Use the <strong>Slow / Fast</strong> toggle to switch speed at any time — the day counter keeps running.'
+    ? 'Lights will turn <strong>OFF</strong> and the system will hold harvest/drying conditions. Use the <strong>Slow / Fast</strong> toggle to switch speed at any time — the day counter keeps running.'
     : 'This <strong>cannot be undone</strong>. Wrong timing — especially switching to blooming early — can permanently harm your plants. Only proceed if you are certain.';
   document.getElementById('stageModal').classList.add('visible');
   // Revert the dropdown — confirmed stage hasn't changed yet
@@ -2669,7 +2746,7 @@ function applyDryToggle(isDrying, fast) {
         badge = document.createElement('div');
         badge.className = 'relay-dry-badge';
         badge.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:.75rem;color:var(--muted);font-weight:600;pointer-events:none;';
-        badge.textContent = 'Disabled — drying stage';
+        badge.textContent = 'Disabled — harvest stage';
         waterCard.style.position = 'relative';
         waterCard.appendChild(badge);
       }
@@ -3801,7 +3878,7 @@ function updatePlantMood(s) {
     if (sev === 0) {
       // ── All good ──────────────────────────────────────────────────────────────
       if (!lights) {
-        if (s.growMode === 4) { emoji='🌬️'; msg='"drying"'; cardCls=''; }
+        if (s.growMode === 4) { emoji='🌬️'; msg='"harvest"'; cardCls=''; }
         else                  { emoji='💤'; msg='"lights out — resting"'; cardCls=''; }
       } else if (isWatering) {
         emoji='💧'; msg='"drinking — roots getting fed"'; cardCls='green';
@@ -3815,7 +3892,7 @@ function updatePlantMood(s) {
       // ── Only minor notices (score=1) — calm, no colour ───────────────────────
       // Night: plants resting, drift is expected
       if (!lights) {
-        if (s.growMode === 4) { emoji='🌬️'; msg='"drying"'; cardCls=''; }
+        if (s.growMode === 4) { emoji='🌬️'; msg='"harvest"'; cardCls=''; }
         else                  { emoji='💤'; msg='"resting"'; cardCls=''; }
       } else if (nAny >= 2) {
         const parts = [];
@@ -3936,7 +4013,7 @@ function updateIrrigationTab(s) {
   }
 
   const stLine = document.getElementById('irrigStatusLine');
-  const stageNames = ['Seedling','Veg','Bloom','Drying'];
+  const stageNames = ['Seedling','Veg','Bloom','Harvest'];
   if (stLine) stLine.textContent = irr.precisionEnabled
     ? 'Active — ' + (stageNames[irr.activeStage] || '') + ' profile'
     : 'Disabled — use Timer / Schedule on the Relay card';
@@ -4267,7 +4344,7 @@ function saveFlowRate(btn) {
 }
 
 // ─── Stage profiles table ──────────────────────────────────────────────────────
-const IRRIG_STAGE_NAMES = ['Seedling', 'Veg', 'Bloom', 'Drying'];
+const IRRIG_STAGE_NAMES = ['Seedling', 'Veg', 'Bloom', 'Harvest'];
 let _stageFlowML = 0;
 
 function _fmtMxMl(minutes, flowML) {
@@ -4506,10 +4583,10 @@ function loadEventLog() {
 }
 
 // ─── Backup restore upload ─────────────────────────────────────────────────────
-function uploadRestore(input) {
+function uploadRestore(input, statusId) {
   const file = input.files[0];
   if (!file) return;
-  const st = document.getElementById('restoreStatus');
+  const st = document.getElementById(statusId || 'restoreStatus');
   if (st) st.textContent = 'Uploading…';
   const xhr = new XMLHttpRequest();
   xhr.open('POST', BASE + '/api/restore');
@@ -4655,7 +4732,7 @@ function mockSchedForMode(mode) {
 
 // ─── Profile editor ───────────────────────────────────────────────────────────
 const PROF_ICONS  = ['🌱','🍃','🌸','🌺','🍂'];
-const PROF_NAMES  = ['Seedling','Vegetative','Early Bloom','Late Bloom','Drying'];
+const PROF_NAMES  = ['Seedling','Vegetative','Early Bloom','Late Bloom','Harvest'];
 let _dirtyProfileCards = new Set();  // cards with unsaved edits — skip auto-refresh
 
 // Mirrors PROFILE_DEFAULTS in climate.cpp — used to highlight customised values

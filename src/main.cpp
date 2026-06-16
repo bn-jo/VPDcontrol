@@ -410,7 +410,7 @@ void loop() {
             lastGrowMode = modeNow;
             if (lastGrowMode != (GrowMode)255) {  // skip the initial sentinel value
                 static const char* stageNames[] = {
-                    "Seedling","Veg","Early Bloom","Late Bloom","Drying"
+                    "Seedling","Veg","Early Bloom","Late Bloom","Harvest"
                 };
                 char detail[48];
                 snprintf(detail, sizeof(detail), "%s day=%lu",
