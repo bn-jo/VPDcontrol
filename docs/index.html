@@ -123,13 +123,22 @@
   }
   .pane-bar .dot{width:7px;height:7px;border-radius:50%;background:var(--green-br);box-shadow:0 0 8px var(--green-br);flex:none}
   .pane-bar .room-stage{color:var(--muted); font-weight:500}
-  .pane-view{position:relative; height:300px; overflow:hidden}
-  .pane-view img{position:absolute; top:0; left:0; width:100%; height:auto; display:block}
-  .split-pane:nth-child(2) .pane-view img{top:-36px}
+  .pane-view{padding:.85rem; display:flex; flex-direction:column; gap:.6rem; background:var(--card2)}
+  .mini-metrics{display:grid; grid-template-columns:repeat(2,1fr); gap:.55rem}
+  .m{background:var(--card); border:1px solid var(--border); border-radius:10px; padding:.6rem .7rem; display:flex; flex-direction:column; gap:.12rem}
+  .m .ml{font-size:.6rem; text-transform:uppercase; letter-spacing:.06em; color:var(--muted)}
+  .m .mv{font-size:1.5rem; font-weight:800; color:var(--green-br); line-height:1.05}
+  .m .mv i{font-size:.72rem; font-weight:600; color:var(--muted); font-style:normal; margin-left:.15rem}
+  .m .ms{font-size:.6rem; font-weight:700; color:var(--green); text-transform:uppercase; letter-spacing:.04em}
+  .m .ms.warn{color:var(--amber)}
+  .mini-stage{background:var(--card); border:1px solid var(--border); border-radius:10px; padding:.55rem .7rem; display:flex; flex-direction:column; gap:.45rem}
+  .mini-stage-top{display:flex; justify-content:space-between; align-items:center; font-size:.74rem; font-weight:700}
+  .mini-stage-top .ph{color:var(--muted); font-weight:600}
+  .mini-bar{height:6px; background:var(--bg); border-radius:4px; overflow:hidden}
+  .mini-bar span{display:block; height:100%; background:linear-gradient(90deg,var(--green),var(--green-br))}
   @media(max-width:640px){
     .split-frame{flex-direction:column}
     .split-pane + .split-pane{border-left:0; border-top:2px solid var(--border2)}
-    .pane-view{height:240px}
   }
 
   /* Sections */
@@ -277,11 +286,33 @@
         <div class="split-frame">
           <div class="split-pane">
             <div class="pane-bar"><span class="dot"></span> 🌿 Grow Room 1 <span class="room-stage">· Vegetative</span></div>
-            <div class="pane-view"><img src="dashboard.png" alt="Grow Room 1 dashboard in split view" loading="lazy"></div>
+            <div class="pane-view">
+              <div class="mini-metrics">
+                <div class="m"><span class="ml">Temp</span><span class="mv">24.6<i>°C</i></span><span class="ms">Optimal</span></div>
+                <div class="m"><span class="ml">Humidity</span><span class="mv">66<i>%</i></span><span class="ms">Optimal</span></div>
+                <div class="m"><span class="ml">VPD</span><span class="mv">0.98<i>kPa</i></span><span class="ms">In range</span></div>
+                <div class="m"><span class="ml">Soil</span><span class="mv">61<i>%</i></span><span class="ms">Moist</span></div>
+              </div>
+              <div class="mini-stage">
+                <div class="mini-stage-top"><span>🍃 Vegetative · Day 21</span><span class="ph">18 / 6</span></div>
+                <div class="mini-bar"><span style="width:42%"></span></div>
+              </div>
+            </div>
           </div>
           <div class="split-pane">
             <div class="pane-bar"><span class="dot"></span> 🌸 Grow Room 2 <span class="room-stage">· Bloom</span></div>
-            <div class="pane-view"><img src="dashboard.png" alt="Grow Room 2 dashboard in split view" loading="lazy"></div>
+            <div class="pane-view">
+              <div class="mini-metrics">
+                <div class="m"><span class="ml">Temp</span><span class="mv">26.8<i>°C</i></span><span class="ms">Optimal</span></div>
+                <div class="m"><span class="ml">Humidity</span><span class="mv">51<i>%</i></span><span class="ms warn">Low</span></div>
+                <div class="m"><span class="ml">VPD</span><span class="mv">1.41<i>kPa</i></span><span class="ms">In range</span></div>
+                <div class="m"><span class="ml">Soil</span><span class="mv">43<i>%</i></span><span class="ms warn">Dry-back</span></div>
+              </div>
+              <div class="mini-stage">
+                <div class="mini-stage-top"><span>🌺 Late Bloom · Day 48</span><span class="ph">12 / 12</span></div>
+                <div class="mini-bar"><span style="width:84%"></span></div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
