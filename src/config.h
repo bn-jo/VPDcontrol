@@ -3,6 +3,7 @@
 #include "secrets.h"   // WiFi / web-auth / OTA / DuckDNS credentials (gitignored)
 
 // ─── GPIO ────────────────────────────────────────────────────────────────────
+// Grow-room T/RH sensor: AM2301 (single-bus, DHT22-compatible protocol — read as DHTesp::DHT22)
 #define DHT_PIN              4   // GPIO4 — reliable general-purpose IO, not used by any peripheral
 #define DHT_TYPE            DHT22
 
@@ -83,6 +84,14 @@
 // humidifier is suppressed — the A/C is about to stop dehumidifying and
 // humidity will spike; adding moisture now makes the spike worse.
 #define AC_PRESHUTDOWN_MARGIN  2.0f   // °C
+
+// ─── A/C continuous-run floor ─────────────────────────────────────────────────
+// Cutting A/C power is costly: after an off cycle the compressor takes a long
+// time to cool back to full power. So the A/C is kept running as continuously as
+// possible — the TOP FAN trims temperature above acLow instead of cycling the
+// A/C. The A/C is only cut if the room actually over-cools this many °C BELOW its
+// low target despite the fan being idled (safety floor against freezing the room).
+#define AC_CONTINUOUS_FLOOR    1.5f   // °C below acLow before the A/C finally cuts
 
 // ─── Predictive A/C (learned hot-hours window) ───────────────────────────────
 // The controller scans logs.csv to find each day's hot window — the contiguous

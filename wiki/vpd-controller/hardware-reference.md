@@ -5,13 +5,13 @@
 
 ## Overview
 
-The controller runs on an ESP32 Dev Module connected to a single 8-channel relay module, a DHT22 sensor, and a capacitive soil moisture probe. Two previously-used IR pins are now unused after IR blaster removal.
+The controller runs on an ESP32 Dev Module connected to a single 8-channel relay module, an AM2301 (DHT22-compatible) sensor, and a capacitive soil moisture probe. Two previously-used IR pins are now unused after IR blaster removal.
 
 ## GPIO Pin Map
 
 | GPIO | Component | Notes |
 |------|-----------|-------|
-| 4 | DHT22 (temp/humidity) | DHTesp library |
+| 4 | AM2301 (temp/humidity) | DHTesp library, read as DHT22 |
 | 26 | Relay 1 — Top Fan | |
 | 27 | Relay 2 — Bottom Fan | Exhausts TO THE ROOM (not intake); recycles grow-light heat |
 | 14 | Relay 3 — Humidifier | Active 24/7; night VPD targets throttle duty naturally |

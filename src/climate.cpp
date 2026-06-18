@@ -590,13 +590,17 @@ void ClimateController::computeOutputs(const SensorData& sd) {
                 want = vpdWet || humHigh;
             }
         }
-        // A/C efficiency interlock: while the A/C is actively cooling, idle the top
-        // fan — in exhaust it blows the chilled air straight out, in intake it draws
-        // warm room air in; either way it throws away the A/C's cooling power (which
-        // is now split across two tents, so it's precious). Mold safety (humHigh)
-        // still forces it on, and RelayManager's maxOffSec smell-burst still gives
-        // Bloom/Drying its periodic exhaust through the carbon filter.
-        if (relays.get(DEHUMIDIFIER).physicalOn && !humHigh) want = false;
+        // A/C TEMPERATURE TRIM: the A/C is kept running as continuously as possible
+        // (see the A/C block — cycling it off is costly). Instead of cutting the A/C,
+        // the TOP FAN trims the temperature: empirically the fan LOWERS grow room temp
+        // when the A/C runs (it distributes the chilled air rather than dumping it out;
+        // the old "idle the fan to save A/C cooling" assumption was backwards here).
+        //   • temp above the A/C low target → fan ON  (adds cooling, pulls temp down)
+        //   • temp at/below the low target  → fan OFF (less cooling, lets temp drift UP)
+        // Mold safety (humHigh) still forces the fan on, and the relay's min ON/OFF
+        // timers prevent chatter at the boundary.
+        // (DEHUMIDIFIER index == the A/C relay, historical naming swap.)
+        if (relays.get(DEHUMIDIFIER).physicalOn && !humHigh) want = (t > acLow);
         if (!relays.get(TOP_FAN).installed) want = false;
         _topFanOn = want;
         relays.setAutoState(TOP_FAN, want);
@@ -760,7 +764,11 @@ void ClimateController::computeOutputs(const SensorData& sd) {
     {
         bool want;
         if (_acOn) {
-            want = t > acLow;       // running: keep going until floor is reached
+            // Keep the A/C running as continuously as possible — cutting power is
+            // costly (slow to cool back to full power after an off cycle). The top
+            // fan trims temperature above acLow, so only cut the A/C if the room
+            // actually over-cools past the safety floor despite the fan being idled.
+            want = t > (acLow - AC_CONTINUOUS_FLOOR);
         } else {
             want = t >= acTurnOn;   // idle: kick in at ceiling, or at floor inside hot window
         }

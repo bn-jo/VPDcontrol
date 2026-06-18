@@ -18,7 +18,7 @@ This prevents network jitter from affecting control timing and vice versa.
 
 ## Sensor Pipeline
 
-1. DHT22 reads raw temperature and humidity every 100ms
+1. AM2301 reads raw temperature and humidity every 100ms
 2. 12-sample rolling average (~120s smoothing window) applied before any control decision
 3. VPD calculated as: `SVP(leaf_temp) - actual_vapour_pressure` where `leaf_temp = air_temp - 2°C`
 4. Smoothed values feed the climate control logic

@@ -49,7 +49,7 @@ A full wiring diagram is included: [`wiring_diagram.svg`](wiring_diagram.svg).
             ┌──────────────────────── ESP32 ────────────────────────┐
             │                                                        │
   Sensors ──┤  Core 0: control task (FreeRTOS, ~100 ms tick)         │
-  DHT22     │    sensor read → rolling average → VPD → relay logic   │
+  AM2301    │    sensor read → rolling average → VPD → relay logic   │
   DHT11     │                                                        ├── 8× Relays
   Soil ADC  │  Core 1: WiFi · AsyncWebServer · WebSocket broadcast   │   (fans, RH,
   WiFi nodes│    serves gzip-embedded SPA · OTA · NVS/LittleFS I/O   │    heat, A/C,
@@ -77,7 +77,7 @@ A full wiring diagram is included: [`wiring_diagram.svg`](wiring_diagram.svg).
 
 | Function            | Component                         | GPIO |
 |---------------------|-----------------------------------|------|
-| Grow Room T/RH sensor    | DHT22                             | 4    |
+| Grow Room T/RH sensor    | AM2301 (DHT22-compatible)         | 4    |
 | Intake/room sensor  | DHT11                             | 16   |
 | Soil moisture       | Capacitive probe (ADC1)           | 35   |
 | Relay 1 — Top fan   | 8-channel relay board             | 26   |

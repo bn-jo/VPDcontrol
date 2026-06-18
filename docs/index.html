@@ -357,7 +357,7 @@
 <pre>            ┌──────────────────────── <b>ESP32</b> ────────────────────────┐
             │                                                        │
   Sensors ──┤  <b>Core 0</b>: control task (FreeRTOS, ~100 ms tick)         │
-  DHT22     │    sensor read → rolling average → VPD → relay logic   │
+  AM2301    │    sensor read → rolling average → VPD → relay logic   │
   DHT11     │                                                        ├── 8× Relays
   Soil ADC  │  <b>Core 1</b>: WiFi · AsyncWebServer · WebSocket broadcast   │   (fans, RH,
   WiFi nodes│    serves gzip-embedded SPA · OTA · NVS/LittleFS I/O   │    heat, A/C,
@@ -377,7 +377,7 @@
     <p class="lead">A handful of inexpensive modules — no proprietary hardware.</p>
     <div class="hw">
       <div class="row"><span>ESP32 dev board</span><span>dual-core MCU + WiFi</span></div>
-      <div class="row"><span>DHT22 / DHT11</span><span>temp + humidity</span></div>
+      <div class="row"><span>AM2301 / DHT11</span><span>temp + humidity</span></div>
       <div class="row"><span>Capacitive soil probe</span><span>ADC moisture</span></div>
       <div class="row"><span>8-channel relay board</span><span>active-low, opto-isolated</span></div>
       <div class="row"><span>Fans · humidifier · heat mat</span><span>switched loads</span></div>
