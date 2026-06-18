@@ -41,6 +41,10 @@ ESP32.*
 
 A full wiring diagram is included: [`wiring_diagram.svg`](wiring_diagram.svg).
 
+Wiring & assembly guide — how the build actually looks:
+
+![Wiring & assembly guide](wiring_assembly_guide.png)
+
 ---
 
 ## Architecture
