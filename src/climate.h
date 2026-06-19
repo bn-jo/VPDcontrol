@@ -88,7 +88,8 @@ public:
     const GrowProfile&    getProfile()          const { return _profiles[_mode]; }
     const GrowProfile&    getProfileByMode(GrowMode m) const { return _profiles[m]; }
     void                  setMode(GrowMode m);
-    void                  setProfile(GrowMode mode, const DayNightRange& day, const DayNightRange& night);
+    void                  setProfile(GrowMode mode, const DayNightRange& day, const DayNightRange& night,
+                                     uint8_t lightOnHours, uint8_t lightOffHours);
     void                  resetProfile(GrowMode mode);
     void                  setDryingFast(bool fast);  // switch slow↔fast without resetting day counter
     bool                  isDryingFast()   const { return _dryingFast;  }

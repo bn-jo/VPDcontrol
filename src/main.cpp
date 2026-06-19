@@ -20,6 +20,7 @@
 #include "syslog.h"
 #include "crashlog.h"
 #include "eventlog.h"
+#include "diary.h"
 #include "irremote.h"
 
 static TaskHandle_t _controlTaskHandle = nullptr;
@@ -219,6 +220,7 @@ void setup() {
     }
     logger.begin();   // mounts LittleFS — must come before climate.begin()
     eventlogBegin();  // count existing events (LittleFS already mounted)
+    diaryBegin();     // count existing grow-diary entries
     eventlog("BOOT", _bootReason);  // persist this boot's reason across future reboots
     climate.begin();
     relays.setIrrigMode((uint8_t)climate.getMode());  // sync initial stage profile

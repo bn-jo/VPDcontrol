@@ -16,8 +16,8 @@ dashboard, with no cloud dependency.
 - **VPD-based climate control** — temperature + humidity are combined into VPD
   and regulated with asymmetric hysteresis and per-stage day/night targets.
 - **Grow-stage profiles** — Seedling → Vegetative → Early Bloom → Late Bloom →
-  Drying, each with its own targets, photoperiod and irrigation schedule. Stages
-  auto-advance on an NTP-backed clock.
+  Drying, each with its own targets, irrigation schedule and an editable
+  photoperiod (hours of light / dark). Stages auto-advance on an NTP-backed clock.
 - **Precision irrigation** — pulse/soak watering with substrate profiles (soil,
   coco, perlite) and dry-back targets, logged to flash.
 - **Live web dashboard** — single-page UI served straight from the ESP32, with
@@ -28,6 +28,9 @@ dashboard, with no cloud dependency.
   loop, hardware watchdog, NVS-persisted settings, brown-out-safe scheduling.
 - **Remote-friendly** — over-the-air (OTA) firmware updates, optional DuckDNS
   dynamic DNS, and HTTP Basic Auth for connections from outside the LAN.
+- **Grow diary** — stage changes are logged automatically with the grow-day
+  number, plus your own timestamped notes (feeding, pH, training), all kept on
+  the device.
 - **No cloud, no account** — everything runs on the device; your data never
   leaves your network.
 

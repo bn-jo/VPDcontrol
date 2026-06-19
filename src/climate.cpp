@@ -3,6 +3,7 @@
 #include "syslog.h"
 #include "intakesensor.h"
 #include "datalogger.h"
+#include "diary.h"
 #include <Preferences.h>
 #include <LittleFS.h>
 #include <math.h>
@@ -404,6 +405,7 @@ void ClimateController::checkAutoTransition() {
         _mode = GROW_LATE_BLOOM;
         relays.setIrrigMode((uint8_t)GROW_LATE_BLOOM);
         _stageStartEpoch = continuousStart;
+        diaryAdd('S', stageDay(), _profiles[GROW_LATE_BLOOM].name, "Auto-advanced to Late Bloom");
         // Persist via the dirty flag so loop()'s flushPrefsIfDirty() writes the
         // new mode to NVS on the next tick. This prevents the same transition from
         // re-firing on every subsequent reboot when NVS still shows GROW_BLOOM.
@@ -974,39 +976,55 @@ void ClimateController::loadPrefs() {
 // ─── Profile persistence ──────────────────────────────────────────────────────
 
 // Hardcoded defaults — single source of truth for resetProfile()
-static const struct { DayNightRange day, night; } PROFILE_DEFAULTS[NUM_GROW_MODES] = {
+static const struct { DayNightRange day, night; uint8_t lOn, lOff; } PROFILE_DEFAULTS[NUM_GROW_MODES] = {
     // GROW_SEEDLING
     { { 22.0f, 28.0f, 65.0f, 80.0f, 0.40f, 0.80f, 0.60f },
-      { 20.0f, 26.0f, 70.0f, 85.0f, 0.30f, 0.60f, 0.45f } },
+      { 20.0f, 26.0f, 70.0f, 85.0f, 0.30f, 0.60f, 0.45f }, 24, 0 },
     // GROW_VEG
     { { 20.0f, 26.0f, 50.0f, 70.0f, 0.80f, 1.20f, 1.00f },
-      { 18.0f, 22.0f, 50.0f, 68.0f, 0.50f, 0.90f, 0.70f } },
+      { 18.0f, 22.0f, 50.0f, 68.0f, 0.50f, 0.90f, 0.70f }, 18, 6 },
     // GROW_BLOOM (Early)
     { { 22.0f, 26.0f, 45.0f, 55.0f, 1.00f, 1.40f, 1.20f },
-      { 18.0f, 22.0f, 45.0f, 55.0f, 0.80f, 1.10f, 0.95f } },
+      { 18.0f, 22.0f, 45.0f, 55.0f, 0.80f, 1.10f, 0.95f }, 12, 12 },
     // GROW_LATE_BLOOM
     { { 20.0f, 25.0f, 35.0f, 45.0f, 1.30f, 1.80f, 1.55f },
-      { 16.0f, 21.0f, 35.0f, 45.0f, 1.00f, 1.40f, 1.20f } },
+      { 16.0f, 21.0f, 35.0f, 45.0f, 1.00f, 1.40f, 1.20f }, 12, 12 },
     // GROW_DRYING (slow — fast mode overrides at runtime)
     { { 15.0f, 18.0f, 55.0f, 62.0f, 0.50f, 0.80f, 0.65f },
-      { 15.0f, 18.0f, 55.0f, 62.0f, 0.50f, 0.80f, 0.65f } },
+      { 15.0f, 18.0f, 55.0f, 62.0f, 0.50f, 0.80f, 0.65f }, 0, 24 },
 };
 
 struct __attribute__((packed)) ProfileBlob {
     float dtMin, dtMax, dhMin, dhMax, dvMin, dvMax;
     float ntMin, ntMax, nhMin, nhMax, nvMin, nvMax;
+    uint8_t lOn, lOff;   // light schedule: hours on / hours off
 };
 
-void ClimateController::setProfile(GrowMode mode, const DayNightRange& day, const DayNightRange& night) {
-    _profiles[mode].day   = day;
-    _profiles[mode].night = night;
+// Pre-v2 blob layout (no light-hour fields) — kept for backward-compatible load
+struct __attribute__((packed)) ProfileBlobV1 {
+    float dtMin, dtMax, dhMin, dhMax, dvMin, dvMax;
+    float ntMin, ntMax, nhMin, nhMax, nvMin, nvMax;
+};
+
+void ClimateController::setProfile(GrowMode mode, const DayNightRange& day, const DayNightRange& night,
+                                   uint8_t lightOnHours, uint8_t lightOffHours) {
+    _profiles[mode].day           = day;
+    _profiles[mode].night         = night;
+    _profiles[mode].lightOnHours  = lightOnHours;
+    _profiles[mode].lightOffHours = lightOffHours;
     _profilePrefsDirty = true;  // flushed from Core 1 in loop()
+    // If editing the active stage, refresh the live light schedule (keeps running
+    // clock; tick() rolls to the next phase if the new length is already exceeded).
+    if (mode == _mode) _sched.onModeChange(_mode, _profiles);
 }
 
 void ClimateController::resetProfile(GrowMode mode) {
-    _profiles[mode].day   = PROFILE_DEFAULTS[mode].day;
-    _profiles[mode].night = PROFILE_DEFAULTS[mode].night;
+    _profiles[mode].day           = PROFILE_DEFAULTS[mode].day;
+    _profiles[mode].night         = PROFILE_DEFAULTS[mode].night;
+    _profiles[mode].lightOnHours  = PROFILE_DEFAULTS[mode].lOn;
+    _profiles[mode].lightOffHours = PROFILE_DEFAULTS[mode].lOff;
     _profilePrefsDirty = true;
+    if (mode == _mode) _sched.onModeChange(_mode, _profiles);
     // Re-apply fast-dry override if resetting the drying profile while fast mode is active
     if (mode == GROW_DRYING && _dryingFast) {
         const DayNightRange fast_ = { 20.0f, 22.0f, 45.0f, 55.0f, 0.90f, 1.20f, 1.05f };
@@ -1024,6 +1042,7 @@ void ClimateController::saveProfilePrefs() {
         blobs[i].ntMin = _profiles[i].night.tempMin;  blobs[i].ntMax = _profiles[i].night.tempMax;
         blobs[i].nhMin = _profiles[i].night.humMin;   blobs[i].nhMax = _profiles[i].night.humMax;
         blobs[i].nvMin = _profiles[i].night.vpdMin;   blobs[i].nvMax = _profiles[i].night.vpdMax;
+        blobs[i].lOn   = _profiles[i].lightOnHours;   blobs[i].lOff  = _profiles[i].lightOffHours;
     }
     File f = LittleFS.open("/profiles.bin", "w");
     if (!f) { rlog("[PROFCFG] ERROR: cannot open /profiles.bin for write"); return; }
@@ -1063,21 +1082,35 @@ void ClimateController::flushProfilePrefsIfDirty() {
 void ClimateController::loadProfilePrefs() {
     File f = LittleFS.open("/profiles.bin", "r");
     if (!f) { rlog("[PROFCFG] No /profiles.bin — using defaults"); return; }
-    ProfileBlob blobs[NUM_GROW_MODES];
-    size_t readBytes = f.read((uint8_t*)blobs, sizeof(blobs));
-    f.close();
-    if (readBytes != sizeof(blobs)) {
-        rlog("[PROFCFG] profiles.bin size mismatch (%u/%u) — using defaults",
-             (unsigned)readBytes, (unsigned)sizeof(blobs));
+    size_t fileSize = f.size();
+
+    // Legacy file (pre light-hours) → load ranges only, keep default light hours.
+    bool legacy = (fileSize == sizeof(ProfileBlobV1) * NUM_GROW_MODES);
+    if (!legacy && fileSize != sizeof(ProfileBlob) * NUM_GROW_MODES) {
+        f.close();
+        rlog("[PROFCFG] profiles.bin size mismatch (%u) — using defaults", (unsigned)fileSize);
         return;
     }
+
     for (int i = 0; i < NUM_GROW_MODES; i++) {
-        _profiles[i].day.tempMin   = blobs[i].dtMin;  _profiles[i].day.tempMax   = blobs[i].dtMax;
-        _profiles[i].day.humMin    = blobs[i].dhMin;  _profiles[i].day.humMax    = blobs[i].dhMax;
-        _profiles[i].day.vpdMin    = blobs[i].dvMin;  _profiles[i].day.vpdMax    = blobs[i].dvMax;
-        _profiles[i].night.tempMin = blobs[i].ntMin;  _profiles[i].night.tempMax = blobs[i].ntMax;
-        _profiles[i].night.humMin  = blobs[i].nhMin;  _profiles[i].night.humMax  = blobs[i].nhMax;
-        _profiles[i].night.vpdMin  = blobs[i].nvMin;  _profiles[i].night.vpdMax  = blobs[i].nvMax;
+        ProfileBlob b{};
+        size_t rd = f.read((uint8_t*)&b, legacy ? sizeof(ProfileBlobV1) : sizeof(ProfileBlob));
+        if (rd != (legacy ? sizeof(ProfileBlobV1) : sizeof(ProfileBlob))) {
+            f.close();
+            rlog("[PROFCFG] short read on profile %d — aborting load", i);
+            return;
+        }
+        _profiles[i].day.tempMin   = b.dtMin;  _profiles[i].day.tempMax   = b.dtMax;
+        _profiles[i].day.humMin    = b.dhMin;  _profiles[i].day.humMax    = b.dhMax;
+        _profiles[i].day.vpdMin    = b.dvMin;  _profiles[i].day.vpdMax    = b.dvMax;
+        _profiles[i].night.tempMin = b.ntMin;  _profiles[i].night.tempMax = b.ntMax;
+        _profiles[i].night.humMin  = b.nhMin;  _profiles[i].night.humMax  = b.nhMax;
+        _profiles[i].night.vpdMin  = b.nvMin;  _profiles[i].night.vpdMax  = b.nvMax;
+        if (!legacy) {
+            _profiles[i].lightOnHours  = b.lOn;
+            _profiles[i].lightOffHours = b.lOff;
+        }
     }
-    rlog("[PROFCFG] loaded all profiles from /profiles.bin");
+    f.close();
+    rlog("[PROFCFG] loaded all profiles from /profiles.bin%s", legacy ? " (legacy)" : "");
 }

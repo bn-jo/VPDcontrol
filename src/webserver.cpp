@@ -11,6 +11,7 @@
 #include "syslog.h"
 #include "crashlog.h"
 #include "eventlog.h"
+#include "diary.h"
 #include "irremote.h"
 
 #include <ESPAsyncWebServer.h>
@@ -36,6 +37,7 @@ static char              _wsSensBuf[WIFI_SENSOR_MAX * 220 + 8];
 #define CLEAR_SYS    0x01
 #define CLEAR_EVENT  0x02
 #define CLEAR_CRASH  0x04
+#define CLEAR_DIARY  0x08
 static volatile uint8_t  _clearPending = 0;
 
 // ─── Auth helper ──────────────────────────────────────────────────────────────
@@ -309,6 +311,7 @@ static void buildStateJson(char* buf, size_t bufSize) {
         po["ntMin"] = gp.night.tempMin;  po["ntMax"] = gp.night.tempMax;
         po["nhMin"] = gp.night.humMin;   po["nhMax"] = gp.night.humMax;
         po["nvMin"] = gp.night.vpdMin;   po["nvMax"] = gp.night.vpdMax;
+        po["lOn"]   = gp.lightOnHours;   po["lOff"]  = gp.lightOffHours;
     }
 
     // IR remote state
@@ -390,7 +393,11 @@ static void onWsEvent(AsyncWebSocket*       server,
             night.humMax  = doc["nhMax"] | cur.night.humMax;
             night.vpdMin  = doc["nvMin"] | cur.night.vpdMin;
             night.vpdMax  = doc["nvMax"] | cur.night.vpdMax;
-            climate.setProfile((GrowMode)mode, day, night);
+            uint8_t lOn   = (uint8_t)(doc["lOn"]  | cur.lightOnHours);
+            uint8_t lOff  = (uint8_t)(doc["lOff"] | cur.lightOffHours);
+            if (lOn  > 24) lOn  = 24;
+            if (lOff > 24) lOff = 24;
+            climate.setProfile((GrowMode)mode, day, night, lOn, lOff);
         }
     } else if (strcmp(msgType, "resetProfile") == 0) {
         uint8_t mode = (uint8_t)(doc["mode"] | 0xFF);
@@ -409,7 +416,14 @@ static void onWsEvent(AsyncWebSocket*       server,
             char evtBuf[48];
             snprintf(evtBuf, sizeof(evtBuf), "%s (user)", stageNames[m]);
             eventlog("STAGE", evtBuf);
+            // Grow-diary auto entry: record the stage move with the (reset) day number
+            char dnote[48];
+            snprintf(dnote, sizeof(dnote), "Moved to %s", stageNames[m]);
+            diaryAdd('S', climate.stageDay(), climate.getProfile().name, dnote);
         }
+    } else if (strcmp(msgType, "addDiaryNote") == 0) {
+        const char* note = doc["note"] | "";
+        if (note[0]) diaryAdd('N', climate.stageDay(), climate.getProfile().name, note);
     } else if (strcmp(msgType, "setStageDay") == 0) {
         int d = doc["day"] | 0;
         if (d >= 1) { climate.setStageDay((uint32_t)d); }
@@ -569,6 +583,7 @@ static void onWsEvent(AsyncWebSocket*       server,
         if      (strcmp(what, "sys")   == 0) _clearPending |= CLEAR_SYS;
         else if (strcmp(what, "event") == 0) _clearPending |= CLEAR_EVENT;
         else if (strcmp(what, "crash") == 0) _clearPending |= CLEAR_CRASH;
+        else if (strcmp(what, "diary") == 0) _clearPending |= CLEAR_DIARY;
         else                                 _clearPending |= (CLEAR_SYS | CLEAR_EVENT | CLEAR_CRASH);
     }
 
@@ -816,6 +831,22 @@ void webBegin() {
         req->send(resp);
     });
 
+    // ── Grow diary ───────────────────────────────────────────────────────────
+    // Stream the raw CSV straight from LittleFS (chunked, tiny RAM) — the browser
+    // parses it. Fields are comma-sanitised on write, so CSV stays well-formed.
+    server.on("/api/diary", HTTP_GET, [](AsyncWebServerRequest* req) {
+        if (!checkAuth(req)) return;
+        if (!LittleFS.exists(DIARY_FILE)) {
+            AsyncWebServerResponse* resp = req->beginResponse(200, "text/csv", "");
+            resp->addHeader("Cache-Control", "no-cache");
+            req->send(resp);
+            return;
+        }
+        AsyncWebServerResponse* resp = req->beginResponse(LittleFS, DIARY_FILE, "text/csv");
+        resp->addHeader("Cache-Control", "no-cache");
+        req->send(resp);
+    });
+
     // ── Settings backup ───────────────────────────────────────────────────────
     server.on("/api/backup", HTTP_GET, [](AsyncWebServerRequest* req) {
         if (!checkAuth(req)) return;
@@ -954,7 +985,11 @@ void webBegin() {
                     night.tempMin = p["ntMin"] | cur.night.tempMin; night.tempMax = p["ntMax"] | cur.night.tempMax;
                     night.humMin  = p["nhMin"] | cur.night.humMin;  night.humMax  = p["nhMax"] | cur.night.humMax;
                     night.vpdMin  = p["nvMin"] | cur.night.vpdMin;  night.vpdMax  = p["nvMax"] | cur.night.vpdMax;
-                    climate.setProfile((GrowMode)i, day, night);
+                    uint8_t lOn  = (uint8_t)(p["lOn"]  | cur.lightOnHours);
+                    uint8_t lOff = (uint8_t)(p["lOff"] | cur.lightOffHours);
+                    if (lOn  > 24) lOn  = 24;
+                    if (lOff > 24) lOff = 24;
+                    climate.setProfile((GrowMode)i, day, night, lOn, lOff);
                 }
             }
 
@@ -1068,6 +1103,7 @@ void webBroadcast() {
         _clearPending = 0;
         if (what & CLEAR_EVENT) eventlogClear();
         if (what & CLEAR_CRASH) crashlogClear();
+        if (what & CLEAR_DIARY) diaryClear();
         // Clear the in-RAM syslog last so the confirmation line below survives.
         if (what & CLEAR_SYS)   syslogClear();
         rlog("[LOG] Cleared by user:%s%s%s",

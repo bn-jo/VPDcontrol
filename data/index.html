@@ -984,6 +984,7 @@ body.split-active #paneLeft main { max-width:none; }
   <button class="page-tab"        id="ptab-sensors" onclick="showPageTab('sensors')">📡 Sensors</button>
   <button class="page-tab"        id="ptab-syslog"  onclick="showPageTab('syslog')">🔍 Syslog</button>
   <button class="page-tab"        id="ptab-profiles" onclick="showPageTab('profiles')">🌿 Profiles</button>
+  <button class="page-tab"        id="ptab-diary"   onclick="showPageTab('diary')">📔 Diary</button>
 </nav>
 <div class="alert-banner" id="alertBanner">
   <span class="alert-icon">⚠️</span>
@@ -1565,6 +1566,30 @@ body.split-active #paneLeft main { max-width:none; }
   <div class="section-title" style="margin:.2rem 0 .75rem">Grow Stage Profiles — edit targets, save to persist</div>
   <div id="profileGrid" style="display:grid;gap:.75rem"></div>
 </div><!-- end #tab-profiles -->
+
+<div id="tab-diary" style="display:none;padding:.5rem 0">
+  <div class="section-title" style="margin:.2rem 0 .6rem">📔 Grow Diary — stage changes are logged automatically; add your own notes</div>
+  <div class="card" style="padding:.7rem .9rem;margin-bottom:.75rem">
+    <div style="display:flex;gap:.5rem;align-items:flex-start;flex-wrap:wrap">
+      <input type="text" id="diaryNoteInput" maxlength="120" placeholder="Add a note (e.g. fed nutrients, pH 6.1, defoliated)…"
+        onkeydown="if(event.key==='Enter')addDiaryNote()"
+        style="flex:1;min-width:180px;background:var(--input-bg);border:1px solid var(--border);
+               color:var(--text);border-radius:6px;padding:.45rem .6rem;font-size:.85rem">
+      <button class="btn-apply" onclick="addDiaryNote()" style="white-space:nowrap">＋ Add note</button>
+    </div>
+    <div id="diaryAddStatus" style="font-size:.74rem;color:var(--muted);margin-top:.35rem">
+      Note is stamped with the current grow day and stage.
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:.6rem;margin:.1rem 0 .55rem">
+    <span class="section-title" style="margin:0">History</span>
+    <button onclick="loadDiary()" style="font-size:.74rem;padding:.2rem .55rem;background:transparent;
+            border:1px solid var(--border);color:var(--muted);border-radius:6px;cursor:pointer">↻ Refresh</button>
+    <button onclick="clearDiary(this)" style="font-size:.74rem;padding:.2rem .55rem;background:transparent;
+            border:1px solid var(--border);color:var(--muted);border-radius:6px;cursor:pointer;margin-left:auto">🗑 Clear</button>
+  </div>
+  <div id="diaryList"><span style="color:var(--muted);font-size:.82rem">Loading…</span></div>
+</div><!-- end #tab-diary -->
 
 </main>
 </div><!-- /#paneLeft -->
@@ -3960,7 +3985,7 @@ function updatePlantMood(s) {
 
 // ─── Page tab switching ───────────────────────────────────────────────────────
 function showPageTab(name) {
-  ['dashboard', 'irrigation', 'sensors', 'syslog', 'profiles'].forEach(t => {
+  ['dashboard', 'irrigation', 'sensors', 'syslog', 'profiles', 'diary'].forEach(t => {
     const el  = document.getElementById('tab-' + t);
     const btn = document.getElementById('ptab-' + t);
     if (el)  el.style.display = (t === name) ? '' : 'none';
@@ -3969,6 +3994,7 @@ function showPageTab(name) {
   try { localStorage.setItem('pageTab', name); } catch(_) {}
   if (name === 'irrigation') { loadIrrigHistory(); loadSoilChart(); }
   if (name === 'syslog')     { loadSyslog(); loadCrashHistory(); loadEventLog(); }
+  if (name === 'diary')      { loadDiary(); }
   // Charts shrink to 0 while their tab is display:none — force a remeasure when
   // their tab becomes visible again, otherwise they render small.
   resizeCharts();
@@ -4582,6 +4608,64 @@ function loadEventLog() {
     .catch(err => { if (el) el.textContent = 'Error: ' + err; });
 }
 
+// ─── Grow diary ───────────────────────────────────────────────────────────────
+function loadDiary() {
+  const el = document.getElementById('diaryList');
+  if (el) el.innerHTML = '<span style="color:var(--muted);font-size:.82rem">Loading…</span>';
+  fetch(BASE + '/api/diary')
+    .then(r => r.text())
+    .then(csv => {
+      if (!el) return;
+      // CSV lines: epoch,kind,day,stage,note   (fields are comma-sanitised on write)
+      const entries = csv.split('\n').map(line => {
+        const p = line.split(',');
+        if (p.length < 4) return null;
+        return { ts: +p[0], kind: p[1], day: +p[2], stage: p[3], note: p.slice(4).join(',') };
+      }).filter(Boolean);
+      if (entries.length === 0) {
+        el.innerHTML = '<span style="color:var(--muted);font-size:.82rem">No diary entries yet. Change a grow stage or add a note above.</span>';
+        return;
+      }
+      const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      el.innerHTML = entries.reverse().map(e => {
+        const ts      = e.ts > 1000000000 ? new Date(e.ts * 1000).toLocaleString() : '—';
+        const isStage = e.kind === 'S';
+        const icon    = isStage ? '🔀' : '📝';
+        const accent  = isStage ? 'var(--green)' : 'var(--blue)';
+        return `<div class="card" style="padding:.55rem .8rem;margin-bottom:.5rem;border-left:3px solid ${accent}">
+          <div style="display:flex;justify-content:space-between;gap:.5rem;align-items:baseline;flex-wrap:wrap">
+            <span style="font-weight:600;font-size:.85rem">${icon} ${esc(e.stage)} · Day ${e.day}</span>
+            <span style="font-size:.72rem;color:var(--muted)">${ts}</span>
+          </div>
+          <div style="font-size:.83rem;margin-top:.25rem">${esc(e.note) || '<span style=\"color:var(--muted)\">—</span>'}</div>
+        </div>`;
+      }).join('');
+    })
+    .catch(err => { if (el) el.textContent = 'Error: ' + err; });
+}
+
+function addDiaryNote() {
+  const inp = document.getElementById('diaryNoteInput');
+  const st  = document.getElementById('diaryAddStatus');
+  if (!inp) return;
+  const note = inp.value.trim();
+  if (!note) { inp.focus(); return; }
+  send({ type: 'addDiaryNote', note });
+  inp.value = '';
+  if (st) {
+    st.textContent = '✓ Note saved.';
+    setTimeout(() => { st.textContent = 'Note is stamped with the current grow day and stage.'; }, 2500);
+  }
+  setTimeout(loadDiary, 400);  // let the device persist, then refresh
+}
+
+function clearDiary(btn) {
+  if (!confirm('Clear the entire grow diary? This cannot be undone.')) return;
+  send({ type: 'clearLogs', what: 'diary' });
+  if (btn) { btn.textContent = '✓'; setTimeout(() => { btn.textContent = '🗑 Clear'; }, 1500); }
+  setTimeout(loadDiary, 400);
+}
+
 // ─── Backup restore upload ─────────────────────────────────────────────────────
 function uploadRestore(input, statusId) {
   const file = input.files[0];
@@ -4762,6 +4846,9 @@ function updateProfilesTab(allProfiles, activeMode) {
 function _renderProfileCard(mode, prof, isActive) {
   const def   = PROF_DEFS[mode];
   const isDrying = (mode === 4);
+  const [defOn, defOff] = LIGHT_HOURS[mode] || [18, 6];
+  const lOn  = (prof.lOn  != null) ? prof.lOn  : defOn;
+  const lOff = (prof.lOff != null) ? prof.lOff : defOff;
 
   function inp(id, val, defVal, min, max, step) {
     const mod = Math.abs(val - defVal) > 0.005;
@@ -4817,6 +4904,20 @@ function _renderProfileCard(mode, prof, isActive) {
                        def.d.hMin,def.d.hMax, def.n.hMin,def.n.hMax, 10,99,1)}
       ${row('VPD kPa', prof.dvMin,prof.dvMax, prof.nvMin,prof.nvMax,
                        def.d.vMin,def.d.vMax, def.n.vMin,def.n.vMax, 0.1,3.5,0.05)}
+      <div style="display:grid;grid-template-columns:58px 1fr 1fr;gap:.3rem .5rem;align-items:center;margin-top:.45rem;padding-top:.4rem;border-top:1px solid var(--border)">
+        <span style="font-size:.72rem;color:var(--muted)">💡 Light</span>
+        <div style="display:flex;align-items:center;gap:.25rem">
+          ${inp(`p${mode}_light_on`, lOn, defOn, 0, 24, 1)}
+          <span style="color:var(--muted);font-size:.72rem">h light</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:.25rem">
+          ${inp(`p${mode}_light_off`, lOff, defOff, 0, 24, 1)}
+          <span style="color:var(--muted);font-size:.72rem">h dark</span>
+        </div>
+      </div>
+      <div style="font-size:.66rem;color:var(--muted);margin-top:.25rem">
+        24/0 = always on · 0/24 = always off · e.g. 18/6 veg, 12/12 bloom
+      </div>
       ${dryNote}
       <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:.55rem;padding-top:.4rem;border-top:1px solid var(--border)">
         <button onclick="resetProfile(${mode},this)"
@@ -4855,10 +4956,21 @@ function saveProfile(mode, btn) {
     nhMin: _profVal(mode,'n','hmin'), nhMax: _profVal(mode,'n','hmax'),
     nvMin: _profVal(mode,'n','vmin'), nvMax: _profVal(mode,'n','vmax'),
   };
+  const lOnEl  = document.getElementById(`p${mode}_light_on`);
+  const lOffEl = document.getElementById(`p${mode}_light_off`);
+  if (lOnEl && lOffEl) {
+    msg.lOn  = Math.max(0, Math.min(24, Math.round(parseFloat(lOnEl.value)  || 0)));
+    msg.lOff = Math.max(0, Math.min(24, Math.round(parseFloat(lOffEl.value) || 0)));
+  }
   // Basic validation
   if (msg.dtMin >= msg.dtMax || msg.dhMin >= msg.dhMax || msg.dvMin >= msg.dvMax ||
       msg.ntMin >= msg.ntMax || msg.nhMin >= msg.nhMax || msg.nvMin >= msg.nvMax) {
     btn.textContent = '⚠ min ≥ max'; btn.style.background='var(--red)';
+    setTimeout(() => { btn.textContent='Save'; btn.style.background=''; }, 2000);
+    return;
+  }
+  if (msg.lOn != null && (msg.lOn + msg.lOff) === 0) {
+    btn.textContent = '⚠ light+dark = 0'; btn.style.background='var(--red)';
     setTimeout(() => { btn.textContent='Save'; btn.style.background=''; }, 2000);
     return;
   }

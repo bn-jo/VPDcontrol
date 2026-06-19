@@ -310,7 +310,7 @@
     <p class="lead">A real-time control loop, an embedded single-page dashboard and over-the-air updates — no Raspberry Pi, no external server.</p>
     <div class="grid">
       <div class="feat reveal"><span class="ico">🌡️</span><h3>VPD-based control</h3><p>Temperature and humidity are fused into VPD and regulated with asymmetric hysteresis and per-stage day/night targets.</p></div>
-      <div class="feat reveal"><span class="ico">🌱</span><h3>Grow-stage profiles</h3><p>Seedling → Vegetative → Bloom → Harvest, each with its own targets, photoperiod and irrigation — auto-advancing on an NTP clock.</p></div>
+      <div class="feat reveal"><span class="ico">🌱</span><h3>Grow-stage profiles</h3><p>Seedling → Vegetative → Bloom → Harvest, each with its own targets, irrigation and an editable photoperiod (hours of light / dark) — auto-advancing on an NTP clock.</p></div>
       <div class="feat reveal"><span class="ico">💧</span><h3>Precision irrigation</h3><p>Pulse/soak watering with substrate profiles (soil, coco, perlite) and dry-back targets, logged to flash.</p></div>
       <div class="feat reveal"><span class="ico">📊</span><h3>Live web dashboard</h3><p>Single-page UI served straight from the ESP32, with WebSocket telemetry every 2 s and a zoomable history chart.</p></div>
       <div class="feat reveal"><span class="ico">🔌</span><h3>8-channel relays</h3><p>Fans, humidifier, dehumidifier, heat mat, lights, watering and A/C — each with minimum on/off timers and safety interlocks.</p></div>
@@ -321,6 +321,7 @@
       <div class="feat reveal"><span class="ico">🏠</span><h3>Scale to many rooms</h3><p>Run one ESP32 per grow room — each with its own stage, targets and schedule — then watch them side by side in one split-screen dashboard.</p></div>
       <div class="feat reveal"><span class="ico">📈</span><h3>On-device history</h3><p>Seven days of temperature, humidity, VPD and soil moisture logged to flash, with a zoomable multi-line chart — no external database or cloud.</p></div>
       <div class="feat reveal"><span class="ico">💾</span><h3>Backup &amp; restore</h3><p>Export every setting to a single JSON file, reload it after a reflash, or drop in a ready-made crop profile to retune the whole room in one click.</p></div>
+      <div class="feat reveal"><span class="ico">📔</span><h3>Grow diary</h3><p>Stage changes are logged automatically with the grow-day number, and you can add your own timestamped notes — feeding, pH, training — all kept on the device.</p></div>
     </div>
   </div>
 </section>
